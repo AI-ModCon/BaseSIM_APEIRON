@@ -22,7 +22,10 @@ def main(argv=None) -> int:
     model = load_model(cfg).to(device)
 
     criterion = torch.nn.CrossEntropyLoss(reduction="none")
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+
+    optimizer = torch.optim.Adam(
+        model.parameters(), lr=0.001
+    )  # needs to be put into cl loop
 
     # The dataloaders that keep the memory.
     memory_image = []
@@ -33,27 +36,34 @@ def main(argv=None) -> int:
     images, labels = get_mnist_cl_data()
 
     # The main loop for continual learning
-    # I pull the data for each task and then send it to the CL function
+    # I pull the data for each task=mnist class and then send it to the CL function
+
     for i in range(10):
-        (xTrain, yTrain), (xTest, yTest) = class_selector(images, labels, i)
+
+        class_id = i % 10
+        (xTrain, yTrain), (xTest, yTest) = class_selector(images, labels, class_id)
+
         memory_image.extend(xTrain)
         memory_label.extend(yTrain)
         memory_test.extend(xTest)
         memory_label_test.extend(yTest)
+
         # Send the data and get continual learning.
         model = CL(
-            (
+            data=(
                 (xTrain, yTrain),
-                (memory_image, memory_label),
                 (xTest, yTest),
+                (memory_image, memory_label),
                 (memory_test, memory_label_test),
             ),
-            i,
-            model,
-            criterion,
-            optimizer,
-            device,
+            task_id=class_id,
+            model=model,
+            criterion=criterion,
+            optimizer=optimizer,
+            device=device,
+            cfg=cfg,
         )
+        # input("Press Enter to continue with the next task...")
 
     return 0
 

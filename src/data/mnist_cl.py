@@ -35,7 +35,7 @@ def class_selector(images, labels, task_id):
     )
     # #print("Just after the data is defined", X.shape, y.shape)
     # Split the data
-    print(X.shape, y.shape)
+    # print(X.shape, y.shape)
     index = np.random.randint(0, X.shape[0], int(0.8 * X.shape[0]))
     xtrain = X[index], y[index]
     index = np.random.randint(0, X.shape[0], int(0.2 * X.shape[0]))

@@ -13,6 +13,11 @@ class ModelCfg:
 
 
 @dataclass(frozen=True)
+class TrainCfg:
+    epochs: int
+
+
+@dataclass(frozen=True)
 class DataCfg:
     name: str
     path: str
@@ -24,6 +29,7 @@ class DataCfg:
 class Config:
     model: ModelCfg
     data: DataCfg
+    train: TrainCfg
     seed: int = 0
     version: str = "1"
 
@@ -163,10 +169,13 @@ def build_config(argv=None) -> Config:
     # validate/freeze
     model = ModelCfg(**cfg["model"])
     data = DataCfg(**cfg["data"])
+    train = TrainCfg(**cfg["train"])
+
     final = Config(
         model=model,
         data=data,
-        **{k: v for k, v in cfg.items() if k not in {"model", "data"}},
+        train=train,
+        **{k: v for k, v in cfg.items() if k not in {"model", "data", "train"}},
     )
     Path("resolved_config.json").write_text(json.dumps(asdict(final), indent=2))
     return final

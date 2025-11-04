@@ -7,7 +7,7 @@ from src.validation.valiation_utils import return_score
 from src.validation.validation import test
 
 
-def CL(data, task_id, model, criterion, optimizer, device):
+def CL(data, task_id, model, criterion, optimizer, device, cfg):
     """
     This function is the main function for continual learning. It takes in the data, task id, model, criterion, and optimizer.
     It then constructs the dataloaders for the task and the memory, and sends them to the One_task_CL loop.
@@ -19,14 +19,24 @@ def CL(data, task_id, model, criterion, optimizer, device):
         (memory_image, memory_label),
         (memory_test, memory_label_test),
     ) = data
+
     train_dataset = MyDataset(xTrain, yTrain)
     mem_train_dataset = MyDataset(memory_image, memory_label)
+
     test_dataset = MyDataset(xTest, yTest)
     mem_test_dataset = MyDataset(memory_test, memory_label_test)
-    train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=64, shuffle=True)
-    mem_train_loader = DataLoader(mem_train_dataset, batch_size=64, shuffle=True)
-    mem_test_loader = DataLoader(mem_test_dataset, batch_size=64, shuffle=True)
+
+    train_loader = DataLoader(
+        train_dataset, batch_size=cfg.data.batch_size, shuffle=True
+    )
+    test_loader = DataLoader(test_dataset, batch_size=cfg.data.batch_size, shuffle=True)
+
+    mem_train_loader = DataLoader(
+        mem_train_dataset, batch_size=cfg.data.batch_size, shuffle=True
+    )
+    mem_test_loader = DataLoader(
+        mem_test_dataset, batch_size=cfg.data.batch_size, shuffle=True
+    )
 
     # For now, I am recording all these, we can modify improve these things.
     accuracies_mem = []
@@ -35,10 +45,12 @@ def CL(data, task_id, model, criterion, optimizer, device):
     Gen_loss = []
     For_loss = []
     dict = {}
-    n_epoch = 5
 
+    n_epoch = cfg.train.epochs
+
+    print("Task id is", task_id)
+    print("-------")
     # Send to the actual CL loop
-    print("Starting the task ", task_id)
     (
         model,
         Total_loss,
@@ -49,24 +61,23 @@ def CL(data, task_id, model, criterion, optimizer, device):
         dict,
         scores,
     ) = One_task_CL(
-        train_loader,
-        model,
-        optimizer,
-        n_epoch,
-        criterion,
-        test_loader,
-        mem_train_loader,
-        mem_test_loader,
-        Total_loss,
-        Gen_loss,
-        For_loss,
-        accuracies_mem,
-        accuracies_one,
-        task_id,
-        dict,
-        device,
+        train_loader=train_loader,
+        model=model,
+        optimizer=optimizer,
+        n_epoch=n_epoch,
+        criterion=criterion,
+        test_loader=test_loader,
+        mem_train_loader=mem_train_loader,
+        mem_test_loader=mem_test_loader,
+        Total_loss=Total_loss,
+        Gen_loss=Gen_loss,
+        For_loss=For_loss,
+        accuracies_mem=accuracies_mem,
+        accuracies_one=accuracies_one,
+        i=task_id,
+        dict=dict,
+        device=device,
     )
-    print("Finished the task ", task_id)
 
     return model
 
@@ -117,10 +128,10 @@ def One_task_CL(
             "batchsize": 64,
             "total_updates": 1000,
             "device": device,
-        },
+        },  # todo: put these params to the toml file
     )
-    (input, grad) = scores[0]
-    print("evaluate scores after a task:", len(scores), input.shape, grad.shape)
+    # (input, grad) = scores[0]
+    # print("evaluate scores after a task:", len(scores), input.shape, grad.shape)
     # For now, I do not know what to do with this information, so I just return it.
     # Going forward we can do something useful with it.
 
@@ -158,24 +169,15 @@ def One_task_CL(
         accuracies_mem.append(mem_test_acc)
         accuracies_one.append(test_acc)
 
-        # Print things when required
-        if epoch % 5 == 0:
-            # scheduler.step()
-            mem_train_acc = test(model, mem_train_loader, Graph=1, device=device)
-            train_acc = test(model, train_loader, Graph=1, device=device)
-            print(
-                "#########################################################################"
-            )
-            print("The task is ", i, "I DUMPED THE DATA")
-            print(
-                f"Epoch: {epoch:03d}, Train Acc: {train_acc:.4f}, Test Acc: {test_acc:.4f}"
-            )
-            print(
-                f"Mem Train Acc: {mem_train_acc:.4f}, Mem Test Acc: {mem_test_acc:.4f}"
-            )
-            print(
-                "#########################################################################"
-            )
+    # Print things when required
+
+    mem_train_acc = test(model, mem_train_loader, Graph=1, device=device)
+    train_acc = test(model, train_loader, Graph=1, device=device)
+    print("#########################################################################")
+    print("Finished training images of class : ", i)
+    print(f"Epoch: {epoch:03d}, Train Acc: {train_acc:.4f}, Test Acc: {test_acc:.4f}")
+    print(f"Mem Train Acc: {mem_train_acc:.4f}, Mem Test Acc: {mem_test_acc:.4f}")
+    print("#########################################################################")
 
     return (
         model,
@@ -207,7 +209,7 @@ def update_CL_(
         "th_lr": 0.00001,
         "device": torch.device("cuda" if torch.cuda.is_available() else "cpu"),
         "batchsize": 64,
-        "total_updates": 1000,
+        "total_updates": 10000,
     },
 ):
     device = params["device"]

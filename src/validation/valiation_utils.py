@@ -16,7 +16,16 @@ def return_score(
         "total_updates": 1000,
     },
 ):
+    """
+    This function computes the gradient of the loss with respect to the input data.
+    It takes in the model, criterion, data loader, and a dictionary of parameters.
+    The parameters dictionary should contain the number of updates for x and theta,
+    a factor for the loss, learning rates for x and theta, the device to use,
+    the batch size, and the total number of updates.
 
+    The function returns a list of tuples, where each tuple contains the input data
+    and the corresponding gradient of the loss with respect to the input data.
+    """
     device = params["device"]
 
     def normalize_grad(input, p=2, dim=1, eps=1e-12):
