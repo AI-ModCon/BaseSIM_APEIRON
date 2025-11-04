@@ -1,23 +1,27 @@
-from src.util import *
-from data import *
-
+import sys
 import torch
-from torch.nn import Linear
-import torch.nn.functional as F
+from torchvision import transforms
+import torchvision
 
 import numpy as np
-from model import CNN
-from torchvision import transforms
-from torch.utils.data import DataLoader
+from src.model.model import CNN
+
 
 from src.utils.general_utils import get_available_device
 from src.training.continuous_learning import CL
+from src.config.configuration import build_config, Config
+from src.data.data import mnist
 
 
-def main():
+def main(argv=None) -> int:
 
-    device = get_available_device(multi_gpu=False)
-    print(device)
+    cfg: Config = build_config(argv)
+
+    print(cfg)
+
+    device = get_available_device(
+        multi_gpu=False
+    )  # Todo: put this in config file. Once we determine how to handle multi-gpu
 
     my_transforms = transforms.Compose(
         [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
@@ -61,6 +65,8 @@ def main():
             device,
         )
 
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

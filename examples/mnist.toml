@@ -1,0 +1,12 @@
+# mnist.min.toml
+version = "1"
+seed = 1337
+
+[model]
+name = "dummy"  
+
+[data]
+name = "mnist"
+path = ""  # folder or file later for custom dataset
+batch_size = 128
+num_workers = 4
