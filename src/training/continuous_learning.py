@@ -1,84 +1,157 @@
+# src/training/continuous_learning.py
+
 import torch
-
-
+import torch.nn.functional as F
 from torch.utils.data import DataLoader
+from torch.nn.utils import stateless
+
 from src.utils.data_utils import MyDataset
 from src.validation.validation import test
 
 
-def CL(data, task_id, model, criterion, optimizer, device, cfg):
+def _ensure_4d(x):
+    # expects [B, H, W] or [B, 1, H, W]
+    if x.dim() == 3:
+        return x.unsqueeze(1)
+    return x
+
+
+def _l2_normalize_like_images(t):
+    # normalize over all non-batch dims
+    flat = t.flatten(1)
+    n = flat.norm(p=2, dim=1, keepdim=True).clamp_min(1e-12)
+    n = n.view(-1, *([1] * (t.dim() - 1)))
+    return t / n
+
+
+def _next_batch(it, loader):
+    try:
+        batch = next(it)
+    except StopIteration:
+        it = iter(loader)
+        batch = next(it)
+    return batch, it
+
+
+@torch.no_grad()
+def _accuracy(model, loader, device):
+    return test(model, loader, Graph=1, device=device)
+
+
+def _adv_gap(model, x, y, eps, steps):
+    """G(θ): increase memory loss in input space via L2-PGD"""
+    x = x.detach()
+    x_adv = x.requires_grad_(True)
+    for _ in range(steps):
+        loss = F.cross_entropy(model(x_adv), y, reduction="mean")
+        g = torch.autograd.grad(loss, x_adv, create_graph=False)[0]
+        g = _l2_normalize_like_images(g)
+        x_adv = (x_adv + eps * g).detach().requires_grad_(True)
+    with torch.enable_grad():
+        return F.cross_entropy(model(x_adv), y, reduction="mean") - F.cross_entropy(
+            model(x), y, reduction="mean"
+        )
+
+
+def _one_step_lookahead_params(model, x, y, inner_lr):
+    """θ' = θ - inner_lr * ∇_θ L_t(θ) (differentiable)"""
+    loss_t = F.cross_entropy(model(x), y, reduction="mean")
+    params = dict(model.named_parameters())
+    grads = torch.autograd.grad(loss_t, params.values(), create_graph=True)
+    theta_prime = {
+        name: p - inner_lr * g for (name, p), g in zip(params.items(), grads)
+    }
+    return theta_prime
+
+
+def update_CL_(
+    model,
+    criterion,
+    mem_loader,
+    train_loader,
+    task,
+    optimizer,
+    Graph=1,
+    params=None,
+):
     """
-    This function is the main function for continual learning. It takes in the data, task id, model, criterion, and optimizer.
-    It then constructs the dataloaders for the task and the memory, and sends them to the One_task_CL loop.
-    The function returns the updated model.
+    One BCL-style inner loop:
+      - Lt = current task loss
+      - Lm = memory loss
+      - F  = forgetting proxy = Lm(θ') - Lm(θ)  with θ' = θ - α∇Lt
+      - G  = generalization proxy via adversarial memory batch
+      - lam = dual variable, projected gradient ascent
+      - minimize Lt + Lm + lam * (F - G)
     """
-    (
-        (xTrain, yTrain),
-        (xTest, yTest),
-        (memory_image, memory_label),
-        (memory_test, memory_label_test),
-    ) = data
-
-    train_dataset = MyDataset(xTrain, yTrain)
-    mem_train_dataset = MyDataset(memory_image, memory_label)
-
-    test_dataset = MyDataset(xTest, yTest)
-    mem_test_dataset = MyDataset(memory_test, memory_label_test)
-
-    train_loader = DataLoader(
-        train_dataset, batch_size=cfg.data.batch_size, shuffle=True
+    if params is None:
+        params = {}
+    device = params.get(
+        "device", torch.device("cuda" if torch.cuda.is_available() else "cpu")
     )
-    test_loader = DataLoader(test_dataset, batch_size=cfg.data.batch_size, shuffle=True)
+    total_updates = params.get("total_updates", 200)
+    x_updates = params.get("x_updates", 3)
+    th_lr = params.get("th_lr", 1e-3)
+    x_eps = params.get("x_lr", 1e-3)
+    lam_lr = params.get("lam_lr", 0.1)
 
-    mem_train_loader = DataLoader(
-        mem_train_dataset, batch_size=cfg.data.batch_size, shuffle=True
-    )
-    mem_test_loader = DataLoader(
-        mem_test_dataset, batch_size=cfg.data.batch_size, shuffle=True
-    )
+    # Create fresh iterators
+    task_iter = iter(train_loader)
+    mem_iter = iter(mem_loader) if (task > 0 and len(mem_loader.dataset) > 0) else None
 
-    # For now, I am recording all these, we can modify improve these things.
-    accuracies_mem = []
-    accuracies_one = []
-    Total_loss = []
-    Gen_loss = []
-    For_loss = []
-    dict = {}
+    lam = 0.0  # learned balance (dual variable)
+    last_total = None
+    last_gen = None
+    last_for = None
 
-    n_epoch = cfg.train.epochs
+    for _ in range(total_updates):
+        # --- current task batch
+        (in_t, targets_t), task_iter = _next_batch(task_iter, train_loader)
+        in_t = _ensure_4d(in_t).float().to(device)
+        targets_t = targets_t.to(device)
 
-    print("Task id is", task_id)
-    print("-------")
-    # Send to the actual CL loop
-    (
-        model,
-        Total_loss,
-        Gen_loss,
-        For_loss,
-        accuracies_mem,
-        accuracies_one,
-        dict,
-        scores,
-    ) = One_task_CL(
-        train_loader=train_loader,
-        model=model,
-        optimizer=optimizer,
-        n_epoch=n_epoch,
-        criterion=criterion,
-        test_loader=test_loader,
-        mem_train_loader=mem_train_loader,
-        mem_test_loader=mem_test_loader,
-        Total_loss=Total_loss,
-        Gen_loss=Gen_loss,
-        For_loss=For_loss,
-        accuracies_mem=accuracies_mem,
-        accuracies_one=accuracies_one,
-        i=task_id,
-        dict=dict,
-        device=device,
-    )
+        Lt = criterion(model(in_t), targets_t).mean()
 
-    return model
+        if mem_iter is not None:
+            # --- memory batch
+            (in_m, targets_m), mem_iter = _next_batch(mem_iter, mem_loader)
+            in_m = _ensure_4d(in_m).float().to(device)
+            targets_m = targets_m.to(device)
+
+            Lm = criterion(model(in_m), targets_m).mean()
+
+            # Generalization proxy G via adversarial memory examples
+            G = _adv_gap(model, in_m, targets_m, eps=x_eps, steps=x_updates)
+
+            # Forgetting proxy F via differentiable look-ahead on task step
+            theta_prime = _one_step_lookahead_params(
+                model, in_t, targets_t, inner_lr=th_lr
+            )
+            out_m_prime = stateless.functional_call(model, theta_prime, (in_m,))
+            Lm_prime = F.cross_entropy(out_m_prime, targets_m, reduction="mean")
+            F_forget = Lm_prime - Lm
+
+            # Dual ascent on lam (no grad)
+            with torch.no_grad():
+                lam = max(0.0, lam + lam_lr * (F_forget.item() - G.item()))
+
+            Total = Lt + Lm + lam * (F_forget - G)
+            Gen_term = Lm + lam * G
+            For_term = Lt + lam * F_forget
+        else:
+            # First task (no memory yet): pure ERM
+            Total = Lt
+            Gen_term = Lt
+            For_term = Lt
+
+        optimizer.zero_grad()
+        Total.backward()
+        optimizer.step()
+
+        last_total = Total.detach().cpu()
+        last_gen = Gen_term.detach().cpu()
+        last_for = For_term.detach().cpu()
+
+    return last_total, last_gen, last_for
 
 
 def One_task_CL(
@@ -96,86 +169,72 @@ def One_task_CL(
     accuracies_mem,
     accuracies_one,
     i,
-    dict,
+    metrics_dict,
     device,
 ):
     """
-    This function is the main continual learning loop.
-    It takes in the train loader, model, optimizer, number of epochs, criterion, test loader,
-    memory train loader, memory test loader, total loss, generation loss, forgetting loss,
-    the accuracy of the memory set, the accuracy of the one task, and the task id.
-    It first gathers all the dataloaders for our task.
-    Then it records all the losses and accuracies.
-    Finally, it sends all the information to the One_task_CL loop and returns the updated model.
-
-
-    Original:    # Now I calculate the score (In a way, this is the sensitivity of the model output with respect to the data
-    # ) after the task has been met. Note that this is an approximate calculation on the whole memory data.
-    # With information from the domain team, we can make this calculation more precise and efficient.
+    One task training using the BCL-style inner loop above.
     """
+    # Optional: compute sensitivity scores on memory (unchanged)
+    # Only compute scores if memory exists
+    has_memory = len(mem_train_loader.dataset) > 0
 
-    scores = return_score(
-        model,
-        criterion,
-        mem_train_loader,
-        params={
-            "x_updates": 1,
-            "theta_updates": 1,
-            "factor": 0.00001,
-            "x_lr": 0.00001,
-            "th_lr": 0.00001,
-            "batchsize": 64,
-            "total_updates": 1000,
-            "device": device,
-        },  # todo: put these params to the toml file
-    )
+    if has_memory:
+        scores = return_score(
+            model,
+            criterion,
+            mem_train_loader,
+            params={
+                "x_updates": 1,
+                "theta_updates": 1,
+                "factor": 1e-5,
+                "x_lr": 1e-5,
+                "th_lr": 1e-5,
+                "batchsize": 64,
+                "total_updates": 1000,
+                "device": device,
+            },
+        )
+    else:
+        scores = None
 
-    # (input, grad) = scores[0]
-    # print("evaluate scores after a task:", len(scores), input.shape, grad.shape)
-    # For now, I do not know what to do with this information, so I just return it.
-    # Going forward we can do something useful with it.
-
-    # Note here that, I could have used this score to trigger this learning process,
-    # But, since we do not know this condition, I am just running a fixed number of epochs.
-    # Here I run a predefined number of epochs for a single task
     for epoch in range(n_epoch):
         Total, Gen, For = update_CL_(
             model,
             criterion,
             mem_train_loader,
             train_loader,
-            i,
-            optimizer,
+            task=i,
+            optimizer=optimizer,
             Graph=1,
             params={
-                "x_updates": 10,
-                "theta_updates": 10,
-                "factor": 0.1,
-                "x_lr": 0.001,
-                "th_lr": 0.001,
-                "batchsize": 64,
-                "total_updates": 10,
+                "x_updates": 3,
+                "th_lr": 1e-3,
+                "x_lr": 1e-3,
+                "lam_lr": 0.1,
+                "total_updates": 100,  # tune
                 "device": device,
             },
         )
-        # Add the losses
         Total_loss.append(Total)
         Gen_loss.append(Gen)
         For_loss.append(For)
 
-        # Add the accuracies
-        test_acc = test(model, test_loader, Graph=1, device=device)
-        mem_test_acc = test(model, mem_test_loader, Graph=1, device=device)
+        test_acc = _accuracy(model, test_loader, device)
+        mem_test_acc = (
+            _accuracy(model, mem_test_loader, device) if has_memory else float("nan")
+        )
+
         accuracies_mem.append(mem_test_acc)
         accuracies_one.append(test_acc)
 
-    # Print things when required
-
-    mem_train_acc = test(model, mem_train_loader, Graph=1, device=device)
-    train_acc = test(model, train_loader, Graph=1, device=device)
+    mem_train_acc = (
+        _accuracy(model, mem_train_loader, device) if has_memory else float("nan")
+    )
+    train_acc = _accuracy(model, train_loader, device)
     print("#########################################################################")
     print("Finished training images of class : ", i)
-    print(f"Epoch: {epoch:03d}, Train Acc: {train_acc:.4f}, Test Acc: {test_acc:.4f}")
+    print(f"Train Acc: {train_acc:.4f}, Test Acc: {test_acc:.4f}")
     print(f"Mem Train Acc: {mem_train_acc:.4f}, Mem Test Acc: {mem_test_acc:.4f}")
     print("#########################################################################")
 
@@ -186,183 +245,64 @@ def One_task_CL(
         For_loss,
         accuracies_mem,
         accuracies_one,
-        dict,
+        metrics_dict,
         scores,
     )
 
 
-# This function is my actual CL update. We can actually modify this function
-# for both efficiency and effectiveness, however, I think this is a good starting point.
-def update_CL_(
-    model,
-    criterion,
-    mem_loader,
-    train_loader,
-    task,
-    optimizer,
-    Graph=1,
-    params={
-        "x_updates": 1,
-        "theta_updates": 1,
-        "factor": 0.00001,
-        "x_lr": 0.00001,
-        "th_lr": 0.00001,
-        "device": torch.device("cuda" if torch.cuda.is_available() else "cpu"),
-        "batchsize": 64,
-        "total_updates": 10000,
-    },
-):
-    device = params["device"]
+def CL(data, task_id, model, criterion, optimizer, device, cfg):
+    """
+    Wraps the dataloaders and delegates to One_task_CL.
+    """
+    (
+        (xTrain, yTrain),
+        (xTest, yTest),
+        (memory_image, memory_label),
+        (memory_test, memory_label_test),
+    ) = data
 
-    def normalize_grad(input, p=2, dim=1, eps=1e-12):
-        return input / input.norm(p, dim, True).clamp(min=eps).expand_as(input)
+    train_dataset = MyDataset(xTrain, yTrain)
+    mem_train_dataset = MyDataset(memory_image, memory_label)
 
-    import copy
+    test_dataset = MyDataset(xTest, yTest)
+    mem_test_dataset = MyDataset(memory_test, memory_label_test)
 
-    # We set up the iterators for the memory loader and the train loader
-    mem_iter = iter(mem_loader)
-    task_iter = iter(train_loader)
+    bs = cfg.data.batch_size
 
-    # The main loop over all the batch
-    for i in range(params["total_updates"]):
-        if task > 0:
-            ###########################################
-            try:
-                data_t = next(task_iter)
-                (_, y) = data_t
-                if y.shape[0] < params["batchsize"]:
-                    task_iter = iter(train_loader)
-                    data_t = next(task_iter)
-            except StopIteration:
-                task_iter = iter(train_loader)
-                data_t = next(task_iter)
+    train_loader = DataLoader(train_dataset, batch_size=bs, shuffle=True)
+    test_loader = DataLoader(test_dataset, batch_size=bs, shuffle=False)
 
-            # Extract a batch from the memory
-            try:
-                data_m = next(mem_iter)
-                (_, y) = data_m
-                if y.shape[0] < params["batchsize"]:
-                    mem_iter = iter(mem_loader)
-                    data_m = next(mem_iter)
-            except StopIteration:
-                mem_iter = iter(mem_loader)
-                data_m = next(mem_iter)
+    mem_train_loader = DataLoader(mem_train_dataset, batch_size=bs, shuffle=False)
+    mem_test_loader = DataLoader(mem_test_dataset, batch_size=bs, shuffle=False)
 
-            in_t, targets_t = data_t
-            in_m, targets_m = data_m
+    accuracies_mem, accuracies_one = [], []
+    Total_loss, Gen_loss, For_loss = [], [], []
+    metrics_dict = {}
 
-            in_t = in_t.unsqueeze(dim=1).float().to(device)
-            in_m = in_m.unsqueeze(dim=1).float().to(device)
-            targets_t = targets_t.to(device)
-            targets_m = targets_m.to(device)
+    n_epoch = cfg.train.epochs
+    print("Task id is", task_id)
+    print("-------")
 
-            out = model(in_t)
-            out_m = model(in_m)
-
-            ############## The task cost and the memory cost
-            #########################################################################################
-            J_P = criterion(out, targets_t.to(device))
-            J_M = criterion(out_m, targets_m.to(device))
-
-            ############## This is the J_x loss
-            #########################################################################################
-            J_PN_x = criterion(model(in_m), targets_m)
-            x_PN = copy.copy(in_m).to(device)
-            x_PN.requires_grad = True
-            adv_grad = 0
-            epsilon = params["x_lr"]
-
-            for epoch in range(params["x_updates"]):
-                x_PN = x_PN + epsilon * adv_grad
-                crit = criterion(model(x_PN.float()), targets_m)
-                loss = torch.mean(crit) + torch.var(
-                    crit
-                )  # + skew(crit) + kurtosis(crit)
-                adv_grad = torch.autograd.grad(loss, x_PN)[0]
-                # Normalize the gradient values.
-                adv_grad = normalize_grad(adv_grad, p=2, dim=1, eps=1e-12)
-            J_x_crit = criterion(model(x_PN.float()), targets_m) - J_PN_x
-            # print(adv_grad.shape)
-            # print("norm", torch.norm(adv_grad))
-            ############### This is the loss J_th
-            #########################################################################################
-            cop = copy.deepcopy(model).to(device)
-            opt_buffer = torch.optim.Adam(cop.parameters(), lr=params["th_lr"])
-            J_PN_theta = criterion(model(in_m.float()), targets_m)
-            for i in range(params["theta_updates"]):
-                opt_buffer.zero_grad()
-                loss_crit = criterion(cop(in_t.float()), targets_t)
-                loss_m = torch.mean(loss_crit) + torch.var(loss_crit)
-                # + torch.var(loss_crit) + skew(loss_crit) + kurtosis(loss_crit)
-                loss_m.backward(retain_graph=True)
-                opt_buffer.step()
-            J_th_crit = criterion(cop(in_m.float()), targets_m) - J_PN_theta
-
-            # Now, put together  the loss fully
-            Total_loss = torch.mean(
-                J_M + J_P + params["factor"] * J_x_crit + params["factor"] * J_th_crit
-            )
-            # +torch.var(J_P+J_M+J_x_crit+params['factor']*J_th_crit)
-            # adjoint_scores =
-            optimizer.zero_grad()
-            Total_loss.backward()  # Derive gradients.
-            optimizer.step()  # Update parameters based on gradients.
-        else:
-            try:
-                data_t = next(task_iter)
-                (_, y) = data_t
-                if y.shape[0] < params["batchsize"]:
-                    task_iter = iter(train_loader)
-                    data_t = next(task_iter)
-            except StopIteration:
-                task_iter = iter(train_loader)
-                data_t = next(task_iter)
-
-            in_t, targets_t = data_t
-            in_t = in_t.unsqueeze(dim=1).float()
-
-            critti = criterion(model(in_t.to(device)), targets_t.to(device))
-            Total_loss = torch.mean(critti) + torch.var(critti)
-            optimizer.zero_grad()
-            Total_loss.backward()  # Derive gradients.
-            optimizer.step()  # Update parameters based on gradients.
-
-    if task > 0:
-        return (
-            Total_loss.detach().cpu(),
-            (
-                torch.mean(J_M + params["factor"] * J_x_crit)
-                + torch.var(
-                    J_P
-                    + J_M
-                    + params["factor"] * J_x_crit
-                    + params["factor"] * J_th_crit
-                )
-            )
-            .detach()
-            .cpu(),
-            (
-                torch.mean(J_P + params["factor"] * J_th_crit)
-                + torch.var(
-                    J_P
-                    + J_M
-                    + params["factor"] * J_x_crit
-                    + params["factor"] * J_th_crit
-                )
-            )
-            .detach()
-            .cpu(),
-        )
-
-    else:
-        return (
-            Total_loss.detach().cpu(),
-            Total_loss.detach().cpu(),
-            Total_loss.detach().cpu(),
-        )
-
-
-import torch
+    return One_task_CL(
+        train_loader=train_loader,
+        model=model,
+        optimizer=optimizer,
+        n_epoch=n_epoch,
+        criterion=criterion,
+        test_loader=test_loader,
+        mem_train_loader=mem_train_loader,
+        mem_test_loader=mem_test_loader,
+        Total_loss=Total_loss,
+        Gen_loss=Gen_loss,
+        For_loss=For_loss,
+        accuracies_mem=accuracies_mem,
+        accuracies_one=accuracies_one,
+        i=task_id,
+        metrics_dict=metrics_dict,
+        device=device,
+    )[
+        0
+    ]  # return updated model
 
 
 def return_score(
