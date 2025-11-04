@@ -130,6 +130,7 @@ def One_task_CL(
             "device": device,
         },  # todo: put these params to the toml file
     )
+
     # (input, grad) = scores[0]
     # print("evaluate scores after a task:", len(scores), input.shape, grad.shape)
     # For now, I do not know what to do with this information, so I just return it.
