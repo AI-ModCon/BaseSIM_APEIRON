@@ -5,6 +5,8 @@ import numpy as np
 from PIL import Image
 import torch
 
+# "TODO: clean this file"
+
 
 def return_task_list(X, y, n_samples, n_task=20):
     # print(X.shape, y.shape)

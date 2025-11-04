@@ -2,8 +2,11 @@ import torchvision
 import numpy as np
 import torch
 
+from torchvision import transforms
+import torchvision
 
-def mnist(images, labels, task_id):
+
+def class_selector(images, labels, task_id):
     """
     This function takes in a dataset of images and labels, and a task id.
     It then randomly selects a class and applies a random transformation to the images.
@@ -39,3 +42,26 @@ def mnist(images, labels, task_id):
     X_test = X[index]
     y_test = y[index]
     return xtrain, (X_test, y_test)
+
+
+def get_mnist_cl_data():
+    """
+    This function downloads the MNIST dataset, applies a normalization transformation to the data,
+    stacks the images and labels, and returns the images and labels as a tensor and a numpy array.
+
+    Returns:
+        tuple: A tuple containing the images and labels.
+    """
+
+    my_transforms = transforms.Compose(
+        [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
+    )
+    dataset = torchvision.datasets.MNIST(
+        "./data", train=True, download=True, transform=my_transforms
+    )
+    [images, labels] = [list(t) for t in zip(*dataset)]
+    images = torch.stack(images, dim=0)
+    images = images.view(-1, 28, 28).float()
+    labels = np.array(labels)
+
+    return images, labels
