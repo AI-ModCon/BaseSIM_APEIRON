@@ -6,6 +6,73 @@ from pathlib import Path
 from typing import Any, Mapping
 
 
+import os
+import subprocess
+import torch
+import dataclasses as _dc
+
+
+def get_available_device(multi_gpu: bool = False) -> torch.device:
+    """
+    Returns a torch.device with sensible fallbacks:
+      - CPU-only hosts: 'cpu'
+      - CUDA hosts:
+          * multi_gpu=True  -> 'cuda' (let caller handle DDP/DataParallel)
+          * multi_gpu=False -> choose GPU with most free memory (torch.cuda.mem_get_info)
+            (falls back to nvidia-smi if needed; then to cuda:0)
+      - Apple Silicon with PyTorch MPS: 'mps' if CUDA is unavailable
+    Never raises if nvidia-smi is missing.
+    """
+    # Prefer CUDA if available
+    if torch.cuda.is_available():
+        if multi_gpu:
+            return torch.device("cuda")
+
+        # Single-GPU selection: prefer PyTorch's mem_get_info (no external deps)
+        try:
+            n = torch.cuda.device_count()
+            free_bytes = []
+            for i in range(n):
+                # Ensure we query device i
+                with torch.cuda.device(i):
+                    free_i, _total_i = torch.cuda.mem_get_info()
+                free_bytes.append(free_i)
+
+            best = max(range(n), key=lambda i: free_bytes[i])
+            return torch.device(f"cuda:{best}")
+
+        except Exception:
+            # Fallback to nvidia-smi if mem_get_info is unavailable/problematic
+            try:
+                out = subprocess.check_output(
+                    [
+                        "nvidia-smi",
+                        "--query-gpu=memory.free",
+                        "--format=csv,noheader,nounits",
+                    ],
+                    stderr=subprocess.STDOUT,
+                )
+                rows = [
+                    int(x.strip())
+                    for x in out.decode().strip().splitlines()
+                    if x.strip()
+                ]
+                best = max(range(len(rows)), key=lambda i: rows[i])
+                return torch.device(f"cuda:{best}")
+            except (FileNotFoundError, subprocess.CalledProcessError):
+                # Last resort: first CUDA device
+                return torch.device("cuda:0")
+
+    # CUDA not available: try MPS (Apple), otherwise CPU
+    try:
+        if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+            return torch.device("mps")
+    except Exception:
+        pass
+
+    return torch.device("cpu")
+
+
 @dataclass(frozen=True)
 class ModelCfg:
     name: str
@@ -15,14 +82,24 @@ class ModelCfg:
 @dataclass(frozen=True)
 class TrainCfg:
     epochs: int
+    batch_size: int = 64
+    num_workers: int = 4
 
 
 @dataclass(frozen=True)
 class DataCfg:
     name: str
     path: str
-    batch_size: int = 64
-    num_workers: int = 4
+
+
+@dataclass(frozen=True)
+class ContinuousLearningCfg:
+    x_updates: int = 10
+    theta_updates: int = 10
+    factor: float = 0.1
+    x_lr: float = 0.001
+    th_lr: float = 0.001
+    total_updates: int = 10  # Make sure that this does not conflict wiht train.epochs
 
 
 @dataclass(frozen=True)
@@ -30,8 +107,14 @@ class Config:
     model: ModelCfg
     data: DataCfg
     train: TrainCfg
+    continuous_learning: (
+        ContinuousLearningCfg  # = field( default_factory=ContinuousLearningCfg)
+    )
+
     seed: int = 0
     version: str = "1"
+    device: str = "auto"
+    multi_gpu: bool = False  # <- add this
 
 
 def parse_args(argv=None):
@@ -51,6 +134,18 @@ def parse_args(argv=None):
     p = argparse.ArgumentParser()
     p.add_argument("--config", type=Path, required=True)
     p.add_argument("--set", action="append", default=[], help="key=val, repeatable")
+    p.add_argument(
+        "--device",
+        type=str,
+        default=None,
+        help="Device: auto|cpu|cuda|cuda:N|mps (overrides TOML/env)",
+    )
+    p.add_argument(
+        "--multi-gpu",
+        action="store_true",
+        help="When --device=auto, prefer multi-GPU CUDA device",
+    )
+
     return p.parse_args(argv)
 
 
@@ -170,12 +265,36 @@ def build_config(argv=None) -> Config:
     model = ModelCfg(**cfg["model"])
     data = DataCfg(**cfg["data"])
     train = TrainCfg(**cfg["train"])
+    cl = ContinuousLearningCfg(**cfg.get("continuous_learning", {}))
+
+    raw_device = str(
+        cfg.get(
+            "device",
+            args.device if getattr(args, "device", None) is not None else "auto",
+        )
+    )
+    multi_gpu_flag = bool(cfg.get("multi_gpu", getattr(args, "multi_gpu", False)))
+
+    resolved_device = (
+        str(get_available_device(multi_gpu=multi_gpu_flag))
+        if raw_device.lower() == "auto"
+        else raw_device
+    )
+
+    explicit = {"model", "data", "train", "continuous_learning", "device", "multi_gpu"}
+    # also exclude any keys not in Config to avoid surprises
+    valid = {f.name for f in _dc.fields(Config)}
+    extras = {k: v for k, v in cfg.items() if k in valid - explicit}
 
     final = Config(
         model=model,
         data=data,
         train=train,
-        **{k: v for k, v in cfg.items() if k not in {"model", "data", "train"}},
+        continuous_learning=cl,
+        device=resolved_device,
+        multi_gpu=multi_gpu_flag,
+        **extras,
     )
+
     Path("resolved_config.json").write_text(json.dumps(asdict(final), indent=2))
     return final
