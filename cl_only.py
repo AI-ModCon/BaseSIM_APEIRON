@@ -43,11 +43,6 @@ def main(argv=None) -> int:
         class_id = i % 10
         (xTrain, yTrain), (xTest, yTest) = class_selector(images, labels, class_id)
 
-        memory_image.extend(xTrain)
-        memory_label.extend(yTrain)
-        memory_test.extend(xTest)
-        memory_label_test.extend(yTest)
-
         # Send the data and get continual learning.
         model = CL(
             data=(
@@ -63,7 +58,11 @@ def main(argv=None) -> int:
             device=device,
             cfg=cfg,
         )
-        # input("Press Enter to continue with the next task...")
+
+        memory_image.extend(xTrain)
+        memory_label.extend(yTrain)
+        memory_test.extend(xTest)
+        memory_label_test.extend(yTest)
 
     return 0
 
