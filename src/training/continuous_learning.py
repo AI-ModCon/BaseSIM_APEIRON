@@ -2,7 +2,7 @@ import torch
 
 
 from torch.utils.data import DataLoader
-from data.data_utils import MyDataset
+from src.data.data_utils import MyDataset
 from src.validation.validation import test
 
 
@@ -28,13 +28,15 @@ def CL(data, task_id, model, criterion, optimizer, device, cfg):
     train_loader = DataLoader(
         train_dataset, batch_size=cfg.data.batch_size, shuffle=True
     )
-    test_loader = DataLoader(test_dataset, batch_size=cfg.data.batch_size, shuffle=True)
+    test_loader = DataLoader(
+        test_dataset, batch_size=cfg.data.batch_size, shuffle=False
+    )
 
     mem_train_loader = DataLoader(
-        mem_train_dataset, batch_size=cfg.data.batch_size, shuffle=True
+        mem_train_dataset, batch_size=cfg.data.batch_size, shuffle=False
     )
     mem_test_loader = DataLoader(
-        mem_test_dataset, batch_size=cfg.data.batch_size, shuffle=True
+        mem_test_dataset, batch_size=cfg.data.batch_size, shuffle=False
     )
 
     # For now, I am recording all these, we can modify improve these things.
@@ -141,13 +143,21 @@ def One_task_CL(
 
         # Add the accuracies
         test_acc = test(model, test_loader, Graph=1, device=device)
-        mem_test_acc = test(model, mem_test_loader, Graph=1, device=device)
+        mem_test_acc = (
+            test(model, mem_test_loader, Graph=1, device=device)
+            if len(mem_test_loader) > 0
+            else -1
+        )
         accuracies_mem.append(mem_test_acc)
         accuracies_one.append(test_acc)
 
     # Print things when required
 
-    mem_train_acc = test(model, mem_train_loader, Graph=1, device=device)
+    mem_train_acc = (
+        test(model, mem_train_loader, Graph=1, device=device)
+        if len(mem_train_loader) > 0
+        else -1
+    )
     train_acc = test(model, train_loader, Graph=1, device=device)
     print("#########################################################################")
     print("Finished training images of class : ", i)

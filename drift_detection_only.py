@@ -9,7 +9,7 @@ from src.data.mnist_cl import class_selector, get_mnist_cl_data
 from src.model.model_utils import load_model
 
 from torch.utils.data import DataLoader
-from src.utils.data_utils import MyDataset
+from data.data_utils import MyDataset
 from src.drift_detection.detector1 import return_score
 
 
