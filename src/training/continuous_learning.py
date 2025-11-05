@@ -100,35 +100,27 @@ def One_task_CL(
     device,
 ):
     """
-    This function is the main continual learning loop.
-    It takes in the train loader, model, optimizer, number of epochs, criterion, test loader,
-    memory train loader, memory test loader, total loss, generation loss, forgetting loss,
-    the accuracy of the memory set, the accuracy of the one task, and the task id.
-    It first gathers all the dataloaders for our task.
-    Then it records all the losses and accuracies.
-    Finally, it sends all the information to the One_task_CL loop and returns the updated model.
-
-
-    Original:    # Now I calculate the score (In a way, this is the sensitivity of the model output with respect to the data
+    # Now I calculate the score (In a way, this is the sensitivity of the model output with respect to the data
     # ) after the task has been met. Note that this is an approximate calculation on the whole memory data.
     # With information from the domain team, we can make this calculation more precise and efficient.
     """
 
-    scores = return_score(
-        model,
-        criterion,
-        mem_train_loader,
-        params={
-            "x_updates": 1,
-            "theta_updates": 1,
-            "factor": 0.00001,
-            "x_lr": 0.00001,
-            "th_lr": 0.00001,
-            "batchsize": 64,
-            "total_updates": 1000,
-            "device": device,
-        },  # todo: put these params to the toml file
-    )
+    # scores = return_score(  # THIS IS THE DRIFT SCORE ===> Goes into a seperate module
+    #     model,
+    #     criterion,
+    #     mem_train_loader,
+    #     params={
+    #         "x_updates": 1,
+    #         "theta_updates": 1,
+    #         "factor": 0.00001,
+    #         "x_lr": 0.00001,
+    #         "th_lr": 0.00001,
+    #         "batchsize": 64,
+    #         "total_updates": 1000,
+    #         "device": device,
+    #     },  # todo: put these params to the toml file
+    # )
+    scores = -1  # dummy value
 
     # (input, grad) = scores[0]
     # print("evaluate scores after a task:", len(scores), input.shape, grad.shape)
@@ -148,13 +140,13 @@ def One_task_CL(
             optimizer,
             Graph=1,
             params={
-                "x_updates": 10,
+                "x_updates": 1,  # 10,
                 "theta_updates": 10,
-                "factor": 0.1,
+                "factor": 0.0,  # 0.1,
                 "x_lr": 0.001,
                 "th_lr": 0.001,
                 "batchsize": 64,
-                "total_updates": 10,
+                "total_updates": 1000,  # 10
                 "device": device,
             },
         )
@@ -300,7 +292,8 @@ def update_CL_(
 
             # Now, put together  the loss fully
             Total_loss = torch.mean(
-                J_M + J_P + params["factor"] * J_x_crit + params["factor"] * J_th_crit
+                J_M
+                # + J_P  # + params["factor"] * J_x_crit + params["factor"] * J_th_crit
             )
             # +torch.var(J_P+J_M+J_x_crit+params['factor']*J_th_crit)
             # adjoint_scores =
@@ -360,9 +353,6 @@ def update_CL_(
             Total_loss.detach().cpu(),
             Total_loss.detach().cpu(),
         )
-
-
-import torch
 
 
 def return_score(
