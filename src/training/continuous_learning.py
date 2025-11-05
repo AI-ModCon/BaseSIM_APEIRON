@@ -2,7 +2,7 @@ import torch
 
 
 from torch.utils.data import DataLoader
-from src.utils.data_utils import MyDataset
+from data.data_utils import MyDataset
 from src.validation.validation import test
 
 
@@ -163,7 +163,7 @@ def One_task_CL(
         accuracies_mem,
         accuracies_one,
         dict,
-        scores,
+        -1,  # dummy for scores later
     )
 
 
