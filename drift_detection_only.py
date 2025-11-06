@@ -20,10 +20,6 @@ def main(argv=None) -> int:
 
     criterion = torch.nn.CrossEntropyLoss(reduction="none")
 
-    optimizer = torch.optim.Adam(
-        model.parameters(), lr=0.001
-    )  # needs to be put into cl loop
-
     # The dataloaders that keep the memory.
     memory_image = []
     memory_label = []
