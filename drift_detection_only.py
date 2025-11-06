@@ -4,7 +4,6 @@ import numpy as np
 
 
 from src.utils.general_utils import get_available_device
-from src.training.continuous_learning import CL
 from src.config.configuration import build_config, Config
 from src.data.mnist_cl import class_selector, get_mnist_cl_data
 from src.model.model_utils import load_model
@@ -27,10 +26,6 @@ def main(argv=None) -> int:
     model = load_model(cfg).to(device)
 
     criterion = torch.nn.CrossEntropyLoss(reduction="none")
-
-    optimizer = torch.optim.Adam(
-        model.parameters(), lr=0.001
-    )  # needs to be put into cl loop
 
     # The dataloaders that keep the memory.
     memory_image = []
