@@ -1,6 +1,8 @@
 # mnist.min.toml
 version = "1"
 seed = 1337
+device = "auto"
+multi_gpu = false
 
 [model]
 name = "dummy"  
@@ -8,8 +10,17 @@ name = "dummy"
 [data]
 name = "mnist"
 path = ""  # folder or file later for custom dataset
-batch_size = 64
-num_workers = 4
 
 [train]
 epochs = 10
+batch_size = 64
+num_workers = 4
+
+
+[continuous_learning]
+x_updates = 10
+theta_updates = 10
+factor = 0.1
+x_lr = 0.001
+th_lr = 0.001
+total_updates = 10

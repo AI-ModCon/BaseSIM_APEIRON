@@ -2,13 +2,13 @@ import sys
 import torch
 
 
-from src.utils.general_utils import get_available_device
 from src.config.configuration import build_config, Config
 from src.data.mnist_cl import class_selector, get_mnist_cl_data
 from src.model.model_utils import load_model
 
+
 from torch.utils.data import DataLoader
-from data.data_utils import MyDataset
+from src.data.data_utils import MyDataset
 from src.drift_detection.detector1 import return_score
 
 
@@ -16,13 +16,7 @@ def main(argv=None) -> int:
 
     cfg: Config = build_config(argv)
 
-    print(cfg)
-
-    device = get_available_device(
-        multi_gpu=False
-    )  # Todo: put this in config file. Once we determine how to handle multi-gpu
-
-    model = load_model(cfg).to(device)
+    model = load_model(cfg).to(cfg.device)
 
     criterion = torch.nn.CrossEntropyLoss(reduction="none")
 
@@ -50,7 +44,7 @@ def main(argv=None) -> int:
         mem_train_dataset = MyDataset(memory_image, memory_label)
 
         mem_train_loader = DataLoader(
-            mem_train_dataset, batch_size=cfg.data.batch_size, shuffle=True
+            mem_train_dataset, batch_size=cfg.train.batch_size, shuffle=True
         )
         # Send the data and get continual learning.
         scores = return_score(
@@ -65,7 +59,7 @@ def main(argv=None) -> int:
                 "th_lr": 0.00001,
                 "batchsize": 64,
                 "total_updates": 1000,
-                "device": device,
+                "device": cfg.device,
             },  # todo: put these params to the toml file
         )
         print(scores)
