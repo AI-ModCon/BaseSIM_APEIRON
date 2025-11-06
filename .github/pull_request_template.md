@@ -9,9 +9,7 @@ fix(io): handle empty files in reader
 
 ## Motivation & Context
 <!-- Link issues, discussions, incidents, design docs. -->
-Fixes #123  
-Closes #456  
-Relates to #789
+E.g. Fixes issue nr xyz
 
 ## Approach
 <!-- High-level description of the solution. Point out key design choices and trade-offs. -->
