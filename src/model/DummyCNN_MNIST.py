@@ -1,6 +1,4 @@
 import torch
-from torch.nn import Conv2d, Linear, MaxPool2d, ReLU, LogSoftmax
-from torch import flatten
 from torch import nn
 import torch.nn.functional as F
 

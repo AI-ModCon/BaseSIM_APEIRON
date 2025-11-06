@@ -60,7 +60,7 @@ Relates to #789
 ## Checklist
 - [ ] Code formatted (Black) → `black .`
 - [ ] Lint passes (Ruff) → `ruff check .`
-- [ ] Types pass (mypy/pyright) → `mypy .`
+<!-- # - [ ] Types pass (mypy/pyright) → `mypy src` -->
 - [ ] Tests pass (pytest) → `pytest -q`
 - [ ] Pre-commit passes → `pre-commit run -a`
 - [ ] Backward compatibility considered

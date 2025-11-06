@@ -3,7 +3,6 @@ import numpy as np
 import torch
 
 from torchvision import transforms
-import torchvision
 
 
 def class_selector(images, labels, task_id):
