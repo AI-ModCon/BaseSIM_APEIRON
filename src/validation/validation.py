@@ -1,4 +1,4 @@
-def test(model, loader, device, Graph=0):
+def test(model, loader, cfg, Graph=0):
     """
     Evaluate the model on the given dataset.
 
@@ -13,25 +13,25 @@ def test(model, loader, device, Graph=0):
     """
     model.eval()
     correct = 0
-    if Graph == 0:
+    if Graph == 0:  # TODO: What does Graph mean here?
         for data in loader:  # Iterate in batches over the training/test dataset.
             out = model(
-                data.x.float().to(device),
-                data.edge_index.to(device),
-                data.batch.to(device),
+                data.x.float().to(cfg.device),
+                data.edge_index.to(cfg.device),
+                data.batch.to(cfg.device),
             )
             pred = out.argmax(dim=1)  # Use the class with highest probability.
             correct += int(
-                (pred == data.y.to(device)).sum()
+                (pred == data.y.to(cfg.device)).sum()
             )  # Check against ground-truth labels.
         return correct / len(loader.dataset)  # Derive ratio of correct predictions.
     else:
         for data in loader:  # Iterate in batches over the training/test dataset.
             in_t, targets = data
             in_t = in_t.unsqueeze(dim=1).float()
-            out = model(in_t.to(device))
+            out = model(in_t.to(cfg.device))
             pred = out.argmax(dim=1)  # Use the class with highest probability.
             correct += int(
-                (pred == targets.to(device)).sum()
+                (pred == targets.to(cfg.device)).sum()
             )  # Check against ground-truth labels.
         return correct / len(loader.dataset)  # Derive ratio of correct predictions.
