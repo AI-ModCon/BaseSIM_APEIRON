@@ -85,8 +85,8 @@ class ModelCfg:
 @dataclass(frozen=True)
 class TrainCfg:
     epochs: int
-    batch_size: int = 64
-    num_workers: int = 4
+    batch_size: int
+    num_workers: int
 
 
 @dataclass(frozen=True)
@@ -97,12 +97,12 @@ class DataCfg:
 
 @dataclass(frozen=True)
 class ContinuousLearningCfg:
-    x_updates: int = 10
-    theta_updates: int = 10
-    factor: float = 0.1
-    x_lr: float = 0.001
-    th_lr: float = 0.001
-    total_updates: int = 10  # Make sure that this does not conflict wiht train.epochs
+    x_updates: int
+    theta_updates: int
+    factor: float
+    x_lr: float
+    th_lr: float
+    total_updates: int  # TODO: Make sure that this does not conflict wiht train.epochs
 
 
 @dataclass(frozen=True)
@@ -110,14 +110,12 @@ class Config:
     model: ModelCfg
     data: DataCfg
     train: TrainCfg
-    continuous_learning: (
-        ContinuousLearningCfg  # = field( default_factory=ContinuousLearningCfg)
-    )
+    continuous_learning: ContinuousLearningCfg
 
-    seed: int = 0
-    version: str = "1"
-    device: str = "auto"
-    multi_gpu: bool = False  # <- add this
+    seed: int
+    version: str
+    device: str
+    multi_gpu: bool
 
 
 def parse_args(argv=None):

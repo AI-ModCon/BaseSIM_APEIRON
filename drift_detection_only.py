@@ -63,7 +63,7 @@ def main(argv=None) -> int:
                 "th_lr": 0.00001,
                 "batchsize": 64,
                 "total_updates": 1000,
-                "device": device,
+                "device": cfg.device,
             },  # todo: put these params to the toml file
         )
         print(scores)
