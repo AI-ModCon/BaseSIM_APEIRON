@@ -1,6 +1,3 @@
-import torch
-
-
 def test(model, loader, device, Graph=0):
     """
     Evaluate the model on the given dataset.
