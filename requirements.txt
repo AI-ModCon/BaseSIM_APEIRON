@@ -2,3 +2,8 @@ torch
 numpy
 torchvision
 pandas
+
+#for devs only
+mypy
+ruff
+black

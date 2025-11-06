@@ -2,10 +2,10 @@ import sys
 import torch
 
 
-from src.training.continuous_learning import CL
 from src.config.configuration import build_config, Config
 from src.data.mnist_cl import class_selector, get_mnist_cl_data
 from src.model.model_utils import load_model
+from src.training.continual_learning import CL
 
 
 def main(argv=None) -> int:
