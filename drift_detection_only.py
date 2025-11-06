@@ -8,7 +8,7 @@ from src.model.model_utils import load_model
 
 
 from torch.utils.data import DataLoader
-from data.data_utils import MyDataset
+from src.data.data_utils import MyDataset
 from src.drift_detection.detector1 import return_score
 
 
@@ -48,7 +48,7 @@ def main(argv=None) -> int:
         mem_train_dataset = MyDataset(memory_image, memory_label)
 
         mem_train_loader = DataLoader(
-            mem_train_dataset, batch_size=cfg.data.batch_size, shuffle=True
+            mem_train_dataset, batch_size=cfg.train.batch_size, shuffle=True
         )
         # Send the data and get continual learning.
         scores = return_score(
