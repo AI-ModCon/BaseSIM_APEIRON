@@ -1,0 +1,26 @@
+{
+  "model": {
+    "name": "dummy"
+  },
+  "data": {
+    "name": "mnist",
+    "path": ""
+  },
+  "train": {
+    "epochs": 10,
+    "batch_size": 64,
+    "num_workers": 4
+  },
+  "continuous_learning": {
+    "x_updates": 10,
+    "theta_updates": 10,
+    "factor": 0.1,
+    "x_lr": 0.001,
+    "th_lr": 0.001,
+    "total_updates": 10
+  },
+  "seed": 1337,
+  "version": "1",
+  "device": "mps",
+  "multi_gpu": false
+}

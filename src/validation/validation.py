@@ -1,6 +1,5 @@
 import torch
-
-def test(model, loader, device, Graph=0):
+def test(model, loader, criterion, cfg):
     """
     Evaluate the model on the given dataset.
 
@@ -17,15 +16,29 @@ def test(model, loader, device, Graph=0):
     """
     model.eval()
     correct = 0
-    for data in loader:  # Iterate in batches over the training/test dataset.
-        in_t, targets = data
-        in_t = in_t.unsqueeze(dim=1).float()
-        out = model(in_t.to(device))
-        pred = torch.max(out,1)[1]
-        correct += int(
-            (pred == targets.to(device)).sum()
-        )  # Check against ground-truth labels.
-        
-    print(correct, len(loader.dataset))
-    
-    return correct / len(loader.dataset)  # Derive ratio of correct predictions.
+    total = len(loader.dataset)
+    if total == 0:
+        return 0.0
+    test_loss = 0.0
+    with torch.no_grad():
+        for data in loader:  # Iterate in batches over the training/test dataset.
+            input, target = data
+            # ensure inputs have channel dimension and are floats
+            input = input.unsqueeze(dim=1).float()
+            input = input.to(cfg.device)
+            out = model(input, training=False )
+            # move targets to same device as outputs to avoid device-mismatch errors
+            target = target.to(cfg.device)
+            # use sum reduction so we can average correctly over dataset size
+            test_loss += criterion(out, target).item()
+            pred = out.argmax(dim=1)
+            correct += pred.eq(target).sum().item()
+    # average test loss over all examples and compute accuracy
+    if total > 0:
+        test_loss = test_loss / total
+        accuracy = 100. * correct / total
+    else:
+        test_loss = 0.0
+        accuracy = 0.0
+    # print(total)
+    return accuracy, test_loss # Derive ratio of correct predictions.
