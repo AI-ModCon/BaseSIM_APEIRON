@@ -26,7 +26,7 @@ def test(model, loader, criterion, cfg):
             # ensure inputs have channel dimension and are floats
             input = input.unsqueeze(dim=1).float()
             input = input.to(cfg.device)
-            out = model(input, training=False )
+            out = model(input, training=False)
             # move targets to same device as outputs to avoid device-mismatch errors
             target = target.to(cfg.device)
             # use sum reduction so we can average correctly over dataset size
