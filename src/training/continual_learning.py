@@ -319,8 +319,6 @@ def update_CL_total_retraining(
 from torch.func import vmap, grad, jvp
 from collections import OrderedDict
 from typing import Mapping
-
-
 class FunctionalAdam:
     def __init__(self, params, lr=1e-3, betas=(0.9, 0.999), eps=1e-8):
         self.lr = lr

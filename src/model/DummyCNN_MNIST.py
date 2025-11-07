@@ -14,7 +14,7 @@ class DummyCNN_MNIST(torch.nn.Module):
 
     def forward(self, x, training=True):
         x = F.relu(self.conv1(x))
-        # x = F.dropout(x, p=0.5, training=self.training)
+        # x = F.dropout(x, p=0.5, training=training)
         x = F.relu(F.max_pool2d(self.conv2(x), 2))
         x = F.relu(F.max_pool2d(self.conv3(x), 2))
         x = x.view(-1, 3 * 3 * 64)
