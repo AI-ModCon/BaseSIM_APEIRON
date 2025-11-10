@@ -51,6 +51,7 @@ def CL(
     Total_loss: list = []
     Gen_loss: list = []
     For_loss: list = []
+    n_epoch: int = cfg.train.epochs
 
     # print("Task id is", task_id)
     # print("-------")
@@ -313,8 +314,8 @@ def update_CL_total_retraining(
 #-----------------------------------------
 # Algorithm: JVP Regularization
 # This function implements a continual learning method based on Jacobian-vector product regularization.
-# It aims to minimize forgetting by penalizing changes in the model's output on the memory buffer
-
+# It aims to minimize forgetting by penalizing changes in the model's output on the memory buffer by considering their 
+# directional derivatives along the parameter updates computed from the current task as well as the memory buffer.
 from torch.func import vmap, grad, jvp
 from collections import OrderedDict
 from typing import Mapping
@@ -358,7 +359,7 @@ class FunctionalAdam:
     
     
     
-def return_Hamiltonian(model, params: Mapping[str, torch.Tensor], data, cfg):
+def return_Hamiltonian(model, params: Mapping[str, torch.Tensor], data):
     (x, y, exp_x, exp_y, deltax, criterion) = data
     for p in params.values():
         if not p.requires_grad:
@@ -407,13 +408,12 @@ def return_Hamiltonian(model, params: Mapping[str, torch.Tensor], data, cfg):
     # _, fwd1 = jvp(f, (params, exp_x), (wdot, torch.zeros_like(deltax)))
     # _, fwd2 = jvp(f, (params, exp_x), (zero_dtheta, deltax))      
     # print((V+dV).item(), V.item(), dV.item(), fwd1, fwd2)    
-    #_, dV = jvp(f, (params, exp_x), (wdot, deltax))
+    _, dV = jvp(f, (params, exp_x), (wdot, deltax))
     
     
     # The final gradient calculation
-    combined = {k: (delta_theta[k]+grad_V[k]+cfg.continuous_learning.factor*grad_dV[k]) for k in params}
+    combined = {k: (delta_theta[k]+grad_V[k]+1*grad_dV[k]) for k in params}
     return (combined, V_star(params, x, y), V_star(params, exp_x, exp_y))
-
 
 def update_CL_jvp_reg(
     model: torch.nn.Module,
@@ -466,14 +466,14 @@ def update_CL_jvp_reg(
 
                 #----------------------------------------
                 # deltax direction calculation
-                deltax = (cfg.continuous_learning.x_lr*(in_m-in_t)/(torch.linalg.norm(in_m)\
+                deltax = ((in_m-in_t)/(torch.linalg.norm(in_m)\
                         +torch.linalg.norm(in_t)) ).to(device)
                 
                 # ------------------------------------------------
                 # Build data tuple for the actual gradient calculation
                 data = (in_t, targets_t, in_m, targets_m, deltax, criterion)
                 with torch.enable_grad():
-                    grads_dict, J_P, J_M = return_Hamiltonian(model, params, data, cfg)   
+                    grads_dict, J_P, J_M  = return_Hamiltonian(model, params, data)   
                                  
                 # ------------------------------------------------
                 # detach grads
@@ -489,13 +489,7 @@ def update_CL_jvp_reg(
                 
                 # ------------------------------------------------
                 torch.cuda.empty_cache()
-                # send it to the model team's model class
-                # J_P =criterion(model(in_t), targets_t.to(device))
-                # J_M = criterion( model(in_m), targets_m.to(device)) 
-                # # Experience replay loss calculation
-                # Total_loss.backward()  # Derive gradients.
-                # optimizer.step()  # Update parameters based on gradients.
-                epoch_loss +=  (J_P+J_M).item()
+                epoch_loss    += (J_P+J_M).item()
                 epoch_for_loss = J_P.item()
                 epoch_gen_loss = J_M.item()
             else:

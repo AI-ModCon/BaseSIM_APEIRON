@@ -25,6 +25,8 @@ def main(argv=None) -> int:
     images, labels = get_mnist_cl_data()
     # The main loop for continual learning
     # I pull the data for each task=mnist class and then send it to the CL function
+    print("The factor being used is", cfg.continuous_learning.factor)
+    
     progress_bar = tqdm(range(10), desc=f"CL Tasks", leave=True)
     for i in progress_bar:
         class_id = i % 10
