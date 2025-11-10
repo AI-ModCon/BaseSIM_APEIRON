@@ -411,7 +411,7 @@ def return_Hamiltonian(model, params: Mapping[str, torch.Tensor], data, cfg):
     
     
     # The final gradient calculation
-    combined = {k: (delta_theta[k]+grad_V[k]+cfg.continuous_learning.factor*grad_dV[k]) for k in params}
+    combined = {k: (delta_theta[k]+grad_V[k]+cfg.continuous_learning.jvp_reg*grad_dV[k]) for k in params}
     return (combined, V_star(params, x, y), V_star(params, exp_x, exp_y))
 
 
@@ -438,7 +438,7 @@ def update_CL_jvp_reg(
     num = -1
     params = OrderedDict(model.named_parameters())
     adam = FunctionalAdam(params, lr=1e-3)
-    while(epoch_loss>1e-05) or  num<cfg.continuous_learning.total_updates:
+    while(epoch_loss>1e-05) or  num<cfg.continuous_learning.max_iter:
         epoch_loss=0.0
         num += 1
         for pp, data_m in enumerate(mem_iter):
@@ -466,7 +466,7 @@ def update_CL_jvp_reg(
 
                 #----------------------------------------
                 # deltax direction calculation
-                deltax = (cfg.continuous_learning.x_lr*(in_m-in_t)/(torch.linalg.norm(in_m)\
+                deltax = (cfg.continuous_learning.deltax_norm*(in_m-in_t)/(torch.linalg.norm(in_m)\
                         +torch.linalg.norm(in_t)) ).to(device)
                 
                 # ------------------------------------------------
