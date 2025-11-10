@@ -6,6 +6,15 @@ data/*
 # C extensions
 *.so
 
+# bash
+*.sh
+
+#Json
+*.json
+
+# Github
+*.orig
+
 # Distribution / packaging
 .Python
 build/

@@ -22,16 +22,14 @@ def class_selector(images, labels, task_id):
     tuple: A tuple containing the training data and the test data.
     """
     imp = np.random.randint(0, 9)
-    # #print(imp, task_id)
-    idx = labels == imp
-    X = images[idx]
-    y = labels[idx]
+    X = images
+    y = labels
     # #print("We have to apply the transformation now.")
     rot_angle = np.random.random() * 180
     scaling = np.random.random() + 1
     # #print(rot_angle)
     X = torchvision.transforms.functional.affine(
-        X, rot_angle, translate=(scaling, scaling), scale=1, shear=rot_angle
+        X, rot_angle, translate=(scaling, scaling), scale=scaling, shear=rot_angle
     )
     # #print("Just after the data is defined", X.shape, y.shape)
     # Split the data
