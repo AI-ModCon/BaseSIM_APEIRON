@@ -6,6 +6,9 @@ data/*
 # C extensions
 *.so
 
+#Json
+*.json
+
 # Distribution / packaging
 .Python
 build/
