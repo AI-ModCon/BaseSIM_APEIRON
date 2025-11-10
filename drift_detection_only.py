@@ -1,5 +1,6 @@
 import sys
 import torch
+import numpy as np
 
 
 from src.config.configuration import build_config, Config

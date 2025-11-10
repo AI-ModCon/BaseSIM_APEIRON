@@ -6,6 +6,9 @@ data/*
 # C extensions
 *.so
 
+# bash
+*.sh
+
 #Json
 *.json
 

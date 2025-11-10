@@ -97,12 +97,12 @@ class DataCfg:
 
 @dataclass(frozen=True)
 class ContinuousLearningCfg:
-    x_updates: int
-    theta_updates: int
-    factor: float
-    x_lr: float
-    th_lr: float
-    total_updates: int  # TODO: Make sure that this does not conflict wiht train.epochs
+    jvp_reg: float  # this is now the lambda factor for the JVP regularization.
+    deltax_norm: float  # the norm of the deltax vector which is used to compute the direction in the data space.
+    max_iter: int  # TODO: Make sure that this does not conflict wiht train.epochs
+    # train.epoch is not relevant anymore because, I am doing max_iterations
+    # inside the continual learning loop. max_iterations is total updates
+    # now
 
 
 @dataclass(frozen=True)
