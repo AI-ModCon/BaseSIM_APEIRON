@@ -4,10 +4,15 @@ import torch.nn.functional as F
 from typing import Any, Callable, Iterable, Tuple, List
 from torch import nn
 from torch.optim import Optimizer
+from torch.utils.data import DataLoader
+from torch import nn, Tensor
 
 from src.model.torch_model_harness import BaseModelHarness
 from src.config.configuration import Config
-from examples.MNIST.data_utils import class_selector, get_mnist_cl_data
+from examples.MNIST.data_utils import class_selector, get_mnist_cl_data, MyDataset
+
+MetricFn = Callable[[Tensor, Tensor], Any]
+CriterionFn = Callable[[Tensor, Tensor], Tensor]
 
 
 class Cnn(torch.nn.Module):
@@ -45,6 +50,16 @@ class MNIST_CNN(BaseModelHarness):
         self.task_counter = 0
         self.images, self.labels = get_mnist_cl_data()
 
+        self.memory_image = []
+        self.memory_label = []
+        self.memory_test = []
+        self.memory_label_test = []
+
+        self.cur_xTrain = None
+        self.cur_yTrain = None
+        self.cur_xTest = None
+        self.cur_yTest = None
+
     def get_optmizer(self) -> Optimizer:
         return torch.optim.Adam(self.model.parameters(), lr=0.001)
 
@@ -56,14 +71,45 @@ class MNIST_CNN(BaseModelHarness):
         (xTrain, yTrain), (xTest, yTest) = class_selector(
             self.images, self.labels, self.task_counter
         )
+        train_dataset = MyDataset(xTrain, yTrain)
+        test_dataset = MyDataset(xTest, yTest)
 
-        raise NotImplementedError
+        train_loader = DataLoader(
+            train_dataset, batch_size=self.cfg.train.batch_size, shuffle=True
+        )
+        test_loader = DataLoader(
+            test_dataset, batch_size=self.cfg.train.batch_size, shuffle=False
+        )
+
+        self.task_counter = (self.task_counter + 1) % 10
+
+        self.cur_xTrain = xTrain
+        self.cur_yTrain = yTrain
+        self.cur_xTest = xTest
+        self.cur_yTest = yTest
+
+        return (train_loader, test_loader)
 
     def get_hist_data_loaders(self) -> Tuple[DataLoader, DataLoader]:
         """
         Returns a training and validation dataloader with historical data (to measure drift) compatible with the model input
         """
-        raise NotImplementedError
+        mem_train_dataset = MyDataset(self.memory_image, self.memory_label)
+        mem_test_dataset = MyDataset(self.memory_test, self.memory_label_test)
+
+        train_loader = DataLoader(
+            mem_train_dataset, batch_size=self.cfg.train.batch_size, shuffle=True
+        )
+        test_loader = DataLoader(
+            mem_test_dataset, batch_size=self.cfg.train.batch_size, shuffle=False
+        )
+
+        self.memory_image.extend(self.cur_xTrain)
+        self.memory_label.extend(self.cur_yTrain)
+        self.memory_test.extend(self.cur_xTest)
+        self.memory_label_test.extend(self.cur_yTest)
+
+        return (train_loader, test_loader)
 
     def get_criterion(self) -> CriterionFn:
         """Return a loss function compatible with model output and dataloader labels"""

@@ -2,6 +2,8 @@ import torch
 
 from typing import Dict
 
+from torch.func import vmap, grad, jvp
+from collections import OrderedDict
 
 from torch.utils.data import DataLoader
 
@@ -11,6 +13,7 @@ from examples.MNIST.data_utils import MyDataset
 
 
 from src.model.torch_model_harness import BaseModelHarness
+from src.training.jvp_regularization_refactor import return_Hamiltonian, FunctionalAdam
 
 
 def continual_learning_loop(cfg: Config, modelHarness: BaseModelHarness):
@@ -24,6 +27,10 @@ def continual_learning_loop(cfg: Config, modelHarness: BaseModelHarness):
     model = modelHarness.model
     optimizer = modelHarness.get_optmizer()
     batch_size = cfg.train.batch_size
+
+    # TODO: replace this
+    params = OrderedDict(model.named_parameters())
+    adam = FunctionalAdam(params, lr=1e-3)
 
     # Generic "safe next" for any iterator/loader pair
     def _safe_next(current_iter, make_loader, min_batch=None):
@@ -58,11 +65,12 @@ def continual_learning_loop(cfg: Config, modelHarness: BaseModelHarness):
         train_iter, train_batch = _safe_next(
             train_iter, modelHarness.get_train_loader, min_batch=batch_size
         )
+
         hist_train_iter, hist_batch = _safe_next(
             hist_train_iter, modelHarness.get_hist_train_loader, min_batch=batch_size
         )
 
-        step_method_bcl(
+        forgetting_loss, generation_loss, total_loss = step_method_jvp_reg(
             model=model,
             criterion=criterion,
             optimizer=optimizer,
@@ -70,6 +78,55 @@ def continual_learning_loop(cfg: Config, modelHarness: BaseModelHarness):
             iter=iter_count,
             train_batch=train_batch,
             hist_batch=hist_batch,
+            adam=adam,  # TODO remove this.
         )
 
     return 0
+
+
+def step_method_jvp_reg(
+    model: torch.nn.Module,
+    criterion: torch.nn.Module,
+    optimizer: torch.optim.Optimizer,
+    cfg: Config,
+    iter: int,
+    train_batch: tuple,
+    hist_batch: tuple,
+    adam: FunctionalAdam,
+):
+    optimizer.zero_grad()
+    in_t, targets_t = train_batch
+    in_m, targets_m = hist_batch
+
+    # ----------------------------------------
+    # deltax direction calculation
+    deltax = (
+        cfg.continuous_learning.deltax_norm
+        * (in_m - in_t)
+        / (torch.linalg.norm(in_m) + torch.linalg.norm(in_t))
+    )
+
+    # ------------------------------------------------
+    # Build data tuple for the actual gradient calculation
+    data = (in_t, targets_t, in_m, targets_m, deltax, criterion)
+    with torch.enable_grad():
+        grads_dict, J_P, J_M = return_Hamiltonian(model, params, data, cfg)
+
+    # ------------------------------------------------
+    # detach grads
+    for k in grads_dict:
+        grads_dict[k] = grads_dict[k].detach()
+
+    with torch.no_grad():
+        params = adam.step(params, grads_dict)
+        for k in params:
+            params[k] = params[k].detach()
+        model.load_state_dict(params, strict=False)
+
+    # ------------------------------------------------
+
+    return (
+        J_P.item(),
+        J_M.item(),
+        (J_P + J_M).item(),
+    )  # forgetting loss, generation loss, total loss
