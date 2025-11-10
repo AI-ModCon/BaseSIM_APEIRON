@@ -1,7 +1,8 @@
-torch
+torch>=2.0
 numpy
 torchvision
 pandas
+tqdm
 
 #for devs only
 mypy

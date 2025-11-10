@@ -18,6 +18,6 @@ num_workers = 4
 
 
 [continuous_learning]
-jvp_reg = 0.8
+jvp_reg = 0.5
 deltax_norm = 0.001
 max_iter = 10
