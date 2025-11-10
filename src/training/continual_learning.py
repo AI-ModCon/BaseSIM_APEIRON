@@ -5,9 +5,139 @@ from typing import Dict
 
 from torch.utils.data import DataLoader
 
-from src.validation.validation import test
+from src.evaluation.evaluation import test
 from src.config.configuration import Config
 from examples.MNIST.data_utils import MyDataset
+
+
+from src.model.torch_model_harness import BaseModelHarness
+
+
+def continual_learning_loop(cfg: Config, modelHarness: BaseModelHarness):
+
+    # 1) select the right cl update method #TODO
+
+    # 2) Get loaders
+    hist_train_iter = iter(modelHarness.get_hist_train_loader())
+    train_iter = iter(modelHarness.get_train_loader())
+    criterion = modelHarness.get_criterion()
+    model = modelHarness.model
+    optimizer = modelHarness.get_optmizer()
+    batch_size = cfg.train.batch_size
+
+    # Generic "safe next" for any iterator/loader pair
+    def _safe_next(current_iter, make_loader, min_batch=None):
+        """
+        Returns (possibly-updated-iter, batch) guaranteeing:
+          - iterator restarts on StopIteration
+          - optional min batch-size requirement (on y) if provided
+        """
+        while True:
+            try:
+                batch = next(current_iter)
+            except StopIteration:
+                current_iter = iter(make_loader())
+                batch = next(current_iter)
+
+            if min_batch is None:
+                return current_iter, batch
+
+            # Try to enforce batch-size on the second element (x, y)
+            try:
+                y = batch[1]
+                if getattr(y, "shape", None) is not None and y.shape[0] >= min_batch:
+                    return current_iter, batch
+                # else: too small → loop to fetch a new batch/iterator
+            except Exception:
+                # If we cannot inspect batch size, just accept the batch
+                return current_iter, batch
+
+    # 2) run the outer loop
+    for iter_count in range(cfg.continuous_learning.total_updates):
+        # Fetch valid batches from both streams
+        train_iter, train_batch = _safe_next(
+            train_iter, modelHarness.get_train_loader, min_batch=batch_size
+        )
+        hist_train_iter, hist_batch = _safe_next(
+            hist_train_iter, modelHarness.get_hist_train_loader, min_batch=batch_size
+        )
+
+        step_method_bcl(
+            model=model,
+            criterion=criterion,
+            optimizer=optimizer,
+            cfg=cfg,
+            iter=iter_count,
+            train_batch=train_batch,
+            hist_batch=hist_batch,
+        )
+
+    pass
+
+
+def step_method_bcl(model, criterion, optimizer, cfg, iter, train_batch, hist_batch):
+    """Implements one step of BCL given ready-to-use batches.
+
+    @article{raghavan5046289modelling,
+      title={Modelling the Dynamics of Learning Continually Withgraph Neural Networks},
+      author={Raghavan, Krishnan and Balaprakash, Prasanna},
+      journal={Available at SSRN 5046289}
+    }
+
+    """
+    # Example unpack (adjust as needed)
+    (x_t, y_t) = train_batch.to(cfg.device)
+    (x_hist, y_hist) = hist_batch.to(cfg.device)
+
+    out = model(x_t)
+    out_hist = model(x_hist)
+
+    ############## The task cost and the memory cost
+    #########################################################################################
+    J_P = criterion(out, y_t)
+    J_M = criterion(out_hist, y_hist)
+
+    ############## This is the J_x loss
+    #########################################################################################
+    J_PN_x = criterion(model(x_hist), y_hist)
+    x_PN = copy.copy(in_m).to(device)
+    x_PN.requires_grad = True
+    adv_grad = 0
+    epsilon = params["x_lr"]
+
+    for epoch in range(params["x_updates"]):
+        x_PN = x_PN + epsilon * adv_grad
+        crit = criterion(model(x_PN.float()), targets_m)
+        loss = torch.mean(crit) + torch.var(crit)  # + skew(crit) + kurtosis(crit)
+        adv_grad = torch.autograd.grad(loss, x_PN)[0]
+        # Normalize the gradient values.
+        adv_grad = normalize_grad(adv_grad, p=2, dim=1, eps=1e-12)
+    J_x_crit = criterion(model(x_PN.float()), targets_m) - J_PN_x
+    # print(adv_grad.shape)
+    # print("norm", torch.norm(adv_grad))
+    ############### This is the loss J_th
+    #########################################################################################
+    cop = copy.deepcopy(model).to(device)
+    opt_buffer = torch.optim.Adam(cop.parameters(), lr=params["th_lr"])
+    J_PN_theta = criterion(model(in_m.float()), targets_m)
+    for i in range(params["theta_updates"]):
+        opt_buffer.zero_grad()
+        loss_crit = criterion(cop(in_t.float()), targets_t)
+        loss_m = torch.mean(loss_crit) + torch.var(loss_crit)
+        # + torch.var(loss_crit) + skew(loss_crit) + kurtosis(loss_crit)
+        loss_m.backward(retain_graph=True)
+        opt_buffer.step()
+    J_th_crit = criterion(cop(in_m.float()), targets_m) - J_PN_theta
+
+    # Now, put together  the loss fully
+    Total_loss = torch.mean(
+        J_M + J_P + params["factor"] * J_x_crit + params["factor"] * J_th_crit
+    )
+    # +torch.var(J_P+J_M+J_x_crit+params['factor']*J_th_crit)
+    # adjoint_scores =
+    optimizer.zero_grad()
+    Total_loss.backward()  # Derive gradients.
+    optimizer.step()  # Update parameters based on gradients.
 
 
 # This function is my actual CL update. We can actually modify this function
