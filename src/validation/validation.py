@@ -1,4 +1,6 @@
 import torch
+
+
 def test(model, loader, criterion, cfg):
     """
     Evaluate the model on the given dataset.
@@ -7,8 +9,8 @@ def test(model, loader, criterion, cfg):
     model (torch.nn.Module): The model to evaluate.
     loader (torch.utils.data.DataLoader): The dataset loader.
     Graph (int): Whether the data is a graph (0) or image (1). Defaults to 0.
-    
-    # KR: I am removing graph support for now, because, we want this to be 
+
+    # KR: I am removing graph support for now, because, we want this to be
     # transferred to the model team eventually.
 
     Returns:
@@ -36,9 +38,9 @@ def test(model, loader, criterion, cfg):
     # average test loss over all examples and compute accuracy
     if total > 0:
         test_loss = test_loss / total
-        accuracy = 100. * correct / total
+        accuracy = 100.0 * correct / total
     else:
         test_loss = 0.0
         accuracy = 0.0
     # print(total)
-    return accuracy, test_loss # Derive ratio of correct predictions.
+    return accuracy, test_loss  # Derive ratio of correct predictions.

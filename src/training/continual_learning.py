@@ -4,7 +4,8 @@ from torch.utils.data import DataLoader
 from src.data.data_utils import MyDataset
 from src.validation.validation import test
 from src.config.configuration import Config
-from tqdm import  tqdm
+from tqdm import tqdm
+
 
 def CL(
     data: tuple,
@@ -13,7 +14,7 @@ def CL(
     criterion: torch.nn.Module,
     optimizer: torch.optim.Optimizer,
     progress_bar: tqdm,
-    cfg: Config
+    cfg: Config,
 ) -> torch.nn.Module:
     """
     This function is the main function for continual learning. It takes in the data, task id, model, criterion, and optimizer.
@@ -47,7 +48,6 @@ def CL(
         mem_test_dataset, batch_size=cfg.train.batch_size, shuffle=False
     )
 
-
     Total_loss: list = []
     Gen_loss: list = []
     For_loss: list = []
@@ -74,7 +74,7 @@ def CL(
         For_loss=For_loss,
         i=task_id,
         cfg=cfg,
-        progress_bar=progress_bar
+        progress_bar=progress_bar,
     )
 
     return model
@@ -137,57 +137,50 @@ def One_task_CL(
     #     optimizer,
     #     cfg=cfg
     # )
-    
-    
+
     model, Total, Gen, For = update_CL_jvp_reg(
-        model,
-        criterion,
-        mem_train_loader,
-        train_loader,
-        i,
-        optimizer,
-        cfg=cfg
+        model, criterion, mem_train_loader, train_loader, i, optimizer, cfg=cfg
     )
-    
-    
+
     Total_loss.append(Total)
     Gen_loss.append(Gen)
     For_loss.append(For)
     # Add the accuracies
-    train_acc,_ = test(model, train_loader,  criterion, cfg=cfg)
+    train_acc, _ = test(model, train_loader, criterion, cfg=cfg)
     if i > 0:
-        mem_train_acc,_ = (
-            test(model, mem_train_loader,  criterion, cfg=cfg)
+        mem_train_acc, _ = (
+            test(model, mem_train_loader, criterion, cfg=cfg)
             if len(mem_train_loader) > 0
             else -1
         )
     # Print things when required
-    if i> 0:
-        mem_test_acc,_ = (
+    if i > 0:
+        mem_test_acc, _ = (
             test(model, mem_test_loader, criterion, cfg=cfg)
             if len(mem_train_loader) > 0
             else -1
         )
-        test_acc,_ = test(model, test_loader, criterion, cfg=cfg)
+        test_acc, _ = test(model, test_loader, criterion, cfg=cfg)
         if i == 0:
             mem_train_acc = -1
             mem_test_acc = -1
-            
-            
-        progress_bar.set_postfix({
-            "Losses (Total)": f"{Total:.6f}",   
-            "Prior(te)": f"{mem_test_acc:.1f}%"
-        })
-        tqdm.write("\n".join([
-            f"Task {i} Summary:",
-            f"Task Loss  : {Gen:.6f}",
-            f"Prior Loss : {For:.6f}",
-            f"Train Acc  : {train_acc:.1f}%",
-            f"Test Acc   : {test_acc:.1f}%",
-            f"Prior Tr   : {mem_train_acc:.1f}%",
-            "-" * 40
-        ]))
-        
+
+        progress_bar.set_postfix(
+            {"Losses (Total)": f"{Total:.6f}", "Prior(te)": f"{mem_test_acc:.1f}%"}
+        )
+        tqdm.write(
+            "\n".join(
+                [
+                    f"Task {i} Summary:",
+                    f"Task Loss  : {Gen:.6f}",
+                    f"Prior Loss : {For:.6f}",
+                    f"Train Acc  : {train_acc:.1f}%",
+                    f"Test Acc   : {test_acc:.1f}%",
+                    f"Prior Tr   : {mem_train_acc:.1f}%",
+                    "-" * 40,
+                ]
+            )
+        )
 
     return (
         model,
@@ -196,30 +189,29 @@ def One_task_CL(
         For_loss,
         -1,  # dummy for scores later
     )
-    
 
 
-
-#-----------------------------------------
+# -----------------------------------------
 # Basic continual learning methods can be added here.
-#-----------------------------------------
+# -----------------------------------------
 
-#-----------------------------------------
+
+# -----------------------------------------
 # Algorithm: Total Retraining
-# This function retrains the model with a huge memory buffer 
+# This function retrains the model with a huge memory buffer
 # that maintains all the data seen so far. Obviously, this is not scalable,
-# but it provides a good baseline for continual learning methods. 
+# but it provides a good baseline for continual learning methods.
 # This method is called "total retraining" in the literature.
 # and focuses on minimizing forgetting, that is keeping the loss on the memory buffer low.
 def update_CL_total_retraining(
     model: torch.nn.Module,
-    criterion:torch.nn.Module,
+    criterion: torch.nn.Module,
     mem_loader: torch.utils.data.DataLoader,
     train_loader: torch.utils.data.DataLoader,
     task: int,
     optimizer: torch.optim.Optimizer,
-    cfg: Config
-    ) -> tuple[torch.nn.Module, float, float, float]:
+    cfg: Config,
+) -> tuple[torch.nn.Module, float, float, float]:
     device = cfg.device
     # We set up the iterators for the memory loader and the train loader
     mem_iter = iter(mem_loader)
@@ -230,16 +222,16 @@ def update_CL_total_retraining(
     epoch_for_loss = 10000.0
     epoch_gen_loss = 10000.0
     num = -1
-    while(epoch_loss>1e-05) and num<cfg.continuous_learning.total_updates:
-        epoch_loss=0.0
+    while (epoch_loss > 1e-05) and num < cfg.continuous_learning.total_updates:
+        epoch_loss = 0.0
         num += 1
         for pp, data_m in enumerate(mem_iter):
             if task > 0:
-            # ###########################################
+                # ###########################################
                 try:
                     data_t = next(task_iter)
                     (_, y) = data_t
-                    if y.shape[0] <  cfg.train.batch_size:
+                    if y.shape[0] < cfg.train.batch_size:
                         task_iter = iter(train_loader)
                         data_t = next(task_iter)
                 except StopIteration:
@@ -253,10 +245,10 @@ def update_CL_total_retraining(
                 targets_t = targets_t.to(device)
                 targets_m = targets_m.to(device)
                 # send it to the model team's model class
-                J_P =criterion(model(in_t), targets_t.to(device))
-                J_M = criterion( model(in_m), targets_m.to(device)) 
+                J_P = criterion(model(in_t), targets_t.to(device))
+                J_M = criterion(model(in_m), targets_m.to(device))
                 # Experience replay loss calculation
-                Total_loss = (J_P+J_M)
+                Total_loss = J_P + J_M
                 Total_loss.backward()  # Derive gradients.
                 optimizer.step()  # Update parameters based on gradients.
                 epoch_loss += Total_loss.item()
@@ -272,14 +264,14 @@ def update_CL_total_retraining(
                 except StopIteration:
                     task_iter = iter(train_loader)
                     data_t = next(task_iter)
-                
+
                 in_t, targets_t = data_t
                 in_t = in_t.unsqueeze(dim=1).float()
                 Total_loss = criterion(model(in_t.to(device)), targets_t.to(device))
                 optimizer.zero_grad()
                 Total_loss.backward()  # Derive gradients.
-                optimizer.step()  # Update parameters based on gradients. 
-         
+                optimizer.step()  # Update parameters based on gradients.
+
     # return stuff
     if task > 0:
         # test_acc, loss_cal = test(model, mem_loader, criterion, device=device)
@@ -287,30 +279,26 @@ def update_CL_total_retraining(
         epoch_for_loss = epoch_for_loss / len(mem_loader.dataset)
         epoch_gen_loss = epoch_gen_loss / len(mem_loader.dataset)
         # print("the loss at:", num, task, total, epoch_loss, loss_cal, test_acc)
-        return (model, 
-            epoch_loss,
-            epoch_for_loss,
-            epoch_gen_loss
-        )
+        return (model, epoch_loss, epoch_for_loss, epoch_gen_loss)
 
     else:
         # test_acc, loss_cal = test(model, train_loader, criterion, device=device)
         epoch_loss = epoch_loss / len(train_loader.dataset)
         # print("the loss at:", num, task, total, epoch_loss, loss_cal, test_acc)
-        return (model, 
+        return (
+            model,
             epoch_loss,
             epoch_loss,
             epoch_loss,
         )
 
 
-
-#-----------------------------------------
+# -----------------------------------------
 # Additional continual learning methods can be added here.
-#-----------------------------------------
+# -----------------------------------------
 
 
-#-----------------------------------------
+# -----------------------------------------
 # Algorithm: JVP Regularization
 # This function implements a continual learning method based on Jacobian-vector product regularization.
 # It aims to minimize forgetting by penalizing changes in the model's output on the memory buffer
@@ -318,12 +306,14 @@ def update_CL_total_retraining(
 from torch.func import vmap, grad, jvp
 from collections import OrderedDict
 from typing import Mapping
+
+
 class FunctionalAdam:
     def __init__(self, params, lr=1e-3, betas=(0.9, 0.999), eps=1e-8):
         self.lr = lr
         self.betas = betas
         self.eps = eps
-        
+
         # Initialize moment estimates
         self.m = {k: torch.zeros_like(v) for k, v in params.items()}
         self.v = {k: torch.zeros_like(v) for k, v in params.items()}
@@ -348,50 +338,56 @@ class FunctionalAdam:
             self.v[k] = b2 * self.v[k] + (1 - b2) * (g * g)
 
             # Bias correction
-            m_hat = self.m[k] / (1 - b1 ** self.t)
-            v_hat = self.v[k] / (1 - b2 ** self.t)
+            m_hat = self.m[k] / (1 - b1**self.t)
+            v_hat = self.v[k] / (1 - b2**self.t)
 
             # Adam update
             new_params[k] = w - lr * m_hat / (torch.sqrt(v_hat) + eps)
 
         return new_params
-    
-    
-    
+
+
 def return_Hamiltonian(model, params: Mapping[str, torch.Tensor], data, cfg):
     (x, y, exp_x, exp_y, deltax, criterion) = data
     for p in params.values():
         if not p.requires_grad:
             p.requires_grad_(True)
+
     # Helper functions
     # Functional + batched forward
     def single_forward(p, xx):
         return torch.func.functional_call(model, p, (xx,))
+
     def model_batched(p, xx):
         return vmap(lambda b: single_forward(p, b))(xx)
+
     # loss function
     def V_star(p, xx, yy):
         preds = model_batched(p, xx).squeeze(dim=1)
         return criterion(preds, yy)
+
     # Useful helper
     def map_dict(d, fn):
         return {k: fn(v) for k, v in d.items()}
+
     # The gradient function
     grad_wrt_params = grad(V_star, argnums=0)
+
     def f(p, xx):
         return V_star(p, xx, exp_y)
+
     def tangents_from_params(params, tangent_seq):
         """Map tangent tensors to param OrderedDict structure."""
-        return OrderedDict({
-            k: t for (k, _), t in zip(params.items(), tangent_seq)
-        })
+        return OrderedDict({k: t for (k, _), t in zip(params.items(), tangent_seq)})
+
     # def zero_like_params(params):
     #     return OrderedDict({k: torch.zeros_like(v) for k, v in params.items()})
     def jvp_func(p, tangents):
         return jvp(f, (p, exp_x), tangents)[1]
-    # ------------------------------------------------  
+
+    # ------------------------------------------------
     # Core compute part
-    # ------------------------------------------------  
+    # ------------------------------------------------
     # grad of the current task
     delta_theta = grad_wrt_params(params, x, y)
     # grad of the past task
@@ -400,33 +396,33 @@ def return_Hamiltonian(model, params: Mapping[str, torch.Tensor], data, cfg):
     wdot = map_dict(delta_theta, lambda v: v)
     wdot = tangents_from_params(params, wdot.values())
     grad_dV = grad(jvp_func)(params, (wdot, deltax))
-    
-    
+
     # Additional debug prints --- IGNORE ---
     # V = V_star(params, exp_x, exp_y)
     # _, fwd1 = jvp(f, (params, exp_x), (wdot, torch.zeros_like(deltax)))
-    # _, fwd2 = jvp(f, (params, exp_x), (zero_dtheta, deltax))      
-    # print((V+dV).item(), V.item(), dV.item(), fwd1, fwd2)    
-    #_, dV = jvp(f, (params, exp_x), (wdot, deltax))
-    
-    
+    # _, fwd2 = jvp(f, (params, exp_x), (zero_dtheta, deltax))
+    # print((V+dV).item(), V.item(), dV.item(), fwd1, fwd2)
+    # _, dV = jvp(f, (params, exp_x), (wdot, deltax))
+
     # The final gradient calculation
-    combined = {k: (delta_theta[k]+grad_V[k]+cfg.continuous_learning.jvp_reg*grad_dV[k]) for k in params}
+    combined = {
+        k: (delta_theta[k] + grad_V[k] + cfg.continuous_learning.jvp_reg * grad_dV[k])
+        for k in params
+    }
     return (combined, V_star(params, x, y), V_star(params, exp_x, exp_y))
 
 
 def update_CL_jvp_reg(
     model: torch.nn.Module,
-    criterion:torch.nn.Module,
+    criterion: torch.nn.Module,
     mem_loader: torch.utils.data.DataLoader,
     train_loader: torch.utils.data.DataLoader,
     task: int,
     optimizer: torch.optim.Optimizer,
-    cfg: Config
-    ) -> tuple[torch.nn.Module, float, float, float]:
-    
-    
-    device =cfg.device
+    cfg: Config,
+) -> tuple[torch.nn.Module, float, float, float]:
+
+    device = cfg.device
     # We set up the iterators for the memory loader and the train loader
     mem_iter = iter(mem_loader)
     # print("the length of the train loader is", len(mem_train_loader  ))
@@ -438,15 +434,15 @@ def update_CL_jvp_reg(
     num = -1
     params = OrderedDict(model.named_parameters())
     adam = FunctionalAdam(params, lr=1e-3)
-    while(epoch_loss>1e-05) or  num<cfg.continuous_learning.max_iter:
-        epoch_loss=0.0
+    while (epoch_loss > 1e-05) or num < cfg.continuous_learning.max_iter:
+        epoch_loss = 0.0
         num += 1
         for pp, data_m in enumerate(mem_iter):
             optimizer.zero_grad(set_to_none=True)
             model.zero_grad(set_to_none=True)
 
             if task > 0:
-            # ------------------------------------------------  
+                # ------------------------------------------------
                 try:
                     data_t = next(task_iter)
                     (_, y) = data_t
@@ -464,38 +460,40 @@ def update_CL_jvp_reg(
                 targets_t = targets_t.to(device)
                 targets_m = targets_m.to(device)
 
-                #----------------------------------------
+                # ----------------------------------------
                 # deltax direction calculation
-                deltax = (cfg.continuous_learning.deltax_norm*(in_m-in_t)/(torch.linalg.norm(in_m)\
-                        +torch.linalg.norm(in_t)) ).to(device)
-                
+                deltax = (
+                    cfg.continuous_learning.deltax_norm
+                    * (in_m - in_t)
+                    / (torch.linalg.norm(in_m) + torch.linalg.norm(in_t))
+                ).to(device)
+
                 # ------------------------------------------------
                 # Build data tuple for the actual gradient calculation
                 data = (in_t, targets_t, in_m, targets_m, deltax, criterion)
                 with torch.enable_grad():
-                    grads_dict, J_P, J_M = return_Hamiltonian(model, params, data, cfg)   
-                                 
+                    grads_dict, J_P, J_M = return_Hamiltonian(model, params, data, cfg)
+
                 # ------------------------------------------------
                 # detach grads
                 for k in grads_dict:
                     grads_dict[k] = grads_dict[k].detach()
-    
-            
+
                 with torch.no_grad():
                     params = adam.step(params, grads_dict)
                     for k in params:
                         params[k] = params[k].detach()
                     model.load_state_dict(params, strict=False)
-                
+
                 # ------------------------------------------------
                 torch.cuda.empty_cache()
                 # send it to the model team's model class
                 # J_P =criterion(model(in_t), targets_t.to(device))
-                # J_M = criterion( model(in_m), targets_m.to(device)) 
+                # J_M = criterion( model(in_m), targets_m.to(device))
                 # # Experience replay loss calculation
                 # Total_loss.backward()  # Derive gradients.
                 # optimizer.step()  # Update parameters based on gradients.
-                epoch_loss +=  (J_P+J_M).item()
+                epoch_loss += (J_P + J_M).item()
                 epoch_for_loss = J_P.item()
                 epoch_gen_loss = J_M.item()
             else:
@@ -508,15 +506,14 @@ def update_CL_jvp_reg(
                 except StopIteration:
                     task_iter = iter(train_loader)
                     data_t = next(task_iter)
-                
+
                 in_t, targets_t = data_t
                 in_t = in_t.unsqueeze(dim=1).float()
                 Total_loss = criterion(model(in_t.to(device)), targets_t.to(device))
                 optimizer.zero_grad()
                 Total_loss.backward()  # Derive gradients.
-                optimizer.step()  # Update parameters based on gradients. 
-         
-    
+                optimizer.step()  # Update parameters based on gradients.
+
     # return stuff
     if task > 0:
         # test_acc, loss_cal = test(model, mem_loader, criterion, device=device)
@@ -524,19 +521,18 @@ def update_CL_jvp_reg(
         epoch_for_loss = epoch_for_loss / len(mem_loader.dataset)
         epoch_gen_loss = epoch_gen_loss / len(mem_loader.dataset)
         # print("the loss at:", num, task, total, epoch_loss, loss_cal, test_acc)
-        return (model, 
-            epoch_loss,
-            epoch_for_loss,
-            epoch_gen_loss
-        )
+        return (model, epoch_loss, epoch_for_loss, epoch_gen_loss)
 
     else:
         # test_acc, loss_cal = test(model, train_loader, criterion, device=device)
         epoch_loss = epoch_loss / len(train_loader.dataset)
         # print("the loss at:", num, task, total, epoch_loss, loss_cal, test_acc)
-        return (model, 
+        return (
+            model,
             epoch_loss,
             epoch_loss,
             epoch_loss,
         )
-#----------------------------------------------------------------------------------
+
+
+# ----------------------------------------------------------------------------------
