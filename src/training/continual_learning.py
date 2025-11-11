@@ -192,6 +192,8 @@ def step_method_baseline(
         float: The loss after the step.
     """
     in_t, targets_t = train_batch
+
+    print(targets_t)
     optimizer.zero_grad()
     outputs = model(in_t)
     loss = criterion(outputs, targets_t)
