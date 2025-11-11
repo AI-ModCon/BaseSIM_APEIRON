@@ -1,11 +1,10 @@
 import torch
 import torch.nn.functional as F
 
-from typing import Any, Callable, Iterable, Tuple, List
-from torch import nn
+from typing import Any, Callable, Tuple
+from torch import nn, Tensor
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
-from torch import nn, Tensor
 
 from src.model.torch_model_harness import BaseModelHarness
 from src.config.configuration import Config

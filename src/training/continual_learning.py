@@ -1,17 +1,11 @@
 import torch
 
-from typing import Dict
 
-from torch.func import vmap, grad, jvp
 from collections import OrderedDict
 
-from torch.utils.data import DataLoader
 
 from src.evaluation.evaluation import test
 from src.config.configuration import Config
-from examples.MNIST.data_utils import MyDataset
-
-
 from src.model.torch_model_harness import BaseModelHarness
 from src.training.jvp_regularization_refactor import return_Hamiltonian, FunctionalAdam
 
@@ -112,14 +106,11 @@ def continual_learning_loop(cfg: Config, modelHarness: BaseModelHarness):
     test_acc, _ = test(model, cur_test_loader, criterion, cfg=cfg)
 
     print(
-        "\n".join(
-            [
-                f"Task  Summary:",
-                f"Test Acc   : {test_acc:.1f}%",
-                f"Hist Test Acc   : {mem_test_acc:.1f}%",
-                "-" * 40,
-            ]
-        )
+        "Task Summary:",
+        f"Test Acc      : {test_acc:.1f}%",
+        f"Hist Test Acc : {mem_test_acc:.1f}%",
+        "-" * 40,
+        sep="\n",
     )
 
     return 0

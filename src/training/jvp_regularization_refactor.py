@@ -6,7 +6,7 @@
 
 import torch
 
-from torch.func import vmap, grad, jvp
+from torch.func import grad, jvp
 from collections import OrderedDict
 from typing import Mapping
 

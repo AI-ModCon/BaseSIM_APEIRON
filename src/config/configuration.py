@@ -84,7 +84,6 @@ class ModelCfg:
 
 @dataclass(frozen=True)
 class TrainCfg:
-    epochs: int
     batch_size: int
     num_workers: int
     init_lr: float

@@ -1,5 +1,4 @@
 import sys
-import torch
 
 
 from src.config.configuration import build_config, Config
@@ -18,7 +17,7 @@ def main(argv=None) -> int:
     # I pull the data for each task=mnist class and then send it to the CL function
     print("The factor being used is", cfg.continuous_learning.jvp_reg)
 
-    progress_bar = tqdm(range(10), desc=f"CL Tasks", leave=True)
+    progress_bar = tqdm(range(10), desc="CL Tasks", leave=True)
     for i in progress_bar:
 
         continual_learning_loop(cfg=cfg, modelHarness=modelHarness)

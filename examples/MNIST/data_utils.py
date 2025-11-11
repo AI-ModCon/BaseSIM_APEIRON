@@ -21,7 +21,6 @@ def class_selector(images, labels, task_id):
     Returns:
     tuple: A tuple containing the training data and the test data.
     """
-    imp = np.random.randint(0, 9)
     X = images
     y = labels
     # #print("We have to apply the transformation now.")

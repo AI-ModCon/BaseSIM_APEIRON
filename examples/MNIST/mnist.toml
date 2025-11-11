@@ -12,15 +12,12 @@ name = "mnist"
 path = ""  # folder or file later for custom dataset
 
 [train]
-epochs = 10
 batch_size = 64
 num_workers = 4
+init_lr = 0.001
 
 
 [continuous_learning]
-x_updates = 10
-theta_updates = 10
-factor = 0.1
-x_lr = 0.001
-th_lr = 0.001
-total_updates = 10
+jvp_reg = 0.5
+deltax_norm = 0.001
+max_iter = 300
