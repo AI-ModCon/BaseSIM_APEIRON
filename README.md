@@ -12,7 +12,7 @@ pip install -r requirements.txt
 ## Running the Experiment
 From the `CL_modcon` directory execute:
 ```bash
-python ./cl_only.py --config examples/mnist.toml 
+python ./cl_only.py --config examples/mnist/mnist.toml
 ```
 The script uses CUDA automatically when it is available; otherwise it falls back to CPU.
 

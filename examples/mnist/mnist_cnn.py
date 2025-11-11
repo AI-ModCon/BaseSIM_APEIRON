@@ -8,7 +8,11 @@ from torch.utils.data import DataLoader
 
 from src.model.torch_model_harness import BaseModelHarness
 from src.config.configuration import Config
-from examples.MNIST.data_utils import augment_and_split, get_mnist_cl_data, MyDataset
+from examples.mnist.data_utils import (
+    augment_and_split,
+    get_mnist_cl_data,
+    CustomMnistData,
+)
 
 MetricFn = Callable[[Tensor, Tensor], Any]
 CriterionFn = Callable[[Tensor, Tensor], Tensor]
@@ -68,8 +72,8 @@ class MNIST_CNN(BaseModelHarness):
         """
 
         (xTrain, yTrain), (xTest, yTest) = augment_and_split(self.images, self.labels)
-        train_dataset = MyDataset(xTrain, yTrain)
-        test_dataset = MyDataset(xTest, yTest)
+        train_dataset = CustomMnistData(xTrain, yTrain)
+        test_dataset = CustomMnistData(xTest, yTest)
 
         train_loader = DataLoader(
             train_dataset, batch_size=self.cfg.train.batch_size, shuffle=True
@@ -101,8 +105,8 @@ class MNIST_CNN(BaseModelHarness):
             self.memory_label_test.extend(self.cur_yTest)
             return None, None
 
-        mem_train_dataset = MyDataset(self.memory_image, self.memory_label)
-        mem_test_dataset = MyDataset(self.memory_test, self.memory_label_test)
+        mem_train_dataset = CustomMnistData(self.memory_image, self.memory_label)
+        mem_test_dataset = CustomMnistData(self.memory_test, self.memory_label_test)
 
         train_loader = DataLoader(
             mem_train_dataset, batch_size=self.cfg.train.batch_size, shuffle=True

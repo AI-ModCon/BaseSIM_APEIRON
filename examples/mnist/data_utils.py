@@ -57,7 +57,7 @@ def get_mnist_cl_data():
     return images, labels
 
 
-class MyDataset(Dataset):
+class CustomMnistData(Dataset):
     def __init__(self, data, targets, transform=None):
         self.data = data
         self.targets = targets

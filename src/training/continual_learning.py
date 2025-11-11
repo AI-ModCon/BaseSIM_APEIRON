@@ -7,7 +7,8 @@ from collections import OrderedDict
 from src.evaluation.evaluation import test
 from src.config.configuration import Config
 from src.model.torch_model_harness import BaseModelHarness
-from src.training.jvp_regularization_refactor import return_Hamiltonian, FunctionalAdam
+from src.training.updaters.jvp_regularized import step_method_jvp_reg, FunctionalAdam
+from src.training.updaters.basic import step_method_baseline
 
 
 def continual_learning_loop(cfg: Config, modelHarness: BaseModelHarness):
@@ -114,90 +115,3 @@ def continual_learning_loop(cfg: Config, modelHarness: BaseModelHarness):
     )
 
     return 0
-
-
-def step_method_jvp_reg(
-    model: torch.nn.Module,
-    criterion: torch.nn.Module,
-    optimizer: torch.optim.Optimizer,
-    cfg: Config,
-    iter: int,
-    train_batch: tuple,
-    hist_batch: tuple,
-    adam: FunctionalAdam,
-    params: OrderedDict,
-):
-    optimizer.zero_grad()
-    in_t, targets_t = train_batch
-    in_m, targets_m = hist_batch
-
-    # ----------------------------------------
-    # deltax direction calculation
-    deltax = (
-        cfg.continuous_learning.deltax_norm
-        * (in_m - in_t)
-        / (torch.linalg.norm(in_m) + torch.linalg.norm(in_t))
-    )
-
-    # ------------------------------------------------
-    # Build data tuple for the actual gradient calculation
-    data = (in_t, targets_t, in_m, targets_m, deltax, criterion)
-    with torch.enable_grad():
-        grads_dict, J_P, J_M = return_Hamiltonian(model, params, data, cfg)
-
-    # ------------------------------------------------
-    # detach grads
-    for k in grads_dict:
-        grads_dict[k] = grads_dict[k].detach()
-
-    with torch.no_grad():
-        params = adam.step(params, grads_dict)
-        for k in params:
-            params[k] = params[k].detach()
-        model.load_state_dict(params, strict=False)
-
-    # ------------------------------------------------
-
-    return (
-        J_P.item(),
-        J_M.item(),
-        (J_P + J_M).item(),
-    )  # forgetting loss, generation loss, total loss
-
-
-def step_method_baseline(
-    model: torch.nn.Module,
-    criterion: torch.nn.Module,
-    optimizer: torch.optim.Optimizer,
-    cfg: Config,
-    iter: int,
-    train_batch: tuple,
-):
-    """
-    This function implements a baseline step method for continual learning.
-
-    It takes in the model, criterion, optimizer, configuration object, iteration number, and the train batch.
-    It then performs a single step of gradient descent on the current task.
-    Returns the loss after the step.
-
-    Args:
-        model (torch.nn.Module): The model being used.
-        criterion (torch.nn.Module): The loss function being used.
-        optimizer (torch.optim.Optimizer): The optimizer being used.
-        cfg (Config): The configuration object.
-        iter (int): The iteration number.
-        train_batch (tuple): The train batch.
-
-    Returns:
-        float: The loss after the step.
-    """
-    in_t, targets_t = train_batch
-
-    print(targets_t)
-    optimizer.zero_grad()
-    outputs = model(in_t)
-    loss = criterion(outputs, targets_t)
-    loss.backward()
-    optimizer.step()
-
-    return loss.item()
