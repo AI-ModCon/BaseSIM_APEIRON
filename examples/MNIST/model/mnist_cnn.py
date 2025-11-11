@@ -44,7 +44,7 @@ class Cnn(torch.nn.Module):
 class MNIST_CNN(BaseModelHarness):
 
     def __init__(self, cfg: Config, model: nn.Module = Cnn()):
-        super(MNIST_CNN, self).__init__(model, cfg)
+        super(MNIST_CNN, self).__init__(cfg=cfg, model=model)
 
         # To emulate a drifting data stream, we sort the MNISt data by label and stream the data in order
         self.task_counter = 0
@@ -61,7 +61,7 @@ class MNIST_CNN(BaseModelHarness):
         self.cur_yTest = None
 
     def get_optmizer(self) -> Optimizer:
-        return torch.optim.Adam(self.model.parameters(), lr=0.001)
+        return torch.optim.Adam(self.model.parameters(), lr=self.cfg.train.init_lr)
 
     def get_cur_data_loaders(self) -> Tuple[DataLoader, DataLoader]:
         """
@@ -93,7 +93,17 @@ class MNIST_CNN(BaseModelHarness):
     def get_hist_data_loaders(self) -> Tuple[DataLoader, DataLoader]:
         """
         Returns a training and validation dataloader with historical data (to measure drift) compatible with the model input
+        If there is no historical data, return None
         """
+
+        if len(self.memory_image) == 0:
+            # Pre-append current data to seed memory for the *next* iteration
+            self.memory_image.extend(self.cur_xTrain)
+            self.memory_label.extend(self.cur_yTrain)
+            self.memory_test.extend(self.cur_xTest)
+            self.memory_label_test.extend(self.cur_yTest)
+            return None, None
+
         mem_train_dataset = MyDataset(self.memory_image, self.memory_label)
         mem_test_dataset = MyDataset(self.memory_test, self.memory_label_test)
 
@@ -113,4 +123,4 @@ class MNIST_CNN(BaseModelHarness):
 
     def get_criterion(self) -> CriterionFn:
         """Return a loss function compatible with model output and dataloader labels"""
-        raise NotImplementedError
+        return torch.nn.NLLLoss()

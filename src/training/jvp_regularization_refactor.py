@@ -55,6 +55,7 @@ class FunctionalAdam:
 
 def return_Hamiltonian(model, params: Mapping[str, torch.Tensor], data, cfg):
     (x, y, exp_x, exp_y, deltax, criterion) = data
+
     for p in params.values():
         if not p.requires_grad:
             p.requires_grad_(True)
@@ -65,11 +66,11 @@ def return_Hamiltonian(model, params: Mapping[str, torch.Tensor], data, cfg):
         return torch.func.functional_call(model, p, (xx,))
 
     def model_batched(p, xx):
-        return vmap(lambda b: single_forward(p, b))(xx)
+        return single_forward(p, xx)
 
     # loss function
     def V_star(p, xx, yy):
-        preds = model_batched(p, xx).squeeze(dim=1)
+        preds = model_batched(p, xx)
         return criterion(preds, yy)
 
     # Useful helper
@@ -116,113 +117,3 @@ def return_Hamiltonian(model, params: Mapping[str, torch.Tensor], data, cfg):
         for k in params
     }
     return (combined, V_star(params, x, y), V_star(params, exp_x, exp_y))
-
-
-def update_CL_jvp_reg(
-    model: torch.nn.Module,
-    criterion: torch.nn.Module,
-    mem_loader: torch.utils.data.DataLoader,
-    train_loader: torch.utils.data.DataLoader,
-    task: int,
-    optimizer: torch.optim.Optimizer,
-    cfg: Config,
-) -> tuple[torch.nn.Module, float, float, float]:
-
-    device = cfg.device
-    # We set up the iterators for the memory loader and the train loader
-    mem_iter = iter(mem_loader)
-    # print("the length of the train loader is", len(mem_train_loader  ))
-    task_iter = iter(train_loader)
-    # The main loop over all the batch
-    epoch_loss = 10000.0
-    epoch_for_loss = 10000.0
-    epoch_gen_loss = 10000.0
-    num = -1
-
-    params = OrderedDict(model.named_parameters())
-    adam = FunctionalAdam(params, lr=1e-3)
-
-    while (epoch_loss > 1e-05) or num < cfg.continuous_learning.max_iter:
-        epoch_loss = 0.0
-        num += 1
-        for pp, data_m in enumerate(mem_iter):
-            optimizer.zero_grad(set_to_none=True)
-            model.zero_grad(set_to_none=True)
-
-            # ------------------------------------------------
-            try:
-                data_t = next(task_iter)
-                (_, y) = data_t
-                if y.shape[0] < cfg.train.batch_size:
-                    task_iter = iter(train_loader)
-                    data_t = next(task_iter)
-            except StopIteration:
-                task_iter = iter(train_loader)
-                data_t = next(task_iter)
-            optimizer.zero_grad()
-            in_t, targets_t = data_t
-            in_m, targets_m = data_m
-            in_t = in_t.unsqueeze(dim=1).float().to(device)
-            in_m = in_m.unsqueeze(dim=1).float().to(device)
-            targets_t = targets_t.to(device)
-            targets_m = targets_m.to(device)
-
-            # ----------------------------------------
-            # deltax direction calculation
-            deltax = (
-                cfg.continuous_learning.deltax_norm
-                * (in_m - in_t)
-                / (torch.linalg.norm(in_m) + torch.linalg.norm(in_t))
-            ).to(device)
-
-            # ------------------------------------------------
-            # Build data tuple for the actual gradient calculation
-            data = (in_t, targets_t, in_m, targets_m, deltax, criterion)
-            with torch.enable_grad():
-                grads_dict, J_P, J_M = return_Hamiltonian(model, params, data, cfg)
-
-            # ------------------------------------------------
-            # detach grads
-            for k in grads_dict:
-                grads_dict[k] = grads_dict[k].detach()
-
-            with torch.no_grad():
-                params = adam.step(params, grads_dict)
-                for k in params:
-                    params[k] = params[k].detach()
-                model.load_state_dict(params, strict=False)
-
-            # ------------------------------------------------
-            torch.cuda.empty_cache()
-            # send it to the model team's model class
-            # J_P =criterion(model(in_t), targets_t.to(device))
-            # J_M = criterion( model(in_m), targets_m.to(device))
-            # # Experience replay loss calculation
-            # Total_loss.backward()  # Derive gradients.
-            # optimizer.step()  # Update parameters based on gradients.
-            epoch_loss += (J_P + J_M).item()
-            epoch_for_loss = J_P.item()
-            epoch_gen_loss = J_M.item()
-
-    # return stuff
-    if task > 0:
-        # test_acc, loss_cal = test(model, mem_loader, criterion, device=device)
-        epoch_loss = epoch_loss / len(mem_loader.dataset)
-        epoch_for_loss = epoch_for_loss / len(mem_loader.dataset)
-        epoch_gen_loss = epoch_gen_loss / len(mem_loader.dataset)
-        # print("the loss at:", num, task, total, epoch_loss, loss_cal, test_acc)
-        return (model, epoch_loss, epoch_for_loss, epoch_gen_loss)
-
-    else:
-        # test_acc, loss_cal = test(model, train_loader, criterion, device=device)
-        epoch_loss = epoch_loss / len(train_loader.dataset)
-        # print("the loss at:", num, task, total, epoch_loss, loss_cal, test_acc)
-        return (
-            model,
-            epoch_loss,
-            epoch_loss,
-            epoch_loss,
-        )
-
-
-# ----------------------------------------------------------------------------------

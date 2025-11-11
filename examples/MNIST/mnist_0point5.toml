@@ -15,6 +15,7 @@ path = ""  # folder or file later for custom dataset
 epochs = 10
 batch_size = 64
 num_workers = 4
+init_lr = 0.001
 
 
 [continuous_learning]

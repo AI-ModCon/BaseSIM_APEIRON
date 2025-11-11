@@ -51,6 +51,7 @@ class BaseModelHarness(ABC):
     def get_hist_data_loaders(self) -> Tuple[DataLoader, DataLoader]:
         """
         Returns a training and validation dataloader with historical data (to measure drift) compatible with the model input
+        If there is no historical data, return None
         """
         raise NotImplementedError
 
