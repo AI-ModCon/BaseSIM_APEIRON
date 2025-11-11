@@ -4,14 +4,11 @@
 # It aims to minimize forgetting by penalizing changes in the model's output on the memory buffer
 
 
-import copy
 import torch
 
 from torch.func import vmap, grad, jvp
 from collections import OrderedDict
 from typing import Mapping
-
-from src.config.configuration import Config
 
 
 class FunctionalAdam:

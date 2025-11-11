@@ -22,12 +22,12 @@ def continual_learning_loop(cfg: Config, modelHarness: BaseModelHarness):
 
     # 2) Get loaders
     #  cur data loadershas to be called before hist data loaders
-    train_loader = modelHarness.get_cur_data_loaders()[0]
-    hist_loader = modelHarness.get_hist_data_loaders()[0]
+    cur_train_loader, cur_test_loader = modelHarness.get_cur_data_loaders()
+    hist_train_loader, hist_test_loader = modelHarness.get_hist_data_loaders()
 
-    train_iter = iter(train_loader)
-    if hist_loader is not None:
-        hist_train_iter = iter(hist_loader)
+    train_iter = iter(cur_train_loader)
+    if hist_train_loader is not None:
+        hist_train_iter = iter(hist_train_loader)
     else:
         hist_train_iter = None
 
@@ -71,7 +71,7 @@ def continual_learning_loop(cfg: Config, modelHarness: BaseModelHarness):
     for iter_count in range(cfg.continuous_learning.max_iter):
         # Fetch valid batches from both streams
         train_iter, train_batch = _safe_next(
-            train_iter, train_loader, min_batch=batch_size
+            train_iter, cur_train_loader, min_batch=batch_size
         )
 
         if hist_train_iter is None:
@@ -88,7 +88,7 @@ def continual_learning_loop(cfg: Config, modelHarness: BaseModelHarness):
         else:
             hist_train_iter, hist_batch = _safe_next(
                 hist_train_iter,
-                hist_loader,
+                hist_train_loader,
                 min_batch=batch_size,
             )
 
@@ -103,6 +103,24 @@ def continual_learning_loop(cfg: Config, modelHarness: BaseModelHarness):
                 adam=adam,  # TODO remove this.
                 params=params,
             )
+
+    if hist_train_iter is None:
+        mem_test_acc = -1
+    else:
+        mem_test_acc, _ = test(model, hist_test_loader, criterion, cfg=cfg)
+
+    test_acc, _ = test(model, cur_test_loader, criterion, cfg=cfg)
+
+    print(
+        "\n".join(
+            [
+                f"Task  Summary:",
+                f"Test Acc   : {test_acc:.1f}%",
+                f"Hist Test Acc   : {mem_test_acc:.1f}%",
+                "-" * 40,
+            ]
+        )
+    )
 
     return 0
 
