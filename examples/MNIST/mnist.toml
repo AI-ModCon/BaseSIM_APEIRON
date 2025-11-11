@@ -18,6 +18,6 @@ init_lr = 0.001
 
 
 [continuous_learning]
-jvp_reg = 0.5
-deltax_norm = 0.001
+jvp_reg = 0.001
+deltax_norm = 1
 max_iter = 300
