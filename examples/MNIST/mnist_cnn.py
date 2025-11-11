@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 
 from src.model.torch_model_harness import BaseModelHarness
 from src.config.configuration import Config
-from examples.MNIST.data_utils import class_selector, get_mnist_cl_data, MyDataset
+from examples.MNIST.data_utils import augment_and_split, get_mnist_cl_data, MyDataset
 
 MetricFn = Callable[[Tensor, Tensor], Any]
 CriterionFn = Callable[[Tensor, Tensor], Tensor]
@@ -67,9 +67,7 @@ class MNIST_CNN(BaseModelHarness):
         Returns a training and validation dataloader compatible with the model input
         """
 
-        (xTrain, yTrain), (xTest, yTest) = class_selector(
-            self.images, self.labels, self.task_counter
-        )
+        (xTrain, yTrain), (xTest, yTest) = augment_and_split(self.images, self.labels)
         train_dataset = MyDataset(xTrain, yTrain)
         test_dataset = MyDataset(xTest, yTest)
 

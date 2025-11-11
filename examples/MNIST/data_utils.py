@@ -4,43 +4,34 @@ import numpy as np
 import torch
 
 from torchvision import transforms
+import torchvision.transforms.functional as TF
 
 
-def class_selector(images, labels, task_id):
-    """
-    This function takes in a dataset of images and labels, and a task id.
-    It then randomly selects a class and applies a random transformation to the images.
-    The transformation is an affine transformation with a random rotation and scaling.
-    The function then splits the data into a training set and a test set.
+def augment_and_split(images, labels):
 
-    Parameters:
-    images (torch.Tensor): The tensor of images.
-    labels (numpy.array): The array of labels.
-    task_id (int): The id of the task.
+    # Random augmentation parameters (same behavior as original)
+    rot_angle = float(np.random.random() * 180.0)  # [0, 180)
+    scale = float(1.0 + np.random.random())  # [1, 2)
 
-    Returns:
-    tuple: A tuple containing the training data and the test data.
-    """
-    X = images
-    y = labels
-    # #print("We have to apply the transformation now.")
-    rot_angle = np.random.random() * 180
-    scaling = np.random.random() + 1
-    # #print(rot_angle)
-    X = torchvision.transforms.functional.affine(
-        X, rot_angle, translate=(scaling, scaling), scale=scaling, shear=rot_angle
+    # Apply a single affine transform to the entire batch
+    X_aug = TF.affine(
+        images,
+        angle=rot_angle,
+        translate=(scale, scale),  # pixels (kept as in original)
+        scale=scale,
+        shear=rot_angle,
     )
-    # #print("Just after the data is defined", X.shape, y.shape)
-    # Split the data
-    # print(X.shape, y.shape)
 
-    index = np.random.randint(0, X.shape[0], int(0.8 * X.shape[0]))
-    xtrain = X[index], y[index]
-    index = np.random.randint(0, X.shape[0], int(0.2 * X.shape[0]))
-    X_test = X[index]
-    y_test = y[index]
+    # Clean 80/20 split: non-overlapping, no duplicates
+    n = X_aug.shape[0]
+    n_train = int(0.8 * n)
+    perm = torch.randperm(n)  # permutation without replacement
+    idx_train = perm[:n_train]
+    idx_test = perm[n_train:]
 
-    return xtrain, (X_test, y_test)
+    xtrain = (X_aug[idx_train], labels[idx_train])
+    xtest = (X_aug[idx_test], labels[idx_test])
+    return xtrain, xtest
 
 
 def get_mnist_cl_data():
