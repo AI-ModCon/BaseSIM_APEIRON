@@ -3,17 +3,14 @@ from src.config.configuration import Config
 
 
 # -----------------------------------------
-# Basic continual learning methods can be added here.
-# -----------------------------------------
-
-
-# -----------------------------------------
 # Algorithm: Total Retraining
 # This function retrains the model with a huge memory buffer
 # that maintains all the data seen so far. Obviously, this is not scalable,
 # but it provides a good baseline for continual learning methods.
 # This method is called "total retraining" in the literature.
 # and focuses on minimizing forgetting, that is keeping the loss on the memory buffer low.
+
+
 def update_CL_total_retraining(
     model: torch.nn.Module,
     criterion: torch.nn.Module,
@@ -23,6 +20,29 @@ def update_CL_total_retraining(
     optimizer: torch.optim.Optimizer,
     cfg: Config,
 ) -> tuple[torch.nn.Module, float, float, float]:
+    """
+    This function implements a continual learning method based on total retraining.
+    It retrains the model with a huge memory buffer that maintains all the data seen so far.
+    Obviously, this is not scalable, but it provides a good baseline for continual learning methods.
+    This method is called "total retraining" in the literature, and focuses on minimizing forgetting,
+    that is keeping the loss on the memory buffer low.
+
+    Parameters:
+    - model: The model to be updated.
+    - criterion: The loss function to be used.
+    - mem_loader: The DataLoader for the memory buffer.
+    - train_loader: The DataLoader for the current task.
+    - task: The current task number.
+    - optimizer: The optimizer used to update the model.
+    - cfg: The configuration object.
+
+    Returns:
+    - model: The updated model.
+    - epoch_loss: The average loss over the epoch.
+    - epoch_for_loss: The average forgetting loss over the epoch.
+    - epoch_gen_loss: The average generation loss over the epoch.
+    """
+
     device = cfg.device
     # We set up the iterators for the memory loader and the train loader
     mem_iter = iter(mem_loader)
@@ -102,8 +122,3 @@ def update_CL_total_retraining(
             epoch_loss,
             epoch_loss,
         )
-
-
-# -----------------------------------------
-# Additional continual learning methods can be added here.
-# -----------------------------------------
