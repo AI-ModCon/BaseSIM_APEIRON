@@ -1,88 +1,111 @@
-from torch.utils.data import Dataset
-import torchvision
+# examples/mnist/memory_efficient_utils.py
+from __future__ import annotations
+from typing import Sequence, Tuple, Optional, Dict, Any, List
 import torch
-
-from torchvision import transforms
+from torch.utils.data import Dataset, Subset, ConcatDataset, DataLoader
+from torchvision import datasets, transforms
 import torchvision.transforms.functional as TF
 
 
-def augment_and_split(
-    images: torch.Tensor, labels: torch.Tensor
-) -> tuple[tuple[torch.Tensor, torch.Tensor], tuple[torch.Tensor, torch.Tensor]]:
+def get_mnist_train(root: str = "./data", normalize: bool = True) -> datasets.MNIST:
+    t = [transforms.ToTensor()]
+    if normalize:
+        t.append(transforms.Normalize((0.1307,), (0.3081,)))
+    return datasets.MNIST(
+        root, train=True, download=True, transform=transforms.Compose(t)
+    )
+
+
+def fixed_split(
+    n: int, frac: float = 0.8, seed: int = 0
+) -> Tuple[List[int], List[int]]:
+    g = torch.Generator()
+    g.manual_seed(seed)
+    perm = torch.randperm(n, generator=g).tolist()
+    n_train = int(frac * n)
+    return perm[:n_train], perm[n_train:]
+
+
+class FixedAffine:
+    """Apply one fixed affine to every sample (tensor) in this view."""
+
+    def __init__(
+        self, angle: float, scale: float, translate: Tuple[int, int], shear: float
+    ):
+        self.angle = float(angle)
+        self.scale = float(scale)
+        self.translate = (int(translate[0]), int(translate[1]))
+        self.shear = float(shear)
+
+    def __call__(self, x: torch.Tensor) -> torch.Tensor:
+        # x: [1,H,W] already normalized; affine works on tensors
+        return TF.affine(
+            x,
+            angle=self.angle,
+            translate=self.translate,
+            scale=self.scale,
+            shear=self.shear,
+        )
+
+
+def sample_aug(seed: int) -> Dict[str, Any]:
     """
-    Applies a single random affine transform to a batch of images and labels, then splits the batch into two non-overlapping sets of training and testing data.
+    Sample a random affine transformation given a seed.
 
     Parameters
     ----------
-    images : torch.Tensor
-        The batch of images to be augmented and split.
-    labels : torch.Tensor
-        The batch of labels corresponding with the images.
+    seed : int
+        The seed for the random number generator.
 
     Returns
     -------
-    tuple[tuple[torch.Tensor, torch.Tensor], tuple[torch.Tensor, torch.Tensor]]
-        A tuple containing two tuples. The first tuple contains the training images and labels, and the second tuple contains the testing images and labels.
+    dict[str, Any]
+        A dictionary containing the sampled angle, scale, translation and shear.
     """
-
-    # Random augmentation parameters (same behavior as original)
-    rot_angle = torch.rand(1).item() * 180.0  # [0, 180]
-
-    scale = float(1.0 + torch.rand(1).item())  # [1, 2)
-
-    # Apply a single affine transform to the entire batch
-    X_aug = TF.affine(
-        images,
-        angle=rot_angle,
-        translate=(scale, scale),  # pixels (kept as in original)
-        scale=scale,
-        shear=rot_angle,
-    )
-
-    # Clean 80/20 split: non-overlapping, no duplicates
-    n = X_aug.shape[0]
-    n_train = int(0.8 * n)
-    perm = torch.randperm(n)  # permutation without replacement
-    idx_train = perm[:n_train]
-    idx_test = perm[n_train:]
-
-    xtrain = (X_aug[idx_train], labels[idx_train])
-    xtest = (X_aug[idx_test], labels[idx_test])
-    return xtrain, xtest
+    g = torch.Generator()
+    g.manual_seed(seed)
+    angle = float(torch.rand(1, generator=g).item() * 180.0)
+    scale = float(1.0 + torch.rand(1, generator=g).item())
+    shear = angle
+    translate = (int(scale), int(scale))
+    return dict(angle=angle, scale=scale, translate=translate, shear=shear)
 
 
-def get_mnist_cl_data() -> tuple[torch.Tensor, torch.Tensor]:
-    """
-    This function downloads the MNIST dataset, applies a normalization transformation to the data,
-    stacks the images and labels, and returns the images and labels as a tensor and a numpy array.
+class TransformedSubset(Dataset):
+    """View of base dataset with fixed indices and optional transform on x."""
 
-    Returns:
-        tuple: A tuple containing the images and labels.
-    """
-
-    my_transforms = transforms.Compose(
-        [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
-    )
-    dataset = torchvision.datasets.MNIST(
-        "./data", train=True, download=True, transform=my_transforms
-    )
-    [images, labels] = [list(t) for t in zip(*dataset)]
-    images = torch.stack(images, dim=0)
-    images = images.view(-1, 28, 28).float()
-    labels = torch.tensor(labels)
-
-    return images, labels
-
-
-class CustomMnistData(Dataset):
-    def __init__(self, data, targets, transform=None):
-        self.data = data
-        self.targets = targets
-
-    def __getitem__(self, index):
-        x = self.data[index]
-        y = self.targets[index]
-        return x, y
+    def __init__(self, base: Dataset, indices: Sequence[int], x_transform=None):
+        self.base = base
+        self.indices = list(indices)
+        self.x_transform = x_transform
 
     def __len__(self):
-        return len(self.data)
+        return len(self.indices)
+
+    def __getitem__(self, i):
+        x, y = self.base[self.indices[i]]
+        if self.x_transform is not None:
+            x = self.x_transform(x)
+        return x.squeeze(0), y  # your CNN unsqueezes to [B,1,H,W]
+
+
+def make_loader(
+    ds: Dataset,
+    batch_size: int,
+    shuffle: bool,
+    num_workers: int = 4,
+    pin_memory: bool = True,
+    persistent_workers: bool = True,
+    prefetch_factor: int = 2,
+) -> DataLoader:
+    kwargs = dict(batch_size=batch_size, shuffle=shuffle, drop_last=False)
+    if num_workers > 0:
+        kwargs.update(
+            dict(
+                num_workers=num_workers,
+                pin_memory=pin_memory,
+                persistent_workers=persistent_workers,
+                prefetch_factor=prefetch_factor,
+            )
+        )
+    return DataLoader(ds, **kwargs)

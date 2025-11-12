@@ -1,38 +1,36 @@
+# src/model/mnist_cnn_harness.py
+import gc
 import torch
 import torch.nn.functional as F
-
-from typing import Any, Callable, Tuple
+from typing import Tuple, Optional, List, Dict, Any
 from torch import nn, Tensor
 from torch.optim import Optimizer
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, ConcatDataset
 
 from src.model.torch_model_harness import BaseModelHarness
 from src.config.configuration import Config
-from examples.mnist.utils import (
-    augment_and_split,
-    get_mnist_cl_data,
-    CustomMnistData,
+from examples.mnist.memory_efficient_utils import (
+    get_mnist_train,
+    fixed_split,
+    FixedAffine,
+    TransformedSubset,
+    make_loader,
+    sample_aug,
 )
 
-MetricFn = Callable[[Tensor, Tensor], Any]
-CriterionFn = Callable[[Tensor, Tensor], Tensor]
 
-
-class Cnn(torch.nn.Module):
-    # Simple CNN model as example
-
+class Cnn(nn.Module):
     def __init__(self):
-        super(Cnn, self).__init__()
+        super().__init__()
         self.conv1 = nn.Conv2d(1, 32, kernel_size=5)
         self.conv2 = nn.Conv2d(32, 32, kernel_size=5)
         self.conv3 = nn.Conv2d(32, 64, kernel_size=5)
         self.fc1 = nn.Linear(3 * 3 * 64, 256)
         self.fc2 = nn.Linear(256, 10)
 
-    def forward(self, x):
-        x = x.unsqueeze(dim=1).float()
+    def forward(self, x: Tensor) -> Tensor:
+        x = x.unsqueeze(1).float()  # expect [B, H, W]
         x = F.relu(self.conv1(x))
-        # x = F.dropout(x, p=0.5, training=self.training)
         x = F.relu(F.max_pool2d(self.conv2(x), 2))
         x = F.dropout(x, p=0.5, training=self.training)
         x = F.relu(F.max_pool2d(self.conv3(x), 2))
@@ -45,83 +43,110 @@ class Cnn(torch.nn.Module):
 
 
 class MNIST_CNN(BaseModelHarness):
+    """
+    Pattern:
+      - One MNIST(train=True) dataset on disk
+      - One fixed 80/20 split (train_idx, val_idx)
+      - Current drift params in self.cur_aug
+      - Historical drifts in self.aug_history (previous iterations)
+      - get_cur_data_loaders(): build loaders using self.cur_aug
+      - get_hist_data_loaders(): ConcatDataset over self.aug_history; then append self.cur_aug
+    """
 
     def __init__(self, cfg: Config, model: nn.Module = Cnn()):
-        super(MNIST_CNN, self).__init__(cfg=cfg, model=model)
+        super().__init__(cfg=cfg, model=model)
 
-        # To emulate a drifting data stream, we sort the MNISt data by label and stream the data in order
+        self.ds = get_mnist_train("./data", normalize=True)
+        n = len(self.ds)
+        self.train_idx, self.val_idx = fixed_split(n, frac=0.8, seed=self.cfg.seed)
+
         self.task_counter = 0
-        self.images, self.labels = get_mnist_cl_data()
+        self.cur_aug: Dict[str, Any] = {}
+        self.aug_history: List[Dict[str, Any]] = []
 
-        self.memory_image = []
-        self.memory_label = []
-        self.memory_test = []
-        self.memory_label_test = []
+        self._cur_train_loader: Optional[DataLoader] = None
+        self._cur_val_loader: Optional[DataLoader] = None
 
-        self.cur_xTrain = None
-        self.cur_yTrain = None
-        self.cur_xTest = None
-        self.cur_yTest = None
+    def _dispose_current_loaders(self):
+        if self._cur_train_loader is not None:
+            del self._cur_train_loader
+            self._cur_train_loader = None
+        if self._cur_val_loader is not None:
+            del self._cur_val_loader
+            self._cur_val_loader = None
+        gc.collect()
 
     def get_optmizer(self) -> Optimizer:
         return torch.optim.Adam(self.model.parameters(), lr=self.cfg.train.init_lr)
 
+    # --- Current task (MNIST with one new global drift) ---
     def get_cur_data_loaders(self) -> Tuple[DataLoader, DataLoader]:
-        """
-        Returns a training and validation dataloader compatible with the model input
-        """
+        self._dispose_current_loaders()
 
-        (xTrain, yTrain), (xTest, yTest) = augment_and_split(self.images, self.labels)
-        train_dataset = CustomMnistData(xTrain, yTrain)
-        test_dataset = CustomMnistData(xTest, yTest)
+        # Deterministic per-iteration drift; “one affine for all samples”
+        self.cur_aug = sample_aug(seed=self.cfg.seed + self.task_counter)
 
-        train_loader = DataLoader(
-            train_dataset, batch_size=self.cfg.train.batch_size, shuffle=True
+        tf = FixedAffine(**self.cur_aug)
+        ds_train = TransformedSubset(self.ds, self.train_idx, x_transform=tf)
+        ds_val = TransformedSubset(self.ds, self.val_idx, x_transform=tf)
+
+        bs = self.cfg.train.batch_size
+        nw = getattr(self.cfg.data, "num_workers", 4)
+        pin = torch.cuda.is_available()
+
+        self._cur_train_loader = make_loader(
+            ds_train, bs, shuffle=True, num_workers=nw, pin_memory=pin
         )
-        test_loader = DataLoader(
-            test_dataset, batch_size=self.cfg.train.batch_size, shuffle=False
+        self._cur_val_loader = make_loader(
+            ds_val, bs, shuffle=False, num_workers=nw, pin_memory=pin
         )
 
-        self.task_counter = (self.task_counter + 1) % 10
+        self.task_counter += 1
+        return self._cur_train_loader, self._cur_val_loader
 
-        self.cur_xTrain = xTrain
-        self.cur_yTrain = yTrain
-        self.cur_xTest = xTest
-        self.cur_yTest = yTest
-
-        return (train_loader, test_loader)
-
-    def get_hist_data_loaders(self) -> Tuple[DataLoader, DataLoader]:
+    # --- Historical data (all prior drifts, concatenated virtually) ---
+    def get_hist_data_loaders(
+        self,
+    ) -> Tuple[Optional[DataLoader], Optional[DataLoader]]:
         """
-        Returns a training and validation dataloader with historical data (to measure drift) compatible with the model input
-        If there is no historical data, return None
+        If no history yet: add current drift to history and return (None, None).
+        Else: return loaders over ConcatDataset of prior drifts, then append current drift to history.
+        Effective dataset length = len(aug_history) * len(split_indices).
         """
-
-        if len(self.memory_image) == 0:
-            # Pre-append current data to seed memory for the *next* iteration
-            self.memory_image.extend(self.cur_xTrain)
-            self.memory_label.extend(self.cur_yTrain)
-            self.memory_test.extend(self.cur_xTest)
-            self.memory_label_test.extend(self.cur_yTest)
+        if len(self.aug_history) == 0:
+            # Seed for next call; no historical data for the first iteration
+            if self.cur_aug:
+                self.aug_history.append(self.cur_aug.copy())
             return None, None
 
-        mem_train_dataset = CustomMnistData(self.memory_image, self.memory_label)
-        mem_test_dataset = CustomMnistData(self.memory_test, self.memory_label_test)
+        # Build concatenated historical views
+        train_views = [
+            TransformedSubset(self.ds, self.train_idx, x_transform=FixedAffine(**aug))
+            for aug in self.aug_history
+        ]
+        val_views = [
+            TransformedSubset(self.ds, self.val_idx, x_transform=FixedAffine(**aug))
+            for aug in self.aug_history
+        ]
+        ds_hist_train = ConcatDataset(train_views)
+        ds_hist_val = ConcatDataset(val_views)
 
-        train_loader = DataLoader(
-            mem_train_dataset, batch_size=self.cfg.train.batch_size, shuffle=True
+        bs = self.cfg.train.batch_size
+        nw = getattr(self.cfg.data, "num_workers", 4)
+        pin = torch.cuda.is_available()
+
+        hist_train_loader = make_loader(
+            ds_hist_train, bs, shuffle=True, num_workers=nw, pin_memory=pin
         )
-        test_loader = DataLoader(
-            mem_test_dataset, batch_size=self.cfg.train.batch_size, shuffle=False
+        hist_val_loader = make_loader(
+            ds_hist_val, bs, shuffle=False, num_workers=nw, pin_memory=pin
         )
 
-        self.memory_image.extend(self.cur_xTrain)
-        self.memory_label.extend(self.cur_yTrain)
-        self.memory_test.extend(self.cur_xTest)
-        self.memory_label_test.extend(self.cur_yTest)
+        # After exposing historical loaders for this iteration, record the current drift for the next time
+        if self.cur_aug:
+            self.aug_history.append(self.cur_aug.copy())
 
-        return (train_loader, test_loader)
+        return hist_train_loader, hist_val_loader
 
-    def get_criterion(self) -> CriterionFn:
-        """Return a loss function compatible with model output and dataloader labels"""
+    def get_criterion(self):
         return torch.nn.NLLLoss()
