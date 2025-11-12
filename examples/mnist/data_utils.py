@@ -1,6 +1,5 @@
 from torch.utils.data import Dataset
 import torchvision
-import numpy as np
 import torch
 
 from torchvision import transforms
@@ -27,9 +26,9 @@ def augment_and_split(
     """
 
     # Random augmentation parameters (same behavior as original)
-    rot_angle = float(np.random.random() * 180.0)  # [0, 180)
+    rot_angle = torch.rand(1).item() * 180.0  # [0, 180]
 
-    scale = float(1.0 + np.random.random())  # [1, 2)
+    scale = float(1.0 + torch.rand(1).item())  # [1, 2)
 
     # Apply a single affine transform to the entire batch
     X_aug = TF.affine(
@@ -52,7 +51,7 @@ def augment_and_split(
     return xtrain, xtest
 
 
-def get_mnist_cl_data() -> tuple[torch.Tensor, np.array]:
+def get_mnist_cl_data() -> tuple[torch.Tensor, torch.Tensor]:
     """
     This function downloads the MNIST dataset, applies a normalization transformation to the data,
     stacks the images and labels, and returns the images and labels as a tensor and a numpy array.
@@ -70,7 +69,7 @@ def get_mnist_cl_data() -> tuple[torch.Tensor, np.array]:
     [images, labels] = [list(t) for t in zip(*dataset)]
     images = torch.stack(images, dim=0)
     images = images.view(-1, 28, 28).float()
-    labels = np.array(labels)
+    labels = torch.tensor(labels)
 
     return images, labels
 
