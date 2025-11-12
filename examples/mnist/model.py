@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader, ConcatDataset
 
 from src.model.torch_model_harness import BaseModelHarness
 from src.config.configuration import Config
-from examples.mnist.memory_efficient_utils import (
+from examples.mnist.utils import (
     get_mnist_train,
     fixed_split,
     FixedAffine,
