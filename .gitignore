@@ -9,8 +9,16 @@ data/*
 # bash
 *.sh
 
-#Json
+
+# Files
+*.png
+*.txt
+*.csv
+*.pdf
 *.json
+
+# Github
+*.orig
 
 # Distribution / packaging
 .Python
@@ -139,7 +147,7 @@ celerybeat.pid
 
 # SageMath parsed files
 *.sage.py
-
+*.json
 # Environments
 .env
 .envrc

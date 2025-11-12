@@ -84,9 +84,9 @@ class ModelCfg:
 
 @dataclass(frozen=True)
 class TrainCfg:
-    epochs: int
     batch_size: int
     num_workers: int
+    init_lr: float
 
 
 @dataclass(frozen=True)
@@ -99,10 +99,7 @@ class DataCfg:
 class ContinuousLearningCfg:
     jvp_reg: float  # this is now the lambda factor for the JVP regularization.
     deltax_norm: float  # the norm of the deltax vector which is used to compute the direction in the data space.
-    max_iter: int  # TODO: Make sure that this does not conflict wiht train.epochs
-    # train.epoch is not relevant anymore because, I am doing max_iterations
-    # inside the continual learning loop. max_iterations is total updates
-    # now
+    max_iter: int  # the maximum number of iterations for one cl application
 
 
 @dataclass(frozen=True)

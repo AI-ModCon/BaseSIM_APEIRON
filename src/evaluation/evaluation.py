@@ -26,9 +26,8 @@ def test(model, loader, criterion, cfg):
         for data in loader:  # Iterate in batches over the training/test dataset.
             input, target = data
             # ensure inputs have channel dimension and are floats
-            input = input.unsqueeze(dim=1).float()
             input = input.to(cfg.device)
-            out = model(input, training=False)
+            out = model(input)
             # move targets to same device as outputs to avoid device-mismatch errors
             target = target.to(cfg.device)
             # use sum reduction so we can average correctly over dataset size
@@ -42,5 +41,5 @@ def test(model, loader, criterion, cfg):
     else:
         test_loss = 0.0
         accuracy = 0.0
-    # print(total)
+
     return accuracy, test_loss  # Derive ratio of correct predictions.
