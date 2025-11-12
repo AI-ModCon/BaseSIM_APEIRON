@@ -98,6 +98,31 @@ def make_loader(
     persistent_workers: bool = True,
     prefetch_factor: int = 2,
 ) -> DataLoader:
+    """
+    Builds a DataLoader from a given Dataset.
+
+    Parameters
+    ----------
+    ds : Dataset
+        The base dataset to build the DataLoader from.
+    batch_size : int
+        The batch size to use for the DataLoader.
+    shuffle : bool
+        If True, the DataLoader will shuffle the dataset.
+    num_workers : int, optional
+        Number of workers to use for data loading. Defaults to 4.
+    pin_memory : bool, optional
+        If True, the DataLoader will pin the memory for faster data loading. Defaults to True.
+    persistent_workers : bool, optional
+        If True, the DataLoader will use persistent workers. Defaults to True.
+    prefetch_factor : int, optional
+        Number of samples to prefetch for the DataLoader. Defaults to 2.
+
+    Returns
+    -------
+    DataLoader
+        The built DataLoader.
+    """
     kwargs = dict(batch_size=batch_size, shuffle=shuffle, drop_last=False)
     if num_workers > 0:
         kwargs.update(

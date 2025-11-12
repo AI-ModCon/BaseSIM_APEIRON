@@ -78,7 +78,6 @@ class MNIST_CNN(BaseModelHarness):
     def get_optmizer(self) -> Optimizer:
         return torch.optim.Adam(self.model.parameters(), lr=self.cfg.train.init_lr)
 
-    # --- Current task (MNIST with one new global drift) ---
     def get_cur_data_loaders(self) -> Tuple[DataLoader, DataLoader]:
         self._dispose_current_loaders()
 
@@ -103,7 +102,6 @@ class MNIST_CNN(BaseModelHarness):
         self.task_counter += 1
         return self._cur_train_loader, self._cur_val_loader
 
-    # --- Historical data (all prior drifts, concatenated virtually) ---
     def get_hist_data_loaders(
         self,
     ) -> Tuple[Optional[DataLoader], Optional[DataLoader]]:
