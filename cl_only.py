@@ -5,7 +5,7 @@ from src.config.configuration import build_config, Config
 
 from tqdm import tqdm
 
-from examples.mnist.mnist_cnn import MNIST_CNN
+from examples.mnist.model import MNIST_CNN
 from src.training.continual_learning import continual_learning_loop
 
 
