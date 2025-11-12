@@ -67,7 +67,6 @@ def continual_learning_loop(cfg: Config, modelHarness: BaseModelHarness):
 
         if hist_train_iter is None:
             # Fall back to basic training if no historical data is available
-
             total_loss = step_method_baseline(
                 model=model,
                 criterion=criterion,

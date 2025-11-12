@@ -1,0 +1,23 @@
+# mnist.min.toml
+version = "1"
+seed = 1337
+device = "auto"
+multi_gpu = false
+
+[model]
+name = "vit16b"  
+
+[data]
+name = "cifar10"
+path = ""  # folder or file later for custom dataset
+
+[train]
+batch_size = 2
+num_workers = 4
+init_lr = 0.001
+
+
+[continuous_learning]
+jvp_reg = 0.001
+deltax_norm = 1
+max_iter = 300
