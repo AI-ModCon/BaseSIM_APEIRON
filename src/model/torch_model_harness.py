@@ -88,9 +88,9 @@ class BaseModelHarness(ABC):
         sums = [0.0 for _ in metrics]
         n_batches = 0
 
-        for batch in self.get_loader():  # assumes iterable
+        for batch in self.get_cur_data_loaders()[1]:  # assumes iterable
             x, y = self._unpack(batch)
-            x, y = x.to(self.device), y.to(self.device)
+            x, y = x.to(self.cfg.device), y.to(self.cfg.device)
 
             # TODO: Add cuda amp support later. Needs config entry for amp
             # if self.cfg.amp:
