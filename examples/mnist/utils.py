@@ -1,29 +1,30 @@
 # examples/mnist/memory_efficient_utils.py
 from __future__ import annotations
-from typing import Sequence, Tuple, Optional, Dict, Any, List
+from typing import Tuple, Optional, Dict, Any, List
 import torch
-from torch.utils.data import Dataset, Subset, ConcatDataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, ConcatDataset
 from torchvision import datasets, transforms
 import torchvision.transforms.functional as TF
 
 
-def get_mnist_train(root: str = "./data", normalize: bool = True) -> datasets.MNIST:
+def _base_tf(normalize: bool = True):
     t = [transforms.ToTensor()]
     if normalize:
         t.append(transforms.Normalize((0.1307,), (0.3081,)))
+    return transforms.Compose(t)
+
+
+def get_mnist_train(root: str = "./data", normalize: bool = True) -> datasets.MNIST:
     return datasets.MNIST(
-        root, train=True, download=True, transform=transforms.Compose(t)
+        root, train=True, download=True, transform=_base_tf(normalize)
     )
 
 
-def fixed_split(
-    n: int, frac: float = 0.8, seed: int = 0
-) -> Tuple[List[int], List[int]]:
-    g = torch.Generator()
-    g.manual_seed(seed)
-    perm = torch.randperm(n, generator=g).tolist()
-    n_train = int(frac * n)
-    return perm[:n_train], perm[n_train:]
+def get_mnist_val(root: str = "./data", normalize: bool = True) -> datasets.MNIST:
+    # Standard MNIST “test” split used as validation
+    return datasets.MNIST(
+        root, train=False, download=True, transform=_base_tf(normalize)
+    )
 
 
 class FixedAffine:
@@ -38,7 +39,7 @@ class FixedAffine:
         self.shear = float(shear)
 
     def __call__(self, x: torch.Tensor) -> torch.Tensor:
-        # x: [1,H,W] already normalized; affine works on tensors
+        # x: [1,H,W]
         return TF.affine(
             x,
             angle=self.angle,
@@ -71,22 +72,21 @@ def sample_aug(seed: int) -> Dict[str, Any]:
     return dict(angle=angle, scale=scale, translate=translate, shear=shear)
 
 
-class TransformedSubset(Dataset):
-    """View of base dataset with fixed indices and optional transform on x."""
+class TransformedView(Dataset):
+    """A lightweight view that applies x_transform to every sample of a base dataset."""
 
-    def __init__(self, base: Dataset, indices: Sequence[int], x_transform=None):
+    def __init__(self, base: Dataset, x_transform=None):
         self.base = base
-        self.indices = list(indices)
         self.x_transform = x_transform
 
     def __len__(self):
-        return len(self.indices)
+        return len(self.base)
 
     def __getitem__(self, i):
-        x, y = self.base[self.indices[i]]
+        x, y = self.base[i]
         if self.x_transform is not None:
             x = self.x_transform(x)
-        return x.squeeze(0), y  # your CNN unsqueezes to [B,1,H,W]
+        return x.squeeze(0), y  # CNN adds channel later
 
 
 def make_loader(

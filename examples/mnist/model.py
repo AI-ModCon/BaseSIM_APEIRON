@@ -11,9 +11,9 @@ from src.model.torch_model_harness import BaseModelHarness
 from src.config.configuration import Config
 from examples.mnist.utils import (
     get_mnist_train,
-    fixed_split,
+    get_mnist_val,
     FixedAffine,
-    TransformedSubset,
+    TransformedView,
     make_loader,
     sample_aug,
 )
@@ -45,20 +45,19 @@ class Cnn(nn.Module):
 class MNIST_CNN(BaseModelHarness):
     """
     Pattern:
-      - One MNIST(train=True) dataset on disk
-      - One fixed 80/20 split (train_idx, val_idx)
+      - One MNIST train dataset (train=True) and one MNIST val dataset (train=False)
       - Current drift params in self.cur_aug
       - Historical drifts in self.aug_history (previous iterations)
-      - get_cur_data_loaders(): build loaders using self.cur_aug
+      - get_cur_data_loaders(): build loaders over FULL train/val using self.cur_aug
       - get_hist_data_loaders(): ConcatDataset over self.aug_history; then append self.cur_aug
     """
 
     def __init__(self, cfg: Config, model: nn.Module = Cnn()):
         super().__init__(cfg=cfg, model=model)
 
-        self.ds = get_mnist_train("./data", normalize=True)
-        n = len(self.ds)
-        self.train_idx, self.val_idx = fixed_split(n, frac=0.8, seed=self.cfg.seed)
+        # FULL datasets (no index split)
+        self.ds_train = get_mnist_train("./data", normalize=True)
+        self.ds_val = get_mnist_val("./data", normalize=True)
 
         self.task_counter = 0
         self.cur_aug: Dict[str, Any] = {}
@@ -85,20 +84,20 @@ class MNIST_CNN(BaseModelHarness):
 
         # Deterministic per-iteration drift; “one affine for all samples”
         self.cur_aug = sample_aug(seed=self.cfg.seed + self.task_counter)
-
         tf = FixedAffine(**self.cur_aug)
-        ds_train = TransformedSubset(self.ds, self.train_idx, x_transform=tf)
-        ds_val = TransformedSubset(self.ds, self.val_idx, x_transform=tf)
+
+        ds_train_tf = TransformedView(self.ds_train, x_transform=tf)
+        ds_val_tf = TransformedView(self.ds_val, x_transform=tf)
 
         bs = self.cfg.train.batch_size
         nw = getattr(self.cfg.data, "num_workers", 4)
         pin = torch.cuda.is_available()
 
         self._cur_train_loader = make_loader(
-            ds_train, bs, shuffle=True, num_workers=nw, pin_memory=pin
+            ds_train_tf, bs, shuffle=True, num_workers=nw, pin_memory=pin
         )
         self._cur_val_loader = make_loader(
-            ds_val, bs, shuffle=False, num_workers=nw, pin_memory=pin
+            ds_val_tf, bs, shuffle=False, num_workers=nw, pin_memory=pin
         )
 
         self.task_counter += 1
@@ -111,23 +110,23 @@ class MNIST_CNN(BaseModelHarness):
         """
         If no history yet: add current drift to history and return (None, None).
         Else: return loaders over ConcatDataset of prior drifts, then append current drift to history.
-        Effective dataset length = len(aug_history) * len(split_indices).
+        Effective dataset length = len(aug_history) * len(full_split).
         """
         if len(self.aug_history) == 0:
-            # Seed for next call; no historical data for the first iteration
             if self.cur_aug:
                 self.aug_history.append(self.cur_aug.copy())
             return None, None
 
-        # Build concatenated historical views
+        # Concatenate FULL train/val views for each historical drift
         train_views = [
-            TransformedSubset(self.ds, self.train_idx, x_transform=FixedAffine(**aug))
+            TransformedView(self.ds_train, x_transform=FixedAffine(**aug))
             for aug in self.aug_history
         ]
         val_views = [
-            TransformedSubset(self.ds, self.val_idx, x_transform=FixedAffine(**aug))
+            TransformedView(self.ds_val, x_transform=FixedAffine(**aug))
             for aug in self.aug_history
         ]
+
         ds_hist_train = ConcatDataset(train_views)
         ds_hist_val = ConcatDataset(val_views)
 
@@ -142,7 +141,6 @@ class MNIST_CNN(BaseModelHarness):
             ds_hist_val, bs, shuffle=False, num_workers=nw, pin_memory=pin
         )
 
-        # After exposing historical loaders for this iteration, record the current drift for the next time
         if self.cur_aug:
             self.aug_history.append(self.cur_aug.copy())
 
