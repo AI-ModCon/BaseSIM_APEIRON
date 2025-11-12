@@ -1,8 +1,4 @@
-import torch
-
-
 from collections import OrderedDict
-
 
 from src.evaluation.evaluation import test
 from src.config.configuration import Config

@@ -1,8 +1,8 @@
 # examples/mnist/memory_efficient_utils.py
 from __future__ import annotations
-from typing import Tuple, Optional, Dict, Any, List
+from typing import Tuple, Dict, Any
 import torch
-from torch.utils.data import Dataset, DataLoader, ConcatDataset
+from torch.utils.data import Dataset, DataLoader
 from torchvision import datasets, transforms
 import torchvision.transforms.functional as TF
 
