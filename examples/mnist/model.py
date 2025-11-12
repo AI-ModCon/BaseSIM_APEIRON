@@ -89,7 +89,7 @@ class MNIST_CNN(BaseModelHarness):
         ds_val_tf = TransformedView(self.ds_val, x_transform=tf)
 
         bs = self.cfg.train.batch_size
-        nw = getattr(self.cfg.data, "num_workers", 4)
+        nw = getattr(self.cfg.train, "num_workers", 4)
         pin = torch.cuda.is_available()
 
         self._cur_train_loader = make_loader(
