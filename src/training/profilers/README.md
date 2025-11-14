@@ -4,9 +4,9 @@
 The FLOPS Profiler is a lightweight performance analysis tool to track operations of PyTorch training workflows 
 by allowing users to tag and measure specific function calls or subroutines. Built on PyTorch's `FlopCounterMode`, 
 it automatically counts floating-point operations (FLOPs) and execution time for tagged code blocks, calculating 
-computational throughput (FLOP/s) for each operation. For operations not automatically captured by PyTorch 
-(such as optimizer steps or custom functions), the profiler provides utilities to manually estimate
-and inject FLOP counts, ensuring comprehensive performance analysis across the entire training pipeline.
+computational throughput (FLOP/s) for each operation. For operations not automatically captured by `FlopCounterMode` 
+(such as during the optimizer step), the profiler drops back to PyTorch's native profiler to trace the function calls 
+of the optimizer step and reference a lookup table for the number of FLOPs expended per parameter.
 
 # Basic Usage
 
@@ -29,11 +29,9 @@ for iter in range(num_iters):
         with profiler.measure_flops(tag="backward"):
             loss.backward()
 
-        with profiler.measure_flops(tag="optimizer"):
+        with profiler.measure_flops_optimizer(tag="optimizer", model=model, device=cfg.device):
             optimizer.step()
-            # Manually count optimizer FLOPs
-            params = {n: p for n, p in model.named_parameters() if p.requires_grad}
-            profiler.count_adam_step(params)
+
     else:
         # Regular training without profiling
         output = model(input)
@@ -50,13 +48,13 @@ profiler.print_performance()
 ===========================================================================
 Compute Performance Metrics (Averaged per Update)
 ===========================================================================
-Operation       FLOPs              Time            Throughput
+Operation           FLOPs              Time            Throughput
 ---------------------------------------------------------------------------
-backward        4.82 GFLOPs        15.23 ms        316.48 GFLOP/s
-forward         2.41 GFLOPs        7.12 ms         338.48 GFLOP/s
-optimizer       67.20 MFLOPs       1.85 ms         36.32 MFLOP/s
+backward            3.15 GFLOPs        1.51 ms         2.09 TFLOP/s
+forward             1.62 GFLOPs        1.83 ms         885.94 GFLOP/s
+optimizer           31.92 MFLOPs       2.87 ms         11.14 GFLOP/s
 ---------------------------------------------------------------------------
-TOTAL           7.30 GFLOPs        24.20 ms        301.65 GFLOP/s
+TOTAL               4.81 GFLOPs        6.21 ms         774.45 GFLOP/s
 ===========================================================================
 ```
 
