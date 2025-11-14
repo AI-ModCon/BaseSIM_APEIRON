@@ -44,13 +44,15 @@ class FLOPSProfiler:
     """Profiler for measuring FLOPs and execution time of PyTorch operations.
 
     This class uses PyTorch's FlopCounterMode to automatically count FLOPs for
-    most operations, and allows manual FLOP injection for operations not covered
-    (like optimizer steps).
+    most operations. For optimizer steps, use measure_flops_optimizer() which
+    employs torch.profiler for accurate FLOP estimation.
 
     Attributes:
         warmup_iters: Number of warmup iterations before profiling
         profiles: Dictionary storing FLOP and time measurements per tag
-        manual_flops: Counter for manually injected FLOPs
+        tag: Current measurement tag (set during active profiling)
+        start_time: Start time of current measurement
+        flop_counter: FlopCounterMode instance for current measurement
     """
 
     def __init__(
@@ -61,7 +63,6 @@ class FLOPSProfiler:
 
         Args:
             warmup_iters: Number of warmup iterations (default: 1)
-            reference_forward_flops: Optional reference FLOP count for validation
         """
         self.warmup_iters: int = warmup_iters
         self.tag: Optional[str] = None
@@ -73,17 +74,19 @@ class FLOPSProfiler:
     def measure_flops(self, tag: str = "default") -> Generator['FLOPSProfiler', None, None]:
         """Context manager for measuring FLOPs and time for a code block.
 
+        Uses FlopCounterMode to automatically count FLOPs for supported operations.
+        Best for forward/backward passes of neural network modules.
+
         Args:
             tag: Identifier for this measurement session (default: "default")
 
         Yields:
-            self: The profiler instance for manual FLOP injection
+            self: The profiler instance
 
         Example:
             >>> profiler = FLOPSProfiler()
             >>> with profiler.measure_flops("forward"):
             ...     output = model(input)
-            ...     profiler.add_flops(custom_op_flops)
         """
         self.tag = tag
         if self.tag not in self.profiles:
@@ -118,12 +121,12 @@ class FLOPSProfiler:
         """Context manager for measuring FLOPs and time for optimizer step.
 
         Uses torch.profiler to estimate FLOPs for optimizer operations,
-        which are not captured by FlopCounterMode.
+        which are not captured by FlopCounterMode. Estimates total FLOPs by
+        multiplying per-element operations by the number of trainable parameters.
 
         Args:
-            optimizer: The optimizer to profile
             model: The model being optimized (used to count parameters)
-            device_type: Device type ('cuda' or 'cpu')
+            device: Device type ('cuda' or 'cpu')
             tag: Identifier for this measurement session (default: "optimizer")
 
         Yields:
@@ -131,7 +134,7 @@ class FLOPSProfiler:
 
         Example:
             >>> profiler = FLOPSProfiler()
-            >>> with profiler.measure_flops_optimizer(optimizer, model, "cuda", "optimizer"):
+            >>> with profiler.measure_flops_optimizer(model, "cuda", "optimizer"):
             ...     optimizer.step()
         """
         self.tag = tag
@@ -175,8 +178,19 @@ class FLOPSProfiler:
         self.profiles[tag]["flop"] = []
         self.profiles[tag]["time"] = []
 
-    def _estimate_flops_per_elem(self, prof, debug=False):
+    def _estimate_flops_per_elem(self, prof: profile, debug: bool = False) -> int:
+        """Estimate FLOPs per parameter element from profiler data.
 
+        Analyzes torch.profiler events to estimate FLOPs per parameter by mapping
+        ATen operations to their FLOP counts and multiplying by call counts.
+
+        Args:
+            prof: torch.profiler.profile instance with recorded operations
+            debug: If True, print detailed profiling information (default: False)
+
+        Returns:
+            Estimated FLOPs per parameter element
+        """
         # Get aggregated statistics
         events = prof.key_averages()
 
