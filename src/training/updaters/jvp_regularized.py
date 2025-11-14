@@ -127,10 +127,12 @@ def step_method_jvp_reg(
     hist_batch: tuple,
     adam: FunctionalAdam,
     params: OrderedDict,
+    profiler,
 ):
     optimizer.zero_grad()
     in_t, targets_t = train_batch
     in_m, targets_m = hist_batch
+
 
     # ----------------------------------------
     # deltax direction calculation
@@ -143,22 +145,37 @@ def step_method_jvp_reg(
     # ------------------------------------------------
     # Build data tuple for the actual gradient calculation
     data = (in_t, targets_t, in_m, targets_m, deltax, criterion)
-    with torch.enable_grad():
-        grads_dict, J_P, J_M = return_Hamiltonian(model, params, data, cfg)
+    if profiler and iter >= profiler.warmup_iters:
+        with profiler.measure_flops(tag="hamiltonian"):
+            with torch.enable_grad():
+                grads_dict, J_P, J_M = return_Hamiltonian(model, params, data, cfg)
+    else:
+        with torch.enable_grad():
+            grads_dict, J_P, J_M = return_Hamiltonian(model, params, data, cfg)
 
     # ------------------------------------------------
     # detach grads
     for k in grads_dict:
         grads_dict[k] = grads_dict[k].detach()
 
-    with torch.no_grad():
-        params = adam.step(params, grads_dict)
-        for k in params:
-            params[k] = params[k].detach()
-        model.load_state_dict(params, strict=False)
+    if profiler and iter >= profiler.warmup_iters:
+        with profiler.measure_flops(tag="optim"):
+            with torch.no_grad():
+                params = adam.step(params, grads_dict)
+                for k in params:
+                    params[k] = params[k].detach()
+                model.load_state_dict(params, strict=False)
+
+            # Manually count Adam, is custom Adam equivalent flops as torch native?
+            profiler.count_adam_step(params)
+    else:
+        with torch.no_grad():
+            params = adam.step(params, grads_dict)
+            for k in params:
+                params[k] = params[k].detach()
+            model.load_state_dict(params, strict=False)
 
     # ------------------------------------------------
-
     return (
         J_P.item(),
         J_M.item(),

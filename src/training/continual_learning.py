@@ -6,6 +6,8 @@ from src.model.torch_model_harness import BaseModelHarness
 from src.training.updaters.jvp_regularized import step_method_jvp_reg, FunctionalAdam
 from src.training.updaters.basic import step_method_baseline
 
+from src.training.profilers import FLOPSProfiler
+
 
 def continual_learning_loop(cfg: Config, modelHarness: BaseModelHarness):
 
@@ -58,8 +60,11 @@ def continual_learning_loop(cfg: Config, modelHarness: BaseModelHarness):
                 # If we cannot inspect batch size, just accept the batch
                 return current_iter, [b.to(cfg.device) for b in batch]
 
+    flops_profiler = FLOPSProfiler()
+
     # 2) run the outer loop
     for iter_count in range(cfg.continuous_learning.max_iter):
+
         # Fetch valid batches from both streams
         train_iter, train_batch = _safe_next(
             train_iter, cur_train_loader, min_batch=batch_size
@@ -67,6 +72,8 @@ def continual_learning_loop(cfg: Config, modelHarness: BaseModelHarness):
 
         if hist_train_iter is None:
             # Fall back to basic training if no historical data is available
+
+            # - Count Flops
             total_loss = step_method_baseline(
                 model=model,
                 criterion=criterion,
@@ -74,14 +81,18 @@ def continual_learning_loop(cfg: Config, modelHarness: BaseModelHarness):
                 cfg=cfg,
                 iter=iter_count,
                 train_batch=train_batch,
+                profiler=flops_profiler,
             )
+
         else:
+
             hist_train_iter, hist_batch = _safe_next(
                 hist_train_iter,
                 hist_train_loader,
                 min_batch=batch_size,
             )
 
+            # - Count Flops
             forgetting_loss, generation_loss, total_loss = step_method_jvp_reg(
                 model=model,
                 criterion=criterion,
@@ -92,10 +103,17 @@ def continual_learning_loop(cfg: Config, modelHarness: BaseModelHarness):
                 hist_batch=hist_batch,
                 adam=adam,  # TODO remove this.
                 params=params,
+                profiler=flops_profiler,
             )
 
+    if flops_profiler:
+        flops_perf = flops_profiler.get_performance()
+        flops_profiler.print_performance()
+
     if hist_train_iter is None:
+
         mem_test_acc = -1
+
     else:
         mem_test_acc, _ = test(model, hist_test_loader, criterion, cfg=cfg)
 
