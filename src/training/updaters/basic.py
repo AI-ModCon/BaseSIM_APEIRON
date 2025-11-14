@@ -16,6 +16,7 @@ def step_method_baseline(
     cfg: Config,
     iter: int,
     train_batch: tuple,
+    profiler,
 ):
     """
     This function implements a baseline step method for continual learning.
@@ -36,11 +37,29 @@ def step_method_baseline(
         float: The loss after the step.
     """
     in_t, targets_t = train_batch
-
     optimizer.zero_grad()
-    outputs = model(in_t)
-    loss = criterion(outputs, targets_t)
-    loss.backward()
-    optimizer.step()
+
+    if profiler and iter>profiler.warmup_iters: # Give warmup iterations, for accuracy.
+
+        with profiler.measure_flops(tag="fwd"):
+            outputs = model(in_t)
+            loss = criterion(outputs, targets_t)
+
+        with profiler.measure_flops(tag="bwd"):
+            loss.backward()
+
+        with profiler.measure_flops(tag="optim"):
+            optimizer.step()
+
+            # Manually count optimizer FLOPs since Torch doesn't track them automatically.
+            params = {name: param for name, param in model.named_parameters() if param.requires_grad}
+            if isinstance(optimizer, torch.optim.Adam):
+                profiler.count_adam_step(params)
+
+    else:
+        outputs = model(in_t)
+        loss = criterion(outputs, targets_t)
+        loss.backward()
+        optimizer.step()
 
     return loss.item()
