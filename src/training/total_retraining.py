@@ -53,7 +53,7 @@ def update_CL_total_retraining(
     epoch_for_loss = 10000.0
     epoch_gen_loss = 10000.0
     num = -1
-    while (epoch_loss > 1e-05) and num < cfg.continuous_learning.total_updates:
+    while (epoch_loss > 1e-05) and num < cfg.continuous_learning.max_iter:
         epoch_loss = 0.0
         num += 1
         for pp, data_m in enumerate(mem_iter):
@@ -106,15 +106,15 @@ def update_CL_total_retraining(
     # return stuff
     if task > 0:
         # test_acc, loss_cal = test(model, mem_loader, criterion, device=device)
-        epoch_loss = epoch_loss / len(mem_loader.dataset)
-        epoch_for_loss = epoch_for_loss / len(mem_loader.dataset)
-        epoch_gen_loss = epoch_gen_loss / len(mem_loader.dataset)
+        epoch_loss = epoch_loss / float(len(mem_loader.dataset))  # type: ignore[arg-type]
+        epoch_for_loss = epoch_for_loss / float(len(mem_loader.dataset))  # type: ignore[arg-type]
+        epoch_gen_loss = epoch_gen_loss / float(len(mem_loader.dataset))  # type: ignore[arg-type]
         # print("the loss at:", num, task, total, epoch_loss, loss_cal, test_acc)
         return (model, epoch_loss, epoch_for_loss, epoch_gen_loss)
 
     else:
         # test_acc, loss_cal = test(model, train_loader, criterion, device=device)
-        epoch_loss = epoch_loss / len(train_loader.dataset)
+        epoch_loss = epoch_loss / float(len(train_loader.dataset))  # type: ignore[arg-type]
         # print("the loss at:", num, task, total, epoch_loss, loss_cal, test_acc)
         return (
             model,

@@ -133,7 +133,6 @@ def step_method_jvp_reg(
     in_t, targets_t = train_batch
     in_m, targets_m = hist_batch
 
-
     # ----------------------------------------
     # deltax direction calculation
     deltax = (

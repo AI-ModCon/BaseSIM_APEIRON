@@ -234,7 +234,7 @@ def env_overrides(prefix="APP_") -> dict[str, Any]:
         The built nested dictionary.
     """
     items = [
-        f"{k[len(prefix):].lower()}={v}"
+        f"{k[len(prefix) :].lower()}={v}"
         for k, v in os.environ.items()
         if k.startswith(prefix)
     ]

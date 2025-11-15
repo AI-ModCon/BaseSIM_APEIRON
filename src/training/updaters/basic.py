@@ -39,8 +39,9 @@ def step_method_baseline(
     in_t, targets_t = train_batch
     optimizer.zero_grad()
 
-    if profiler and iter>profiler.warmup_iters: # Give warmup iterations, for accuracy.
-
+    if (
+        profiler and iter > profiler.warmup_iters
+    ):  # Give warmup iterations, for accuracy.
         with profiler.measure_flops(tag="fwd"):
             outputs = model(in_t)
             loss = criterion(outputs, targets_t)

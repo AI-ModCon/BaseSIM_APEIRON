@@ -7,7 +7,6 @@ from src.config.configuration import build_config, Config
 
 
 def main(argv=None) -> int:
-
     cfg: Config = build_config(argv)
 
     print(cfg)
