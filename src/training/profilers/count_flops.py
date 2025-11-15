@@ -32,7 +32,6 @@ import pandas as pd
 from contextlib import contextmanager
 from typing import Dict, List, Optional, Generator
 
-import torch
 import torch.nn as nn
 from torch.profiler import profile, ProfilerActivity
 from torch.utils.flop_counter import FlopCounterMode

@@ -163,7 +163,6 @@ ATEN_FLOPS_PER_ELEMENT = {
     "aten::outer": None,  # Outer product: M*N for (M,) x (N,)
     # Linear algebra
     "aten::linear": None,  # Special: matmul + optional bias add
-    "aten::addmm": None,  # alpha * mat1 @ mat2 + beta * input
     # ==============================================================================
     # CONVOLUTION OPERATIONS (require dimension-specific calculations)
     # ==============================================================================
