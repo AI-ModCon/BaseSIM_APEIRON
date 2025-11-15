@@ -18,33 +18,41 @@ NOT COVERED or LIMITATIONS:
 - Some advanced operations - check flop_counter.py for full list
 Reference: https://github.com/pytorch/pytorch/blob/main/torch/utils/flop_counter.py
 
-- Optimizers require FLOP estimation as Pytorch does not automatically count operations.
+- Relying on the accuracy of torch's flop_counter for general use.
 
-Current FLOP ESTIMATIONs:
-- Adam Optimizer
+- Optimizers require FLOP estimation as flop_counter does not automatically count all non-module operations.
+- For profiling the optimizer step, user must measure_flops_optimizer(tag="opt", model=model, device=cfg.device).
 
 
 """
 
 #-
-import torch, time
-import torch.nn as nn
-from torch.utils.flop_counter import FlopCounterMode
+import time
+import pandas as pd
 from contextlib import contextmanager
 from typing import Dict, List, Optional, Generator, Any
+
+import torch
+import torch.nn as nn
+from torch.profiler import profile, ProfilerActivity
+from torch.utils.flop_counter import FlopCounterMode
+
+from src.training.profilers.aten_flops_map import ATEN_FLOPS_PER_ELEMENT
 
 #-
 class FLOPSProfiler:
     """Profiler for measuring FLOPs and execution time of PyTorch operations.
 
     This class uses PyTorch's FlopCounterMode to automatically count FLOPs for
-    most operations, and allows manual FLOP injection for operations not covered
-    (like optimizer steps).
+    most operations. For optimizer steps, use measure_flops_optimizer() which
+    employs torch.profiler for accurate FLOP estimation.
 
     Attributes:
         warmup_iters: Number of warmup iterations before profiling
         profiles: Dictionary storing FLOP and time measurements per tag
-        manual_flops: Counter for manually injected FLOPs
+        tag: Current measurement tag (set during active profiling)
+        start_time: Start time of current measurement
+        flop_counter: FlopCounterMode instance for current measurement
     """
 
     def __init__(
@@ -55,36 +63,35 @@ class FLOPSProfiler:
 
         Args:
             warmup_iters: Number of warmup iterations (default: 1)
-            reference_forward_flops: Optional reference FLOP count for validation
         """
         self.warmup_iters: int = warmup_iters
         self.tag: Optional[str] = None
         self.start_time: Optional[float] = None
         self.flop_counter: Optional[FlopCounterMode] = None
         self.profiles: Dict[str, Dict[str, List[float]]] = {}
-        self.manual_flops: int = 0  # For manual FLOP injection
 
     @contextmanager
     def measure_flops(self, tag: str = "default") -> Generator['FLOPSProfiler', None, None]:
         """Context manager for measuring FLOPs and time for a code block.
 
+        Uses FlopCounterMode to automatically count FLOPs for supported operations.
+        Best for forward/backward passes of neural network modules.
+
         Args:
             tag: Identifier for this measurement session (default: "default")
 
         Yields:
-            self: The profiler instance for manual FLOP injection
+            self: The profiler instance
 
         Example:
             >>> profiler = FLOPSProfiler()
             >>> with profiler.measure_flops("forward"):
             ...     output = model(input)
-            ...     profiler.add_flops(custom_op_flops)
         """
         self.tag = tag
         if self.tag not in self.profiles:
             self._add_profile(self.tag)
 
-        self.manual_flops = 0  # Reset manual FLOPs for this measurement
         self.flop_counter = FlopCounterMode(display=False, depth=None)
         self.flop_counter.__enter__()
         self.start_time = time.perf_counter()
@@ -93,19 +100,73 @@ class FLOPSProfiler:
             yield self
         finally:
             elapsed_time = time.perf_counter() - self.start_time
-            auto_flops = self.flop_counter.get_total_flops()
+            total_flops = self.flop_counter.get_total_flops()
             self.flop_counter.__exit__(None, None, None)
 
             # Combine automatic and manual FLOPs
-            total_flops = auto_flops + self.manual_flops
-
             self.profiles[self.tag]["flop"].append(total_flops)
             self.profiles[self.tag]["time"].append(elapsed_time)
 
             self.tag = None
             self.start_time = None
             self.flop_counter = None
-            self.manual_flops = 0
+
+    @contextmanager
+    def measure_flops_optimizer(
+        self,
+        model: nn.Module,
+        device: str,
+        tag: str = "optimizer"
+    ) -> Generator['FLOPSProfiler', None, None]:
+        """Context manager for measuring FLOPs and time for optimizer step.
+
+        Uses torch.profiler to estimate FLOPs for optimizer operations,
+        which are not captured by FlopCounterMode. Estimates total FLOPs by
+        multiplying per-element operations by the number of trainable parameters.
+
+        Args:
+            model: The model being optimized (used to count parameters)
+            device: Device type ('cuda' or 'cpu')
+            tag: Identifier for this measurement session (default: "optimizer")
+
+        Yields:
+            self: The profiler instance
+
+        Example:
+            >>> profiler = FLOPSProfiler()
+            >>> with profiler.measure_flops_optimizer(model, "cuda", "optimizer"):
+            ...     optimizer.step()
+        """
+        self.tag = tag
+        if self.tag not in self.profiles:
+            self._add_profile(self.tag)
+
+        self.start_time = time.perf_counter()
+
+        # Use torch profiler for optimizer operations
+        with profile(
+            activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA] if device == 'cuda' else [ProfilerActivity.CPU],
+            with_flops=True,
+            record_shapes=True,
+            profile_memory=True,
+        ) as prof:
+            try:
+                yield self
+            finally:
+                pass
+
+        elapsed_time = time.perf_counter() - self.start_time
+
+        # Estimate FLOPs using the profiler
+        flops_per_elem = self._estimate_flops_per_elem(prof)
+        total_params_require_grad = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        total_flops = flops_per_elem * total_params_require_grad
+
+        self.profiles[self.tag]["flop"].append(total_flops)
+        self.profiles[self.tag]["time"].append(elapsed_time)
+
+        self.tag = None
+        self.start_time = None
 
     def _add_profile(self, tag: str) -> None:
         """Initialize a new profile entry for a given tag.
@@ -117,43 +178,55 @@ class FLOPSProfiler:
         self.profiles[tag]["flop"] = []
         self.profiles[tag]["time"] = []
 
-    def add_flops(self, flops: int) -> None:
-        """Manually add FLOPs to the current measurement.
+    def _estimate_flops_per_elem(self, prof: profile, debug: bool = False) -> int:
+        """Estimate FLOPs per parameter element from profiler data.
 
-        Use this when FlopCounterMode doesn't capture certain operations.
-        Must be called within a measure_flops() context.
-
-        Args:
-            flops: Number of FLOPs to add
-
-        """
-        self.manual_flops += flops
-
-    def count_adam_step(self, params_dict: Dict[str, torch.Tensor]) -> int:
-        """Estimate FLOPs for an Adam optimizer step.
-
-        Adam performs these operations per parameter element:
-        - m = b1*m + (1-b1)*g         -> 3 FLOPs (2 mul, 1 add)
-        - v = b2*v + (1-b2)*(g*g)     -> 4 FLOPs (3 mul, 1 add)
-        - m_hat = m / (1 - b1**t)     -> 1 FLOP (1 div)
-        - v_hat = v / (1 - b2**t)     -> 1 FLOP (1 div)
-        - sqrt(v_hat)                 -> 1 FLOP
-        - sqrt + eps                  -> 1 FLOP (1 add)
-        - m_hat / (sqrt + eps)        -> 1 FLOP (1 div)
-        - lr * ...                    -> 1 FLOP (1 mul)
-        - w - ...                     -> 1 FLOP (1 sub)
-        Total: ~14 FLOPs per parameter
+        Analyzes torch.profiler events to estimate FLOPs per parameter by mapping
+        ATen operations to their FLOP counts and multiplying by call counts.
 
         Args:
-            params_dict: Dictionary of parameters {name: tensor}
+            prof: torch.profiler.profile instance with recorded operations
+            debug: If True, print detailed profiling information (default: False)
 
         Returns:
-            Estimated number of FLOPs for the Adam step
+            Estimated FLOPs per parameter element
         """
-        total_params = sum(p.numel() for p in params_dict.values())
-        flops = total_params * 14
-        self.add_flops(flops)
-        return flops
+        # Get aggregated statistics
+        events = prof.key_averages()
+
+        # Extract data into lists
+        data = []
+        for event in events:
+             data.append({
+                 'operation': event.key,
+                 'flops': event.flops,
+                 'count': event.count,
+                 'cpu_time_us': event.cpu_time_total,
+                 'cpu_time_ms': event.cpu_time_total / 1000,
+                 'cuda_time_us': event.cuda_time_total if hasattr(event, 'cuda_time_total') else 0,
+                 'self_cpu_time_us': event.self_cpu_time_total,
+                 'input_shapes': str(event.input_shapes) if event.input_shapes else ''
+             })
+
+        # Create DataFrame
+        df = pd.DataFrame(data)
+
+        # Multiply FLOPs per element by the number of times each operation was called
+        df["est_flops_per_param"] = df.apply(
+            lambda row: ATEN_FLOPS_PER_ELEMENT.get(row.operation, 0) * row['count'],
+            axis=1
+        )
+
+        #- Profiler Probe
+        #- May need to look here later to see if there are any missing computations in the lookup.
+        if debug:
+          df = df.sort_values('self_cpu_time_us', ascending=False).reset_index(drop=True)
+          print("All Function Calls:\n", df)
+          print("Compute Function Calls:\n", df[df.est_flops_per_param > 0])
+          print("Estimated FLOPs per param:", int(df.est_flops_per_param.sum()))
+
+        #-
+        return int(df.est_flops_per_param.sum())
 
     def get_performance(self) -> Dict[str, float]:
         """Calculate average performance metrics across all measurements.
@@ -207,6 +280,7 @@ class FLOPSProfiler:
         elif time_sec >= 1e-6: return f"{time_sec*1e6:.2f} μs"
         else:                  return f"{time_sec*1e9:.2f} ns"
 
+
     def _format_throughput(self, flops_per_sec: float) -> str:
         """Format throughput (FLOP/s) in human-readable form.
 
@@ -221,6 +295,7 @@ class FLOPSProfiler:
         elif flops_per_sec >= 1e6: return f"{flops_per_sec/1e6:.2f} MFLOP/s"
         elif flops_per_sec >= 1e3: return f"{flops_per_sec/1e3:.2f} KFLOP/s"
         else:                      return f"{flops_per_sec:.0f} FLOP/s"
+
 
     def print_performance(self) -> None:
         """Pretty print the performance metrics (averaged per update).
@@ -275,3 +350,4 @@ class FLOPSProfiler:
             print(f"{'TOTAL':<15} {total_flop_str:<18} {total_time_str:<15} {total_throughput_str:<20}")
 
         print("="*75 + "\n")
+

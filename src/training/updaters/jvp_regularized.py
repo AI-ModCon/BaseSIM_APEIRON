@@ -10,7 +10,7 @@ from torch.func import grad, jvp
 from collections import OrderedDict
 from typing import Mapping
 from src.config.configuration import Config
-
+from src.training.profilers import FLOPSProfiler
 
 class FunctionalAdam:
     def __init__(self, params, lr=1e-3, betas=(0.9, 0.999), eps=1e-8):
@@ -127,7 +127,7 @@ def step_method_jvp_reg(
     hist_batch: tuple,
     adam: FunctionalAdam,
     params: OrderedDict,
-    profiler,
+    profiler: FLOPSProfiler,
 ):
     optimizer.zero_grad()
     in_t, targets_t = train_batch
@@ -159,15 +159,14 @@ def step_method_jvp_reg(
         grads_dict[k] = grads_dict[k].detach()
 
     if profiler and iter >= profiler.warmup_iters:
-        with profiler.measure_flops(tag="optim"):
+
+        with profiler.measure_flops_optimizer(tag="optim", model=model, device=cfg.device):
             with torch.no_grad():
                 params = adam.step(params, grads_dict)
                 for k in params:
                     params[k] = params[k].detach()
                 model.load_state_dict(params, strict=False)
 
-            # Manually count Adam, is custom Adam equivalent flops as torch native?
-            profiler.count_adam_step(params)
     else:
         with torch.no_grad():
             params = adam.step(params, grads_dict)
