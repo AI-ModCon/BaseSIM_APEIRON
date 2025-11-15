@@ -151,10 +151,11 @@ class WandBLogger:
         if not self.enabled or self.run is None:
             return
 
+        # TODO check that policy can be only 'now', 'live', or 'end'
         wandb.save(
             str(file_path),
             base_path=str(base_path) if base_path else None,
-            policy=policy,
+            policy=policy,  # type: ignore[arg-type]
         )
 
     def to_dataframe(self) -> Optional[pd.DataFrame]:

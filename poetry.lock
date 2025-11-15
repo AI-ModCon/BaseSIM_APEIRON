@@ -980,6 +980,22 @@ test = ["hypothesis (>=6.46.1)", "pytest (>=7.3.2)", "pytest-xdist (>=2.2.0)"]
 xml = ["lxml (>=4.9.2)"]
 
 [[package]]
+name = "pandas-stubs"
+version = "2.3.2.250926"
+description = "Type annotations for pandas"
+optional = false
+python-versions = ">=3.10"
+groups = ["main"]
+files = [
+    {file = "pandas_stubs-2.3.2.250926-py3-none-any.whl", hash = "sha256:81121818453dcfe00f45c852f4dceee043640b813830f6e7bd084a4ef7ff7270"},
+    {file = "pandas_stubs-2.3.2.250926.tar.gz", hash = "sha256:c64b9932760ceefb96a3222b953e6a251321a9832a28548be6506df473a66406"},
+]
+
+[package.dependencies]
+numpy = ">=1.23.5"
+types-pytz = ">=2022.1.1"
+
+[[package]]
 name = "pathspec"
 version = "0.12.1"
 description = "Utility library for gitignore style pattern matching of file paths."
@@ -1815,6 +1831,18 @@ tests = ["autopep8", "isort", "llnl-hatchet", "numpy", "pytest", "pytest-forked"
 tutorials = ["matplotlib", "pandas", "tabulate"]
 
 [[package]]
+name = "types-pytz"
+version = "2025.2.0.20251108"
+description = "Typing stubs for pytz"
+optional = false
+python-versions = ">=3.9"
+groups = ["main"]
+files = [
+    {file = "types_pytz-2025.2.0.20251108-py3-none-any.whl", hash = "sha256:0f1c9792cab4eb0e46c52f8845c8f77cf1e313cb3d68bf826aa867fe4717d91c"},
+    {file = "types_pytz-2025.2.0.20251108.tar.gz", hash = "sha256:fca87917836ae843f07129567b74c1929f1870610681b4c92cb86a3df5817bdb"},
+]
+
+[[package]]
 name = "types-requests"
 version = "2.32.4.20250913"
 description = "Typing stubs for requests"
@@ -1949,4 +1977,4 @@ workspaces = ["wandb-workspaces"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13,<3.15"
-content-hash = "82835dbc05f0c25e00748be6bdd525ac0818ff9d412e19cf1d4820a1c7a4d518"
+content-hash = "fa759206f3cb89fdb6a1c13bd6b111e2260d15395b0619bbac03f266b57a09e0"

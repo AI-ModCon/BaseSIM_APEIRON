@@ -95,7 +95,7 @@ class FLOPSProfiler:
         if self.tag not in self.profiles:
             self._add_profile(self.tag)
 
-        self.flop_counter = FlopCounterMode(display=False, depth=None)
+        self.flop_counter = FlopCounterMode(display=False, depth=None)  # type: ignore[arg-type]
         self.flop_counter.__enter__()
         self.start_time = time.perf_counter()
 
