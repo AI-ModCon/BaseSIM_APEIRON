@@ -26,7 +26,7 @@ Reference: https://github.com/pytorch/pytorch/blob/main/torch/utils/flop_counter
 
 """
 
-#-
+# -
 import time
 import pandas as pd
 from contextlib import contextmanager
@@ -39,7 +39,8 @@ from torch.utils.flop_counter import FlopCounterMode
 
 from src.training.profilers.aten_flops_map import ATEN_FLOPS_PER_ELEMENT
 
-#-
+
+# -
 class FLOPSProfiler:
     """Profiler for measuring FLOPs and execution time of PyTorch operations.
 
@@ -115,11 +116,8 @@ class FLOPSProfiler:
 
     @contextmanager
     def measure_flops_optimizer(
-        self,
-        model: nn.Module,
-        device: str,
-        tag: str = "optimizer"
-    ) -> Generator['FLOPSProfiler', None, None]:
+        self, model: nn.Module, device: str, tag: str = "optimizer"
+    ) -> Generator["FLOPSProfiler", None, None]:
         """Context manager for measuring FLOPs and time for optimizer step.
 
         Uses torch.profiler to estimate FLOPs for optimizer operations,
@@ -147,7 +145,9 @@ class FLOPSProfiler:
 
         # Use torch profiler for optimizer operations
         with profile(
-            activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA] if device == 'cuda' else [ProfilerActivity.CPU],
+            activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA]
+            if device == "cuda"
+            else [ProfilerActivity.CPU],
             with_flops=True,
             record_shapes=True,
             profile_memory=True,
@@ -161,7 +161,9 @@ class FLOPSProfiler:
 
         # Estimate FLOPs using the profiler
         flops_per_elem = self._estimate_flops_per_elem(prof)
-        total_params_require_grad = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        total_params_require_grad = sum(
+            p.numel() for p in model.parameters() if p.requires_grad
+        )
         total_flops = flops_per_elem * total_params_require_grad
 
         self.profiles[self.tag]["flop"].append(total_flops)
@@ -199,35 +201,43 @@ class FLOPSProfiler:
         # Extract data into lists
         data = []
         for event in events:
-             data.append({
-                 'operation': event.key,
-                 'flops': event.flops,
-                 'count': event.count,
-                 'cpu_time_us': event.cpu_time_total,
-                 'cpu_time_ms': event.cpu_time_total / 1000,
-                 'cuda_time_us': event.cuda_time_total if hasattr(event, 'cuda_time_total') else 0,
-                 'self_cpu_time_us': event.self_cpu_time_total,
-                 'input_shapes': str(event.input_shapes) if event.input_shapes else ''
-             })
+            data.append(
+                {
+                    "operation": event.key,
+                    "flops": event.flops,
+                    "count": event.count,
+                    "cpu_time_us": event.cpu_time_total,
+                    "cpu_time_ms": event.cpu_time_total / 1000,
+                    "cuda_time_us": event.cuda_time_total
+                    if hasattr(event, "cuda_time_total")
+                    else 0,
+                    "self_cpu_time_us": event.self_cpu_time_total,
+                    "input_shapes": str(event.input_shapes)
+                    if event.input_shapes
+                    else "",
+                }
+            )
 
         # Create DataFrame
         df = pd.DataFrame(data)
 
         # Multiply FLOPs per element by the number of times each operation was called
         df["est_flops_per_param"] = df.apply(
-            lambda row: ATEN_FLOPS_PER_ELEMENT.get(row.operation, 0) * row['count'],
-            axis=1
+            lambda row: ATEN_FLOPS_PER_ELEMENT.get(row.operation, 0) * row["count"],
+            axis=1,
         )
 
-        #- Profiler Probe
-        #- May need to look here later to see if there are any missing computations in the lookup.
+        # - Profiler Probe
+        # - May need to look here later to see if there are any missing computations in the lookup.
         if debug:
-          df = df.sort_values('self_cpu_time_us', ascending=False).reset_index(drop=True)
-          print("All Function Calls:\n", df)
-          print("Compute Function Calls:\n", df[df.est_flops_per_param > 0])
-          print("Estimated FLOPs per param:", int(df.est_flops_per_param.sum()))
+            df = df.sort_values("self_cpu_time_us", ascending=False).reset_index(
+                drop=True
+            )
+            print("All Function Calls:\n", df)
+            print("Compute Function Calls:\n", df[df.est_flops_per_param > 0])
+            print("Estimated FLOPs per param:", int(df.est_flops_per_param.sum()))
 
-        #-
+        # -
         return int(df.est_flops_per_param.sum())
 
     def get_performance(self) -> Dict[str, float]:
@@ -291,7 +301,6 @@ class FLOPSProfiler:
         else:
             return f"{time_sec * 1e9:.2f} ns"
 
-
     def _format_throughput(self, flops_per_sec: float) -> str:
         """Format throughput (FLOP/s) in human-readable form.
 
@@ -311,7 +320,6 @@ class FLOPSProfiler:
             return f"{flops_per_sec / 1e3:.2f} KFLOP/s"
         else:
             return f"{flops_per_sec:.0f} FLOP/s"
-
 
     def print_performance(self) -> None:
         """Pretty print the performance metrics (averaged per update).
