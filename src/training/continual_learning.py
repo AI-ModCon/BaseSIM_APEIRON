@@ -1,11 +1,9 @@
-from collections import OrderedDict
-
 from src.evaluation.evaluation import test
 from src.config.configuration import Config
 from src.model.torch_model_harness import BaseModelHarness
 from src.training.updaters.basic import step_method_baseline
 
-#from src.training.updaters.jvp_regularized import step_method_jvp_reg, FunctionalAdam
+# from src.training.updaters.jvp_regularized import step_method_jvp_reg, FunctionalAdam
 from src.training.updaters.jvp_reg import step_method_jvp_reg
 from src.model.jvp_continual_learning import JVPRegularizedLoss, JVPAdam
 
@@ -39,7 +37,7 @@ def continual_learning_loop(
         model=model,
         criterion=criterion,
         jvp_reg=cfg.continuous_learning.jvp_reg,
-        deltax_norm=cfg.continuous_learning.deltax_norm
+        deltax_norm=cfg.continuous_learning.deltax_norm,
     )
     jvp_adam = JVPAdam(model.parameters(), lr=1e-3)
 
@@ -118,7 +116,7 @@ def continual_learning_loop(
                 hist_batch=hist_batch,
                 profiler=flops_profiler,
                 jvp_loss=jvp_loss,
-                jvp_adam=jvp_adam
+                jvp_adam=jvp_adam,
             )
 
             logger.log(

@@ -20,6 +20,7 @@ from torch.optim import Optimizer
 from torch.func import grad, jvp, functional_call
 from collections import OrderedDict
 
+
 class JVPAdam(Optimizer):
     """Adam optimizer for JVP regularization."""
 
@@ -35,9 +36,9 @@ class JVPAdam(Optimizer):
                 loss = closure()
 
         for group in self.param_groups:
-            beta1, beta2 = group['betas']
+            beta1, beta2 = group["betas"]
 
-            for p in group['params']:
+            for p in group["params"]:
                 if p.grad is None:
                     continue
 
@@ -45,12 +46,12 @@ class JVPAdam(Optimizer):
 
                 # State initialization
                 if len(state) == 0:
-                    state['step'] = 0
-                    state['exp_avg'] = torch.zeros_like(p)
-                    state['exp_avg_sq'] = torch.zeros_like(p)
+                    state["step"] = 0
+                    state["exp_avg"] = torch.zeros_like(p)
+                    state["exp_avg_sq"] = torch.zeros_like(p)
 
-                exp_avg, exp_avg_sq = state['exp_avg'], state['exp_avg_sq']
-                state['step'] += 1
+                exp_avg, exp_avg_sq = state["exp_avg"], state["exp_avg_sq"]
+                state["step"] += 1
 
                 grad = p.grad
 
@@ -59,15 +60,15 @@ class JVPAdam(Optimizer):
                 exp_avg_sq.mul_(beta2).addcmul_(grad, grad, value=1 - beta2)
 
                 # Bias correction - compute corrected moments WITHOUT modifying state
-                bias_correction1 = 1 - beta1 ** state['step']
-                bias_correction2 = 1 - beta2 ** state['step']
+                bias_correction1 = 1 - beta1 ** state["step"]
+                bias_correction2 = 1 - beta2 ** state["step"]
 
                 m_hat = exp_avg / bias_correction1
                 v_hat = exp_avg_sq / bias_correction2
 
                 # Adam update
-                denom = v_hat.sqrt().add_(group['eps'])
-                p.add_(m_hat / denom, alpha=-group['lr'])
+                denom = v_hat.sqrt().add_(group["eps"])
+                p.add_(m_hat / denom, alpha=-group["lr"])
 
         return loss
 
@@ -99,16 +100,18 @@ class JVPRegularizedLoss(nn.Module):
         x_curr, y_curr = current_batch
         x_mem, y_mem = memory_batch
 
-        #- Get parameters as dict for functional API (cached)
+        # - Get parameters as dict for functional API (cached)
         if self._params is None:
             self._params = OrderedDict(self.model.named_parameters())
 
-        #- Compute deltax direction
-        deltax = self.deltax_norm * (x_mem - x_curr) / (
-            torch.linalg.norm(x_mem) + torch.linalg.norm(x_curr)
+        # - Compute deltax direction
+        deltax = (
+            self.deltax_norm
+            * (x_mem - x_curr)
+            / (torch.linalg.norm(x_mem) + torch.linalg.norm(x_curr))
         )
 
-        #- Compute combined gradients
+        # - Compute combined gradients
         grad_dict, loss_curr, loss_mem = self._compute_jvp_gradients(
             self._params, x_curr, y_curr, x_mem, y_mem, deltax
         )
@@ -118,43 +121,42 @@ class JVPRegularizedLoss(nn.Module):
     def _compute_jvp_gradients(self, params, x_curr, y_curr, x_mem, y_mem, deltax):
         """Compute JVP-regularized gradients."""
 
-        #- Ensure all params require grad
+        # - Ensure all params require grad
         for p in params.values():
             p.requires_grad_(True)
 
-        #- Define loss function for functional API
+        # - Define loss function for functional API
         def loss_fn(p, x, y):
             pred = functional_call(self.model, p, (x,))
             return self.criterion(pred, y)
 
-        #- Compute gradients
+        # - Compute gradients
         grad_fn = grad(loss_fn, argnums=0)
 
-        #- Current task gradient
+        # - Current task gradient
         grad_curr = grad_fn(params, x_curr, y_curr)
 
-        #- Memory task gradient
+        # - Memory task gradient
         grad_mem = grad_fn(params, x_mem, y_mem)
 
-        #- JVP computation
+        # - JVP computation
         def f(p, x):
             return loss_fn(p, x, y_mem)
 
         def jvp_func(p, tangents):
             return jvp(f, (p, x_mem), tangents)[1]
 
-        #- Use current gradient as tangent direction
+        # - Use current gradient as tangent direction
         tangents = OrderedDict((k, grad_curr[k]) for k in params)
 
         grad_jvp = grad(jvp_func)(params, (tangents, deltax))
 
-        #- Combine gradients
+        # - Combine gradients
         combined_grads = {
-            k: grad_curr[k] + grad_mem[k] + self.jvp_reg * grad_jvp[k]
-            for k in params
+            k: grad_curr[k] + grad_mem[k] + self.jvp_reg * grad_jvp[k] for k in params
         }
 
-        #- Compute loss values
+        # - Compute loss values
         with torch.no_grad():
             loss_curr = loss_fn(params, x_curr, y_curr)
             loss_mem = loss_fn(params, x_mem, y_mem)
