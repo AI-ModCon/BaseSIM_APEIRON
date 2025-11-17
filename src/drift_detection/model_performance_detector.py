@@ -132,60 +132,68 @@ class ModelPerformanceDetector(BaseDriftDetector):
             reference_data["target"] = self.reference_targets
 
         # Run drift detection
-        try:
-            report = Report(metrics=[DataDriftPreset()])
-            report.run(reference_data=reference_data, current_data=current_data)
-            result = report.as_dict()
+        report = Report(metrics=[DataDriftPreset()])
+        snapshot = report.run(reference_data=reference_data, current_data=current_data)
+        result_dict = snapshot.dict()
 
-            # Extract drift metrics
-            drift_metrics = result["metrics"][0]["result"]
-            dataset_drift = drift_metrics.get("dataset_drift", False)
-            drift_share = drift_metrics.get("share_of_drifted_columns", 0.0)
-            n_drifted_columns = drift_metrics.get("number_of_drifted_columns", 0)
+        if "metrics" not in result_dict or len(result_dict["metrics"]) == 0:
+            raise KeyError("No metrics found in snapshot results")
 
-            self._drift_history.append(drift_share)
+        drift_count_metric = None
+        for metric in result_dict["metrics"]:
+            metric_name = metric.get("metric_name", "")
+            if "DriftedColumnsCount" in metric_name:
+                drift_count_metric = metric
+                break
 
-            # Compute average drift score
-            recent_window = min(10, len(self._drift_history))
-            drift_score = np.mean(self._drift_history[-recent_window:])
+        if drift_count_metric is None:
+            raise KeyError("DriftedColumnsCount metric not found in results")
 
-            # Determine regime
-            if not dataset_drift and drift_score < self.minor_threshold:
-                regime = LearningRegime.STABLE
-            elif drift_score < self.minor_threshold:
-                regime = LearningRegime.CONTINUAL_LEARNING
-            elif drift_score < self.moderate_threshold:
-                regime = LearningRegime.FINE_TUNING
-            else:
-                regime = LearningRegime.RETRAIN
+        # Extract drift info from the value field
+        value = drift_count_metric.get("value", {})
+        if not isinstance(value, dict):
+            raise ValueError(f"Expected dict for DriftedColumnsCount value, got {type(value)}")
 
-            metadata = {
-                "dataset_drift": dataset_drift,
-                "drift_share": drift_share,
-                "n_drifted_columns": n_drifted_columns,
-                "n_columns": drift_metrics.get("number_of_columns", 0),
-            }
+        # Extract metrics
+        n_drifted_columns = int(value.get("count", 0))
+        drift_share = float(value.get("share", 0.0))
 
-            return DriftSignal(
-                regime=regime,
-                drift_detected=dataset_drift,
-                drift_score=drift_score,
-                confidence=0.95,  # Evidently uses statistical tests with high confidence
-                metadata=metadata,
-            )
+        # Determine if dataset has drift (if any columns drifted)
+        dataset_drift = n_drifted_columns > 0
 
-        except Exception as e:
-            print(f"Warning: Evidently drift detection failed: {e}")
-            # Fallback to simple detection if evidently fails
-            if value is not None:
-                return self._simple_value_detection(value)
-            else:
-                return DriftSignal(
-                    regime=LearningRegime.STABLE,
-                    drift_detected=False,
-                    drift_score=0.0,
-                    metadata={"error": str(e)},
-                )
+        # Get total number of columns from current data
+        n_columns = len(current_data.columns)
+
+        self._drift_history.append(drift_share)
+
+        # Compute average drift score
+        recent_window = min(10, len(self._drift_history))
+        drift_score = np.mean(self._drift_history[-recent_window:])
+
+        # Determine regime
+        if not dataset_drift and drift_score < self.minor_threshold:
+            regime = LearningRegime.STABLE
+        elif drift_score < self.minor_threshold:
+            regime = LearningRegime.CONTINUAL_LEARNING
+        elif drift_score < self.moderate_threshold:
+            regime = LearningRegime.FINE_TUNING
+        else:
+            regime = LearningRegime.RETRAIN
+
+        metadata = {
+            "dataset_drift": dataset_drift,
+            "drift_share": drift_share,
+            "n_drifted_columns": n_drifted_columns,
+            "n_columns": n_columns,
+        }
+
+        return DriftSignal(
+            regime=regime,
+            drift_detected=dataset_drift,
+            drift_score=drift_score,
+            confidence=0.95,  # Evidently uses statistical tests with high confidence
+            metadata=metadata,
+        )
 
     def _simple_value_detection(self, value: float) -> DriftSignal:
         """Fallback simple value-based detection."""
@@ -252,20 +260,11 @@ class EnsembleDetector(BaseDriftDetector):
         """
         # Update all detectors
         signals = []
+        detector_names = []
         for detector in self.detectors:
-            try:
-                signal = detector.update(value, **kwargs)
-                signals.append(signal)
-            except Exception as e:
-                print(f"Warning: Detector {detector.name} failed: {e}")
-                continue
-
-        if not signals:
-            return DriftSignal(
-                regime=LearningRegime.STABLE,
-                drift_detected=False,
-                drift_score=0.0,
-            )
+            signal = detector.update(value, **kwargs)
+            signals.append(signal)
+            detector_names.append(detector.name)
 
         # Combine signals based on voting strategy
         if self.voting == "majority":
@@ -288,8 +287,8 @@ class EnsembleDetector(BaseDriftDetector):
         metadata = {
             "n_detectors": len(signals),
             "individual_signals": [
-                {"detector": s.metadata.get("detector", "unknown"), "detected": s.drift_detected}
-                for s in signals
+                {"detector": name, "detected": signal.drift_detected}
+                for name, signal in zip(detector_names, signals)
             ],
         }
 
