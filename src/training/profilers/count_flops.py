@@ -144,9 +144,11 @@ class FLOPSProfiler:
 
         # Use torch profiler for optimizer operations
         with profile(
-            activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA]
-            if device == "cuda"
-            else [ProfilerActivity.CPU],
+            activities=(
+                [ProfilerActivity.CPU, ProfilerActivity.CUDA]
+                if device == "cuda"
+                else [ProfilerActivity.CPU]
+            ),
             with_flops=True,
             record_shapes=True,
             profile_memory=True,
@@ -207,13 +209,15 @@ class FLOPSProfiler:
                     "count": event.count,
                     "cpu_time_us": event.cpu_time_total,
                     "cpu_time_ms": event.cpu_time_total / 1000,
-                    "cuda_time_us": event.cuda_time_total
-                    if hasattr(event, "cuda_time_total")
-                    else 0,
+                    "cuda_time_us": (
+                        event.cuda_time_total
+                        if hasattr(event, "cuda_time_total")
+                        else 0
+                    ),
                     "self_cpu_time_us": event.self_cpu_time_total,
-                    "input_shapes": str(event.input_shapes)
-                    if event.input_shapes
-                    else "",
+                    "input_shapes": (
+                        str(event.input_shapes) if event.input_shapes else ""
+                    ),
                 }
             )
 
