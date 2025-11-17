@@ -18,7 +18,7 @@ class WandBLogger:
         self,
         enabled: bool = True,
         save_to_csv: bool = True,
-        csv_path: Optional[str | Path] = None
+        csv_path: Optional[str | Path] = None,
     ):
         """
         Initialize the WandB logger.
@@ -50,7 +50,7 @@ class WandBLogger:
         tags: Optional[list[str]] = None,
         notes: Optional[str] = None,
         group: Optional[str] = None,
-        **kwargs
+        **kwargs,
     ) -> Optional[wandb.sdk.wandb_run.Run]:
         """
         Initialize a wandb run with configuration.
@@ -90,16 +90,13 @@ class WandBLogger:
             tags=tags,
             notes=notes,
             group=group,
-            **kwargs
+            **kwargs,
         )
 
         return self.run
 
     def log(
-        self,
-        metrics: Dict[str, Any],
-        step: Optional[int] = None,
-        commit: bool = True
+        self, metrics: Dict[str, Any], step: Optional[int] = None, commit: bool = True
     ) -> None:
         """
         Log metrics to wandb and optionally save to CSV.
@@ -133,7 +130,7 @@ class WandBLogger:
         self,
         file_path: str | Path,
         base_path: Optional[str | Path] = None,
-        policy: str = "now"
+        policy: str = "now",
     ) -> None:
         """
         Save a file to wandb.
@@ -154,7 +151,12 @@ class WandBLogger:
         if not self.enabled or self.run is None:
             return
 
-        wandb.save(str(file_path), base_path=str(base_path) if base_path else None, policy=policy)
+        # TODO check that policy can be only 'now', 'live', or 'end'
+        wandb.save(
+            str(file_path),
+            base_path=str(base_path) if base_path else None,
+            policy=policy,  # type: ignore[arg-type]
+        )
 
     def to_dataframe(self) -> Optional[pd.DataFrame]:
         """
@@ -182,11 +184,7 @@ class WandBLogger:
             step = entry.get("step")
             for metric_name, value in entry.items():
                 if metric_name != "step":
-                    rows.append({
-                        "step": step,
-                        "metric": metric_name,
-                        "value": value
-                    })
+                    rows.append({"step": step, "metric": metric_name, "value": value})
 
         return pd.DataFrame(rows)
 
@@ -230,9 +228,7 @@ class WandBLogger:
         return output_path
 
     def finish(
-        self,
-        exit_code: Optional[int] = None,
-        save_csv: bool = True
+        self, exit_code: Optional[int] = None, save_csv: bool = True
     ) -> Optional[Path]:
         """
         Finish the current wandb run and save metrics to CSV.
@@ -282,7 +278,7 @@ _default_logger: Optional[WandBLogger] = None
 def get_logger(
     enabled: bool = True,
     save_to_csv: bool = True,
-    csv_path: Optional[str | Path] = None
+    csv_path: Optional[str | Path] = None,
 ) -> WandBLogger:
     """
     Get or create the default WandBLogger instance.
@@ -313,8 +309,6 @@ def get_logger(
     global _default_logger
     if _default_logger is None:
         _default_logger = WandBLogger(
-            enabled=enabled,
-            save_to_csv=save_to_csv,
-            csv_path=csv_path
+            enabled=enabled, save_to_csv=save_to_csv, csv_path=csv_path
         )
     return _default_logger

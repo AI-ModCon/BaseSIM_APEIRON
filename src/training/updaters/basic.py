@@ -9,6 +9,7 @@ import torch
 from src.config.configuration import Config
 from src.training.profilers import FLOPSProfiler
 
+
 def step_method_baseline(
     model: torch.nn.Module,
     criterion: torch.nn.Module,
@@ -39,8 +40,9 @@ def step_method_baseline(
     in_t, targets_t = train_batch
     optimizer.zero_grad()
 
-    if profiler and iter>profiler.warmup_iters: # Give warmup iterations, for accuracy.
-
+    if (
+        profiler and iter > profiler.warmup_iters
+    ):  # Give warmup iterations, for accuracy.
         with profiler.measure_flops(tag="fwd"):
             outputs = model(in_t)
             loss = criterion(outputs, targets_t)
@@ -48,12 +50,12 @@ def step_method_baseline(
         with profiler.measure_flops(tag="bwd"):
             loss.backward()
 
-        with profiler.measure_flops_optimizer(tag="optim", model=model, device=cfg.device):
-
-            #- Try profiling optimizer step agnostically.
+        with profiler.measure_flops_optimizer(
+            tag="optim", model=model, device=cfg.device
+        ):
+            # - Try profiling optimizer step agnostically.
             # profiler.count_optimizer_step(optimizer, model, cfg.device)
             optimizer.step()
-
 
     else:
         outputs = model(in_t)

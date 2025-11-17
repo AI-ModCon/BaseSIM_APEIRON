@@ -133,4 +133,4 @@ def make_loader(
                 prefetch_factor=prefetch_factor,
             )
         )
-    return DataLoader(ds, **kwargs)
+    return DataLoader(ds, **kwargs)  # type: ignore[arg-type]

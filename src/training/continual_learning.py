@@ -9,8 +9,9 @@ from src.training.updaters.basic import step_method_baseline
 from src.training.profilers import FLOPSProfiler
 
 
-def continual_learning_loop(cfg: Config, modelHarness: BaseModelHarness, logger, global_iter=0):
-
+def continual_learning_loop(
+    cfg: Config, modelHarness: BaseModelHarness, logger, global_iter=0
+):
     # 1) select the right cl update method #TODO
 
     # 2) Get loaders
@@ -60,13 +61,11 @@ def continual_learning_loop(cfg: Config, modelHarness: BaseModelHarness, logger,
                 # If we cannot inspect batch size, just accept the batch
                 return current_iter, [b.to(cfg.device) for b in batch]
 
-
     flops_profiler = FLOPSProfiler()
 
     # 2) run the outer loop
     curr_global_iter = cfg.continuous_learning.max_iter * global_iter
     for iter_count in range(cfg.continuous_learning.max_iter):
-
         # Fetch valid batches from both streams
         train_iter, train_batch = _safe_next(
             train_iter, cur_train_loader, min_batch=batch_size
@@ -75,34 +74,34 @@ def continual_learning_loop(cfg: Config, modelHarness: BaseModelHarness, logger,
         if hist_train_iter is None:
             # Fall back to basic training if no historical data is available
 
-            #- Count Flops
+            # - Count Flops
             total_loss = step_method_baseline(
                 model=model,
-                criterion=criterion,
+                criterion=criterion,  # type: ignore[arg-type]
                 optimizer=optimizer,
                 cfg=cfg,
                 iter=iter_count,
                 train_batch=train_batch,
-                profiler = flops_profiler,
+                profiler=flops_profiler,
             )
 
-            logger.log({"train/total_loss": total_loss},
-                       step=iter_count+curr_global_iter, 
-                       commit=iter_count<(cfg.continuous_learning.max_iter-1))
-
+            logger.log(
+                {"train/total_loss": total_loss},
+                step=iter_count + curr_global_iter,
+                commit=iter_count < (cfg.continuous_learning.max_iter - 1),
+            )
 
         else:
-
             hist_train_iter, hist_batch = _safe_next(
                 hist_train_iter,
                 hist_train_loader,
                 min_batch=batch_size,
             )
 
-            #- Count Flops
+            # - Count Flops
             forgetting_loss, generation_loss, total_loss = step_method_jvp_reg(
                 model=model,
-                criterion=criterion,
+                criterion=criterion,  # type: ignore[arg-type]
                 optimizer=optimizer,
                 cfg=cfg,
                 iter=iter_count,
@@ -110,28 +109,26 @@ def continual_learning_loop(cfg: Config, modelHarness: BaseModelHarness, logger,
                 hist_batch=hist_batch,
                 adam=adam,  # TODO remove this.
                 params=params,
-                profiler = flops_profiler
+                profiler=flops_profiler,
             )
 
-
-            logger.log({
-                "hist_train/total_loss": total_loss,
-                "hist_train/forgetting_loss": forgetting_loss,
-                "hist_train/generation_loss": generation_loss,
-             }, 
-             step=iter_count+curr_global_iter, 
-             commit=iter_count<(cfg.continuous_learning.max_iter-1))
-
+            logger.log(
+                {
+                    "hist_train/total_loss": total_loss,
+                    "hist_train/forgetting_loss": forgetting_loss,
+                    "hist_train/generation_loss": generation_loss,
+                },
+                step=iter_count + curr_global_iter,
+                commit=iter_count < (cfg.continuous_learning.max_iter - 1),
+            )
 
     if hist_train_iter is None:
-
         mem_test_acc = -1
 
     else:
         mem_test_acc, _ = test(model, hist_test_loader, criterion, cfg=cfg)
 
     test_acc, _ = test(model, cur_test_loader, criterion, cfg=cfg)
-
 
     print(
         "Task Summary:",
@@ -141,15 +138,21 @@ def continual_learning_loop(cfg: Config, modelHarness: BaseModelHarness, logger,
         sep="\n",
     )
 
-    logger.log({
-        "test/acc": test_acc,
-        "hist_test/acc": mem_test_acc,
-    }, step=iter_count+curr_global_iter, commit=False)
+    logger.log(
+        {
+            "test/acc": test_acc,
+            "hist_test/acc": mem_test_acc,
+        },
+        step=iter_count + curr_global_iter,
+        commit=False,
+    )
 
     if flops_profiler:
         flops_perf = flops_profiler.get_performance()
         flops_profiler.print_performance()
-        logger.log({f"cperf/{k}":v for k,v in flops_perf.items()}, step=iter_count+curr_global_iter)
-
+        logger.log(
+            {f"cperf/{k}": v for k, v in flops_perf.items()},
+            step=iter_count + curr_global_iter,
+        )
 
     return 0

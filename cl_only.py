@@ -7,8 +7,8 @@ from src.training.continual_learning import continual_learning_loop
 
 from examples.mnist.model import MNIST_CNN
 
-def main(argv=None) -> int:
 
+def main(argv=None) -> int:
     cfg: Config = build_config(argv)
     modelHarness = MNIST_CNN(cfg=cfg)
 
@@ -17,8 +17,9 @@ def main(argv=None) -> int:
 
     progress_bar = tqdm(range(10), desc="CL Tasks", leave=True)
     for i in progress_bar:
-
-        continual_learning_loop(cfg=cfg, modelHarness=modelHarness, logger=logger, global_iter=i)
+        continual_learning_loop(
+            cfg=cfg, modelHarness=modelHarness, logger=logger, global_iter=i
+        )
 
     print("\nLogged Metrics:\n", logger.to_dataframe())
 
