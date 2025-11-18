@@ -1,6 +1,6 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Tuple, List
+from typing import Any, Optional, Callable, Tuple, List
 
 import torch
 from torch import nn, Tensor
@@ -48,7 +48,9 @@ class BaseModelHarness(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_hist_data_loaders(self) -> Tuple[DataLoader, DataLoader]:
+    def get_hist_data_loaders(
+        self,
+    ) -> Tuple[Optional[DataLoader], Optional[DataLoader]]:
         """
         Returns a training and validation dataloader with historical data (to measure drift) compatible with the model input
         If there is no historical data, return None

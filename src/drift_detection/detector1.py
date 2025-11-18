@@ -42,7 +42,6 @@ def return_score(  # TODO: Name paper/publication/method name. needs proper docu
 
     list = []
     for data_m in loader:
-
         in_m, targets_m = data_m
         in_m = in_m.unsqueeze(dim=1).float().to(device)
         targets_m = targets_m.to(device)

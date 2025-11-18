@@ -3,18 +3,26 @@
 This project trains a convolutional neural network on a sequence of continually changing MNIST tasks. Each task is built by sampling one digit, applying random affine transformations, and training while replaying everything seen so far.
 
 ## Prerequisites
-Install the Python packages listed in `requirements.txt` (Python 3.8+):
+This project uses [Poetry](https://python-poetry.org/) for dependency management. You will need to have Poetry installed.
+
+Install the project dependencies with:
 ```bash
-pip install -r requirements.txt
+poetry install
 ```
-`torchvision` downloads MNIST to `CL_modcon/data/` the first time `main.py` runs.
+`torchvision` downloads MNIST to `data/` the first time the experiment is run.
 
 ## Running the Experiment
-From the `CL_modcon` directory execute:
+To run the experiment, execute the following command from the project root:
 ```bash
-python ./cl_only.py --config examples/mnist/mnist.toml
+poetry run python ./cl_only.py --config examples/mnist/mnist.toml
 ```
 The script uses CUDA automatically when it is available; otherwise it falls back to CPU.
+
+## Running Tests
+To run the project's tests, execute the following command from the project root:
+```bash
+poetry run pytest
+```
 
 ## What `main.py` Does
 - Builds the `DummyCNN_MNIST` model defined in `src/model/DummyCNN_MNIST.py`, a cross-entropy loss, and an Adam optimizer.

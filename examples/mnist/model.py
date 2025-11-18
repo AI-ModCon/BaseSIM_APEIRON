@@ -125,8 +125,8 @@ class MNIST_CNN(BaseModelHarness):
             for aug in self.aug_history
         ]
 
-        ds_hist_train = ConcatDataset(train_views)
-        ds_hist_val = ConcatDataset(val_views)
+        ds_hist_train: ConcatDataset[Any] = ConcatDataset(train_views)
+        ds_hist_val: ConcatDataset[Any] = ConcatDataset(val_views)
 
         bs = self.cfg.train.batch_size
         nw = getattr(self.cfg.data, "num_workers", 4)

@@ -56,11 +56,11 @@ E.g. Fixes issue nr xyz
 - [ ] CHANGELOG entry
 
 ## Checklist
-- [ ] Code formatted (Black) → `black .`
+- [ ] Code formatted (Ruff) → `ruff format --check`
 - [ ] Lint passes (Ruff) → `ruff check .`
-<!-- # - [ ] Types pass (mypy/pyright) → `mypy src` -->
+- [ ] Types pass (mypy/pyright) → `mypy src`
 - [ ] Tests pass (pytest) → `pytest -q`
-- [ ] Pre-commit passes → `pre-commit run -a`
+<!-- #- [ ] Pre-commit passes → `pre-commit run -a` -->
 - [ ] Backward compatibility considered
 - [ ] Adequate comments for tricky parts
 - [ ] CI green
