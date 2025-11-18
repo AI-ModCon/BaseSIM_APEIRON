@@ -1,10 +1,11 @@
-from collections import OrderedDict
+import torch
 
 from src.evaluation.evaluation import test
 from src.config.configuration import Config
 from src.model.torch_model_harness import BaseModelHarness
-from src.training.updaters.jvp_regularized import step_method_jvp_reg, FunctionalAdam
 from src.training.updaters.basic import step_method_baseline
+
+from src.training.updaters.jvp_reg import step_method_jvp_reg, JVPRegularizedLoss
 
 from src.training.profilers import FLOPSProfiler
 
@@ -30,9 +31,15 @@ def continual_learning_loop(
     optimizer = modelHarness.get_optmizer()
     batch_size = cfg.train.batch_size
 
-    # TODO: replace this - should be directly done with optimizer
-    params = OrderedDict(model.named_parameters())
-    adam = FunctionalAdam(params, lr=1e-3)
+    # JVP continual learning setup
+    # Should be done outside of update call to keep optimizer state.
+    jvp_loss = JVPRegularizedLoss(
+        model=model,
+        criterion=criterion,
+        jvp_reg=cfg.continuous_learning.jvp_reg,
+        deltax_norm=cfg.continuous_learning.deltax_norm,
+    )
+    jvp_adam = torch.optim.Adam(model.parameters(), lr=1e-3)
 
     # Generic "safe next" for any iterator/loader pair
     def _safe_next(current_iter, loader, min_batch=None):
@@ -107,9 +114,8 @@ def continual_learning_loop(
                 iter=iter_count,
                 train_batch=train_batch,
                 hist_batch=hist_batch,
-                adam=adam,  # TODO remove this.
-                params=params,
                 profiler=flops_profiler,
+                jvp_loss=jvp_loss,
             )
 
             logger.log(
