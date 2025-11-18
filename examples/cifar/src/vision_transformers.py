@@ -29,7 +29,7 @@ def vit_b16(n_classes=10):
         # google/vit-base-patch32-224-in21k
         # google/vit-huge-patch14-224-in21k
         "google/vit-base-patch16-224",
-        torch_dtype=torch.float32,
+        dtype=torch.float32,
         num_labels=n_classes,
         ignore_mismatched_sizes=True,
     )
@@ -61,7 +61,7 @@ def vit_l32(n_classes=10):
         # google/vit-base-patch16-224
         # google/vit-huge-patch14-224-in21k
         "google/vit-large-patch32-224-in21k",
-        torch_dtype=torch.float32,
+        dtype=torch.float32,
         num_labels=n_classes,
         ignore_mismatched_sizes=True,
     )
@@ -93,7 +93,7 @@ def vit_l16(n_classes=10):
         # google/vit-base-patch16-224
         # google/vit-huge-patch14-224-in21k
         "google/vit-large-patch16-224",
-        torch_dtype=torch.float32,
+        dtype=torch.float32,
         num_labels=n_classes,
         ignore_mismatched_sizes=True,
     )
@@ -103,7 +103,7 @@ def vit_l16(n_classes=10):
 def vit_h14(n_classes=10):
     model = ViTForImageClassification.from_pretrained(
         "google/vit-huge-patch14-224-in21k",
-        torch_dtype=torch.float32,
+        dtype=torch.float32,
         num_labels=n_classes,
         ignore_mismatched_sizes=True,
     )
@@ -113,7 +113,7 @@ def vit_h14(n_classes=10):
 def vit_g14(n_classes=10):
     model = ViTForImageClassification.from_pretrained(
         "facebook/dinov2-giant",
-        torch_dtype=torch.float32,
+        dtype=torch.float32,
         num_labels=n_classes,
         ignore_mismatched_sizes=True,
     )
