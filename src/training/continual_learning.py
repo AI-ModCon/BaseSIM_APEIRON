@@ -39,7 +39,7 @@ def continual_learning_loop(
         jvp_reg=cfg.continuous_learning.jvp_reg,
         deltax_norm=cfg.continuous_learning.deltax_norm,
     )
-    jvp_adam = torch.optim.Adam(model.parameters(), lr=1e-3)
+    _ = torch.optim.Adam(model.parameters(), lr=1e-3)
 
     # Generic "safe next" for any iterator/loader pair
     def _safe_next(current_iter, loader, min_batch=None):
