@@ -32,7 +32,6 @@ def _base_tf(normalize: bool = True, size: int = 224):
 def get_cifar_train(
     cfg: Config, root: str = "./data", normalize: bool = True
 ) -> datasets.CIFAR10:
-
     crop_size = 32
     if cfg.model.name.startswith("vit"):
         crop_size = 224
@@ -58,7 +57,6 @@ def get_cifar_train(
 def get_cifar_val(
     cfg: Config, root: str = "./data", normalize: bool = True
 ) -> datasets.CIFAR10:
-
     crop_size = 32
     if cfg.model.name.startswith("vit"):
         crop_size = 224
@@ -187,7 +185,7 @@ def make_loader(
                 prefetch_factor=prefetch_factor,
             )
         )
-    return DataLoader(ds, **kwargs)
+    return DataLoader(ds, **kwargs)  # type: ignore[arg-type]
 
 
 def load_model(model_name: str, num_classes: int) -> nn.Module:
@@ -201,6 +199,7 @@ def load_model(model_name: str, num_classes: int) -> nn.Module:
     Returns:
         nn.Module: The loaded model with the modified classifier.
     """
+    Model: Any
     if model_name == "alexnet":
         Model = cnns.alexnet(pretrained=True)
         Model.classifier._modules["6"] = nn.Linear(4096, num_classes)

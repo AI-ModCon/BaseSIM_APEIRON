@@ -1,7 +1,6 @@
 # src/model/mnist_cnn_harness.py
 import gc
 import torch
-import torch.nn.functional as F
 from typing import Tuple, Optional, List, Dict, Any
 from torch import nn, Tensor
 from torch.optim import Optimizer
@@ -79,8 +78,7 @@ class CIFAR_VISION(BaseModelHarness):
       - get_hist_data_loaders(): ConcatDataset over self.aug_history; then append self.cur_aug
     """
 
-    def __init__(self, cfg: Config, model: nn.Module = None):
-
+    def __init__(self, cfg: Config, model: Optional[nn.Module] = None):
         super().__init__(cfg=cfg, model=VisionModelCifar(cfg=cfg))
 
         # FULL datasets (no index split)
@@ -153,8 +151,8 @@ class CIFAR_VISION(BaseModelHarness):
             for aug in self.aug_history
         ]
 
-        ds_hist_train = ConcatDataset(train_views)
-        ds_hist_val = ConcatDataset(val_views)
+        ds_hist_train: ConcatDataset = ConcatDataset(train_views)
+        ds_hist_val: ConcatDataset = ConcatDataset(val_views)
 
         bs = self.cfg.train.batch_size
         nw = getattr(self.cfg.data, "num_workers", 4)

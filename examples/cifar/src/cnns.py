@@ -35,7 +35,6 @@ model_urls = {
 
 
 class AlexNet(nn.Module):
-
     def __init__(self, num_classes: int = 1000) -> None:
         super(AlexNet, self).__init__()
         self.conv1 = nn.Conv2d(3, 64, kernel_size=11, stride=4, padding=2)
@@ -62,7 +61,7 @@ class AlexNet(nn.Module):
             nn.Linear(4096, num_classes),
         )
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> tuple[Any, Tensor]:
         x = self.conv1(x)
         x = self.relu(x)
         f = self.pool(x)
@@ -225,7 +224,6 @@ class Bottleneck(nn.Module):
 
 
 class ResNet(nn.Module):
-
     def __init__(
         self,
         block: Type[Union[BasicBlock, Bottleneck]],
@@ -339,7 +337,7 @@ class ResNet(nn.Module):
 
         return nn.Sequential(*layers)
 
-    def _forward_impl(self, x: Tensor) -> Tensor:
+    def _forward_impl(self, x: Tensor) -> tuple[Any, Tensor]:
         # See note [TorchScript super()]
         x = self.conv1(x)
         x = self.bn1(x)
@@ -356,7 +354,7 @@ class ResNet(nn.Module):
         x = self.fc(x)
         return f, x
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: Tensor) -> tuple[Any, Tensor]:
         return self._forward_impl(x)
 
 
@@ -514,9 +512,7 @@ class _DenseLayer(nn.Module):
 
     def bn_function(self, inputs: List[Tensor]) -> Tensor:
         concated_features = torch.cat(inputs, 1)
-        bottleneck_output = self.conv1(
-            self.relu1(self.norm1(concated_features))
-        )  # noqa: T484
+        bottleneck_output = self.conv1(self.relu1(self.norm1(concated_features)))
         return bottleneck_output
 
     # todo: rewrite when torchscript supports any
@@ -526,7 +522,7 @@ class _DenseLayer(nn.Module):
                 return True
         return False
 
-    @torch.jit.unused  # noqa: T484
+    @torch.jit.unused
     def call_checkpoint_bottleneck(self, input: List[Tensor]) -> Tensor:
         def closure(*inputs):
             return self.bn_function(inputs)
@@ -640,7 +636,6 @@ class DenseNet(nn.Module):
         num_classes: int = 1000,
         memory_efficient: bool = False,
     ) -> None:
-
         super(DenseNet, self).__init__()
 
         # First convolution
@@ -704,7 +699,7 @@ class DenseNet(nn.Module):
             elif isinstance(m, nn.Linear):
                 nn.init.constant_(m.bias, 0)
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: Tensor) -> tuple[Any, Tensor]:
         f = self.conv1(x)
         x = self.features(f)
         out = F.relu(x, inplace=True)
@@ -809,7 +804,6 @@ def densenet201(
 
 
 class VGG(nn.Module):
-
     def __init__(
         self, features: nn.Module, num_classes: int = 1000, init_weights: bool = True
     ) -> None:
@@ -828,7 +822,7 @@ class VGG(nn.Module):
         if init_weights:
             self._initialize_weights()
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> tuple[Any, Tensor]:
         f = self.features(x)
         x = self.avgpool(f)
         x = torch.flatten(x, 1)
@@ -1018,7 +1012,6 @@ def inception_v3(
 
 
 class Inception3(nn.Module):
-
     def __init__(
         self,
         num_classes: int = 1000,
@@ -1149,13 +1142,12 @@ class Inception3(nn.Module):
         # N x 1000 (num_classes)
         return f, x
 
-    def forward(self, x: Tensor) -> InceptionOutputs:
+    def forward(self, x: Tensor) -> Tuple[Tensor, Optional[Tensor]]:
         x = self._transform_input(x)
         return self._forward(x)
 
 
 class InceptionA(nn.Module):
-
     def __init__(
         self,
         in_channels: int,
@@ -1198,7 +1190,6 @@ class InceptionA(nn.Module):
 
 
 class InceptionB(nn.Module):
-
     def __init__(
         self, in_channels: int, conv_block: Optional[Callable[..., nn.Module]] = None
     ) -> None:
@@ -1229,7 +1220,6 @@ class InceptionB(nn.Module):
 
 
 class InceptionC(nn.Module):
-
     def __init__(
         self,
         in_channels: int,
@@ -1279,7 +1269,6 @@ class InceptionC(nn.Module):
 
 
 class InceptionD(nn.Module):
-
     def __init__(
         self, in_channels: int, conv_block: Optional[Callable[..., nn.Module]] = None
     ) -> None:
@@ -1313,7 +1302,6 @@ class InceptionD(nn.Module):
 
 
 class InceptionE(nn.Module):
-
     def __init__(
         self, in_channels: int, conv_block: Optional[Callable[..., nn.Module]] = None
     ) -> None:
@@ -1363,7 +1351,6 @@ class InceptionE(nn.Module):
 
 
 class InceptionAux(nn.Module):
-
     def __init__(
         self,
         in_channels: int,
@@ -1398,7 +1385,6 @@ class InceptionAux(nn.Module):
 
 
 class BasicConv2d(nn.Module):
-
     def __init__(self, in_channels: int, out_channels: int, **kwargs: Any) -> None:
         super(BasicConv2d, self).__init__()
         self.conv = nn.Conv2d(in_channels, out_channels, bias=False, **kwargs)
@@ -1741,7 +1727,7 @@ class RegNet(nn.Module):
         ) in enumerate(block_params._get_expanded_params()):
             blocks.append(
                 (
-                    f"block{i+1}",
+                    f"block{i + 1}",
                     AnyStage(
                         current_width,
                         width_out,
@@ -1768,7 +1754,7 @@ class RegNet(nn.Module):
         # Init weights and good to go
         self._reset_parameters()
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: Tensor) -> tuple[Any, Tensor]:
         x = self.stem(x)
         f = self.trunk_output(x)
 

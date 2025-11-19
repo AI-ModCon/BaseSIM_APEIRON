@@ -1,8 +1,5 @@
 import torch
-from torchvision.models import vit_b_16, ViT_B_16_Weights
 from transformers import ViTForImageClassification
-import torch.nn as nn
-from transformers import ViTModel
 
 
 def vit_b16(n_classes=10):

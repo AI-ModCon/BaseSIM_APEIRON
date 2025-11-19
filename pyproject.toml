@@ -38,3 +38,10 @@ packages = [
     { include = "*", from = "src" },
 ]
 
+[tool.ruff]
+
+[tool.ruff.lint]
+# Add the codes you want to ignore to the 'ignore' list.
+ignore = [
+    "F811",  # Redefinition of unused name (often a false positive in PyTorch JIT overloading)
+]
