@@ -1,5 +1,3 @@
-import torch
-
 from src.evaluation.evaluation import test
 from src.config.configuration import Config
 from src.model.torch_model_harness import BaseModelHarness
