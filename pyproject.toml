@@ -16,7 +16,8 @@ dependencies = [
     "pandas-stubs (>=2.3.0)",
     "tqdm (>=4.67.1,<5.0.0)",
     "types-tqdm (>=4.66.0)",
-    "wandb (>=0.22.0)"
+    "wandb (>=0.22.0)",
+    "transformers (>=4.57.1,<5.0.0)"
 ]
 
 [dependency-groups]
@@ -37,3 +38,10 @@ packages = [
     { include = "*", from = "src" },
 ]
 
+[tool.ruff]
+
+[tool.ruff.lint]
+# Add the codes you want to ignore to the 'ignore' list.
+ignore = [
+    "F811",  # Redefinition of unused name (often a false positive in PyTorch JIT overloading)
+]
