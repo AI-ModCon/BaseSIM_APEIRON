@@ -11,9 +11,6 @@ Usage:
     python drift_detection_demo_mnist.py
 """
 
-import sys
-from pathlib import Path
-
 import torch
 import numpy as np
 import pandas as pd
