@@ -24,7 +24,7 @@ from typing import Tuple, Union
 from torch.utils.data import DataLoader
 from src.drift_detection import ADWINDetector, ModelPerformanceDetector, DriftSignal, LearningRegime
 from mnist.model import Cnn
-from mnist.data_utils import get_mnist_data, filter_mnist_by_classes, split_train_test, CustomMnistData
+from mnist.utils import get_mnist_data, filter_mnist_by_classes, split_train_test, CustomMnistData
 
 def evaluate_model(
     model: nn.Module,
