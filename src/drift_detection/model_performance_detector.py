@@ -163,7 +163,7 @@ class ModelPerformanceDetector(BaseDriftDetector):
         drift_share = float(value.get("share", 0.0))
 
         # Determine if dataset has drift (if any columns drifted)
-        dataset_drift = n_drifted_columns > 0
+        dataset_drift = drift_share > self.drift_share_threshold
 
         # Get total number of columns from current data
         n_columns = len(current_data.columns)
