@@ -1,6 +1,6 @@
 # examples/mnist/memory_efficient_utils.py
 from __future__ import annotations
-from typing import Tuple, Dict, Any
+from typing import Tuple, Dict, List, Any
 import torch
 import torchvision
 from torch.utils.data import Dataset, DataLoader
@@ -161,12 +161,12 @@ def get_mnist_data() -> Tuple[torch.Tensor, torch.Tensor]:
     dataset = torchvision.datasets.MNIST(
         "./data", train=True, download=True, transform=my_transforms
     )
-    [images, labels] = [list(t) for t in zip(*dataset)]
-    images = torch.stack(images, dim=0)
-    images = images.view(-1, 28, 28).float()
-    labels = torch.tensor(labels)
+    [img, labels] = [list(t) for t in zip(*dataset)]
+    images = torch.stack(img, dim=0)
+    imgView = images.view(-1, 28, 28).float()
+    labelsTch = torch.tensor(labels)
 
-    return images, labels
+    return imgView, labelsTch
 
 
 def filter_mnist_by_classes(

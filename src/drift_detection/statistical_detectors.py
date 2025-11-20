@@ -45,8 +45,8 @@ class ADWINDetector(BaseDriftDetector):
         self.minor_threshold = minor_threshold
         self.moderate_threshold = moderate_threshold
         self.detector = river_drift.ADWIN(delta=delta)
-        self._drift_history = []
-        self._value_history = []
+        self._drift_history: list[int] = []
+        self._value_history: list[float] = []
         self._is_initialized = True
 
     def update(self, value: float, **kwargs) -> DriftSignal:
@@ -92,7 +92,7 @@ class ADWINDetector(BaseDriftDetector):
         return DriftSignal(
             regime=regime,
             drift_detected=drift_detected,
-            drift_score=drift_score,
+            drift_score=float(drift_score),
             confidence=1 - self.delta,
             metadata=metadata,
         )
@@ -144,7 +144,7 @@ class KSWINDetector(BaseDriftDetector):
         self.detector = river_drift.KSWIN(
             alpha=alpha, window_size=window_size, stat_size=stat_size
         )
-        self._drift_history = []
+        self._drift_history: list[int] = []
         self._is_initialized = True
 
     def update(self, value: float, **kwargs) -> DriftSignal:
@@ -185,7 +185,7 @@ class KSWINDetector(BaseDriftDetector):
         return DriftSignal(
             regime=regime,
             drift_detected=drift_detected,
-            drift_score=drift_score,
+            drift_score=float(drift_score),
             confidence=1 - self.alpha,
             metadata=metadata,
         )
@@ -241,7 +241,7 @@ class PageHinkleyDetector(BaseDriftDetector):
         self.detector = river_drift.PageHinkley(
             min_instances=min_instances, delta=delta, threshold=threshold, alpha=alpha
         )
-        self._drift_history = []
+        self._drift_history: list[int] = []
         self._is_initialized = True
 
     def update(self, value: float, **kwargs) -> DriftSignal:
@@ -277,7 +277,7 @@ class PageHinkleyDetector(BaseDriftDetector):
         return DriftSignal(
             regime=regime,
             drift_detected=drift_detected,
-            drift_score=drift_score,
+            drift_score=float(drift_score),
             metadata={"n_detections": sum(self._drift_history)},
         )
 

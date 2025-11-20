@@ -13,6 +13,7 @@ Usage:
 
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -22,9 +23,20 @@ import pandas as pd
 import torch.nn as nn
 from typing import Tuple, Union
 from torch.utils.data import DataLoader
-from src.drift_detection import ADWINDetector, ModelPerformanceDetector, DriftSignal, LearningRegime
-from mnist.model import Cnn
-from mnist.utils import get_mnist_data, filter_mnist_by_classes, split_train_test, CustomMnistData
+from src.drift_detection import (
+    ADWINDetector,
+    ModelPerformanceDetector,
+    DriftSignal,
+    LearningRegime,
+)
+from examples.mnist.model import Cnn
+from examples.mnist.utils import (
+    get_mnist_data,
+    filter_mnist_by_classes,
+    split_train_test,
+    CustomMnistData,
+)
+
 
 def evaluate_model(
     model: nn.Module,
@@ -32,7 +44,9 @@ def evaluate_model(
     criterion: nn.Module,
     device: torch.device,
     return_features: bool = False,
-) -> Union[Tuple[float, float], Tuple[float, float, pd.DataFrame, np.ndarray, np.ndarray]]:
+) -> Union[
+    Tuple[float, float], Tuple[float, float, pd.DataFrame, np.ndarray, np.ndarray]
+]:
     """
     Evaluate model on the test set.
 
@@ -85,7 +99,9 @@ def evaluate_model(
         pixel_indices = np.arange(0, n_pixels, 8)
         sampled_pixels = images_flat[:, pixel_indices]
         # Add small jitter to avoid zero-variance features
-        sampled_pixels_jittered = sampled_pixels + np.random.normal(0, 1e-8, sampled_pixels.shape)
+        sampled_pixels_jittered = sampled_pixels + np.random.normal(
+            0, 1e-8, sampled_pixels.shape
+        )
         # Create DataFrame with pixel features
         feature_cols = [f"pixel_{i}" for i in range(sampled_pixels_jittered.shape[1])]
         features_df = pd.DataFrame(sampled_pixels_jittered, columns=feature_cols)
@@ -143,14 +159,20 @@ Usage:
         images, labels, train_ratio=0.8
     )
     print(f"Filtering training data which only has classes {TRAIN_CLASSES}...")
-    train_images, train_labels = filter_mnist_by_classes(train_images, train_labels, TRAIN_CLASSES)
+    train_images, train_labels = filter_mnist_by_classes(
+        train_images, train_labels, TRAIN_CLASSES
+    )
 
     # Filter test set 1 (classes 0-4)
     print(f"Filtering test set 1 which only has classes {TEST1_CLASSES}...")
-    test1_images, test1_labels = filter_mnist_by_classes(test_images, test_labels, TEST1_CLASSES)
+    test1_images, test1_labels = filter_mnist_by_classes(
+        test_images, test_labels, TEST1_CLASSES
+    )
     # Filter test set 2 (classes 5-9)
     print(f"Filtering test set 2 which only has classes {TEST2_CLASSES}...")
-    test2_images, test2_labels = filter_mnist_by_classes(test_images, test_labels, TEST2_CLASSES)
+    test2_images, test2_labels = filter_mnist_by_classes(
+        test_images, test_labels, TEST2_CLASSES
+    )
 
     print(
         f"\nDataset sizes:"
@@ -196,13 +218,15 @@ Usage:
     print("=" * 80)
     print("Starting training and drift detection...")
     print("=" * 80)
-    print(f"Training for {NUM_EPOCHS} epochs with {EVALS_PER_EPOCH} evaluations per epoch")
+    print(
+        f"Training for {NUM_EPOCHS} epochs with {EVALS_PER_EPOCH} evaluations per epoch"
+    )
     print(f"Epochs 1: Evaluate on test set 1 (classes {TEST1_CLASSES})")
     print(f"Epochs 2: Evaluate on test set 2 (classes {TEST2_CLASSES})")
-    print(f"\nDetectors:")
+    print("\nDetectors:")
     print(f"  - {feature_detector.name}: Monitors pixel feature distributions")
     print(f"  - {loss_detector.name}: Monitors test loss changes")
-    print(f"\nExpected: Feature drift should be detected when switching to test set 2\n")
+    print("\nExpected: Feature drift should be detected when switching to test set 2\n")
 
     # Training loop
     total_iterations = 0
@@ -240,10 +264,14 @@ Usage:
                         data=features_df, predictions=predictions, targets=targets
                     )
                     reference_set = True
-                    print(f"[INFO] Set reference data: {len(features_df)} samples, {len(features_df.columns)} features")
+                    print(
+                        f"[INFO] Set reference data: {len(features_df)} samples, {len(features_df.columns)} features"
+                    )
 
             if reference_set:
-                feature_signal = feature_detector.update(data=features_df, predictions=predictions, targets=targets)
+                feature_signal = feature_detector.update(
+                    data=features_df, predictions=predictions, targets=targets
+                )
             else:
                 feature_signal = DriftSignal(
                     regime=LearningRegime.STABLE,
@@ -258,7 +286,9 @@ Usage:
             if reference_set and "drift_share" in feature_signal.metadata:
                 drift_share = feature_signal.metadata["drift_share"]
                 n_drifted = feature_signal.metadata.get("n_drifted_columns", 0)
-                feature_info = f"Feature Drift Share: {drift_share:.2%} ({n_drifted} cols) | "
+                feature_info = (
+                    f"Feature Drift Share: {drift_share:.2%} ({n_drifted} cols) | "
+                )
 
             print(
                 f"Eval {eval_num:2d}/{EVALS_PER_EPOCH} | "
@@ -297,9 +327,15 @@ Usage:
     print("Experiment Complete")
     print(f"{'=' * 80}")
 
-    feature_detections = sum(
-        1 for drift_share in feature_detector._drift_history if drift_share > feature_detector.drift_share_threshold
-    ) if feature_detector._drift_history else 0
+    feature_detections = (
+        sum(
+            1
+            for drift_share in feature_detector._drift_history
+            if drift_share > feature_detector.drift_share_threshold
+        )
+        if feature_detector._drift_history
+        else 0
+    )
 
     print(
         f"\nDrift Detection Summary:"

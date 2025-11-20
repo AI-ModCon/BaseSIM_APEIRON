@@ -14,6 +14,7 @@ from evidently import Report
 from evidently.presets import DataDriftPreset
 from .base import BaseDriftDetector, DriftSignal, LearningRegime
 
+
 class ModelPerformanceDetector(BaseDriftDetector):
     """
     Drift detector based on model predictions and performance.
@@ -57,7 +58,7 @@ class ModelPerformanceDetector(BaseDriftDetector):
         self.minor_threshold = minor_threshold
         self.moderate_threshold = moderate_threshold
 
-        self._drift_history = []
+        self._drift_history: list[float] = []
         self._is_initialized = reference_data is not None
 
     def set_reference(
@@ -125,7 +126,8 @@ class ModelPerformanceDetector(BaseDriftDetector):
             current_data["target"] = targets
 
         # Prepare reference data
-        reference_data = self.reference_data.copy()
+        if self.reference_data is not None:
+            reference_data = self.reference_data.copy()
         if self.reference_predictions is not None:
             reference_data["prediction"] = self.reference_predictions
         if self.reference_targets is not None:
@@ -152,7 +154,9 @@ class ModelPerformanceDetector(BaseDriftDetector):
         # Extract drift info from the value field
         value = drift_count_metric.get("value", {})
         if not isinstance(value, dict):
-            raise ValueError(f"Expected dict for DriftedColumnsCount value, got {type(value)}")
+            raise ValueError(
+                f"Expected dict for DriftedColumnsCount value, got {type(value)}"
+            )
 
         # Extract metrics
         n_drifted_columns = int(value.get("count", 0))
@@ -190,7 +194,7 @@ class ModelPerformanceDetector(BaseDriftDetector):
         return DriftSignal(
             regime=regime,
             drift_detected=dataset_drift,
-            drift_score=drift_score,
+            drift_score=float(drift_score),
             confidence=0.95,  # Evidently uses statistical tests with high confidence
             metadata=metadata,
         )
@@ -212,8 +216,8 @@ class ModelPerformanceDetector(BaseDriftDetector):
 
         return DriftSignal(
             regime=regime,
-            drift_detected=drift_score > self.drift_share_threshold,
-            drift_score=drift_score,
+            drift_detected=bool(drift_score > self.drift_share_threshold),
+            drift_score=float(drift_score),
         )
 
     def reset(self) -> None:
@@ -274,7 +278,7 @@ class EnsembleDetector(BaseDriftDetector):
         elif self.voting == "any":
             drift_detected = any(s.drift_detected for s in signals)
         else:  # weighted - use average drift score
-            drift_detected = np.mean([s.drift_score for s in signals]) > 0.5
+            drift_detected = bool(np.mean([s.drift_score for s in signals]) > 0.5)
 
         # Average drift scores
         avg_drift_score = np.mean([s.drift_score for s in signals])
@@ -295,8 +299,10 @@ class EnsembleDetector(BaseDriftDetector):
         return DriftSignal(
             regime=regime,
             drift_detected=drift_detected,
-            drift_score=avg_drift_score,
-            confidence=np.mean([s.confidence for s in signals if s.confidence is not None]),
+            drift_score=float(avg_drift_score),
+            confidence=float(
+                np.mean([s.confidence for s in signals if s.confidence is not None])
+            ),
             metadata=metadata,
         )
 

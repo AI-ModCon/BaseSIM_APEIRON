@@ -47,3 +47,7 @@ packages = [
 ignore = [
     "F811",  # Redefinition of unused name (often a false positive in PyTorch JIT overloading)
 ]
+
+[[tool.mypy.overrides]]
+module = "evidently.*"
+ignore_missing_imports = true
