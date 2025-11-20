@@ -13,18 +13,18 @@ Usage:
 
 import sys
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import torch
 import numpy as np
 import pandas as pd
 import torch.nn as nn
-from model import SimpleCNN
 from typing import Tuple, Union
 from torch.utils.data import DataLoader
-from data_utils import get_mnist_data, filter_mnist_by_classes, split_train_test, MNISTDataset
 from src.drift_detection import ADWINDetector, ModelPerformanceDetector, DriftSignal, LearningRegime
-
+from mnist.mnist_cnn import Cnn
+from mnist.data_utils import get_mnist_data, filter_mnist_by_classes, split_train_test, CustomMnistData
 
 def evaluate_model(
     model: nn.Module,
@@ -160,16 +160,16 @@ Usage:
     )
 
     # Create data loaders
-    train_dataset = MNISTDataset(train_images, train_labels)
-    test1_dataset = MNISTDataset(test1_images, test1_labels)
-    test2_dataset = MNISTDataset(test2_images, test2_labels)
+    train_dataset = CustomMnistData(train_images, train_labels)
+    test1_dataset = CustomMnistData(test1_images, test1_labels)
+    test2_dataset = CustomMnistData(test2_images, test2_labels)
 
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
     test1_loader = DataLoader(test1_dataset, batch_size=BATCH_SIZE, shuffle=False)
     test2_loader = DataLoader(test2_dataset, batch_size=BATCH_SIZE, shuffle=False)
 
     # Initialize model, loss, optimizer
-    model = SimpleCNN(num_classes=10).to(device)
+    model = Cnn().to(device)
     criterion = nn.NLLLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
