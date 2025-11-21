@@ -1,12 +1,23 @@
 from __future__ import annotations
 
 import argparse
-import tomllib
+import sys
 import os
 import json
 import subprocess
 import torch
 import dataclasses as _dc
+
+# Handle tomllib for Python 3.10 vs 3.11+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    try:
+        import tomli as tomllib
+    except ImportError:
+        raise ImportError(
+            "tomli is required for Python < 3.11. Install with: pip install tomli"
+        )
 
 from dataclasses import dataclass
 from dataclasses import asdict
