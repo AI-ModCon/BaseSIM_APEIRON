@@ -114,14 +114,20 @@ class ContinuousLearningCfg:
 
 
 @dataclass(frozen=True)
+class DriftDetectionCfg:
+    detector_name: str
+    detection_steps: int
+
+
+@dataclass(frozen=True)
 class Config:
     model: ModelCfg
     data: DataCfg
     train: TrainCfg
     continuous_learning: ContinuousLearningCfg
+    drift_detection: DriftDetectionCfg
 
     seed: int
-    version: str
     device: str
     multi_gpu: bool
 
@@ -274,7 +280,8 @@ def build_config(argv=None) -> Config:
     model = ModelCfg(**cfg["model"])
     data = DataCfg(**cfg["data"])
     train = TrainCfg(**cfg["train"])
-    cl = ContinuousLearningCfg(**cfg.get("continuous_learning", {}))
+    cl = ContinuousLearningCfg(**cfg["continuous_learning"])
+    dd = DriftDetectionCfg(**cfg["drift_detection"])
 
     raw_device = str(
         cfg.get(
@@ -290,7 +297,15 @@ def build_config(argv=None) -> Config:
         else raw_device
     )
 
-    explicit = {"model", "data", "train", "continuous_learning", "device", "multi_gpu"}
+    explicit = {
+        "model",
+        "data",
+        "train",
+        "continuous_learning",
+        "drift_detection",
+        "device",
+        "multi_gpu",
+    }
     # also exclude any keys not in Config to avoid surprises
     valid = {f.name for f in _dc.fields(Config)}
     extras = {k: v for k, v in cfg.items() if k in valid - explicit}
@@ -300,6 +315,7 @@ def build_config(argv=None) -> Config:
         data=data,
         train=train,
         continuous_learning=cl,
+        drift_detection=dd,
         device=resolved_device,
         multi_gpu=multi_gpu_flag,
         **extras,

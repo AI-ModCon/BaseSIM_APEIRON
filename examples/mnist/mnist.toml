@@ -1,5 +1,4 @@
 # mnist.min.toml
-version = "1"
 seed = 1337
 device = "auto"
 multi_gpu = false
@@ -21,3 +20,7 @@ init_lr = 0.001
 jvp_reg = 0.001
 deltax_norm = 1
 max_iter = 300
+
+[drift_detection]
+detector_name = "ADWINDetector"
+detection_steps = 10
