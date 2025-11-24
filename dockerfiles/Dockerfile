@@ -16,6 +16,4 @@ COPY . .
 # Install project dependencies
 RUN poetry install
 
-
-
 # No CMD or ENTRYPOINT is specified as this is for CI/CD

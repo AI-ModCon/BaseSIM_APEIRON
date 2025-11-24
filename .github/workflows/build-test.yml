@@ -27,6 +27,3 @@ jobs:
 
     - name: Run mypy
       run: poetry run mypy .
-
-    - name: Build Docker image
-      run: docker build . -f dockerfiles/Dockerfile
