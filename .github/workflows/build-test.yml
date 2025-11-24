@@ -16,8 +16,9 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pip install poetry
-        poetry install
+        pip install --no-cache-dir poetry poetry-plugin-export
+        poetry export -f requirements.txt -o requirements.txt --without-hashes --with dev
+        pip install --no-cache-dir -r requirements.txt && rm requirements.txt
 
     - name: Run ruff
       run: poetry run ruff check
