@@ -15,7 +15,7 @@ Configuration in TOML file ([visualization] section):
     output: Path to save dashboard image (default: "output/dashboard.png")
 """
 
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt  # type: ignore
 import pandas as pd
 
 
