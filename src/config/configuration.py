@@ -114,6 +114,13 @@ class ContinuousLearningCfg:
 
 
 @dataclass(frozen=True)
+class VisualizationCfg:
+    baseline: float = 95.0  # baseline accuracy threshold for drift detection
+    input: str = "output/cl_only.csv"  # input CSV file path
+    output: str = "output/drift_dashboard.png"  # output dashboard image path
+
+
+@dataclass(frozen=True)
 class Config:
     model: ModelCfg
     data: DataCfg
@@ -124,6 +131,7 @@ class Config:
     version: str
     device: str
     multi_gpu: bool
+    visualization: VisualizationCfg | None = None
 
 
 def parse_args(argv=None):
@@ -275,6 +283,7 @@ def build_config(argv=None) -> Config:
     data = DataCfg(**cfg["data"])
     train = TrainCfg(**cfg["train"])
     cl = ContinuousLearningCfg(**cfg.get("continuous_learning", {}))
+    viz = VisualizationCfg(**cfg["visualization"]) if "visualization" in cfg else None
 
     raw_device = str(
         cfg.get(
@@ -290,7 +299,7 @@ def build_config(argv=None) -> Config:
         else raw_device
     )
 
-    explicit = {"model", "data", "train", "continuous_learning", "device", "multi_gpu"}
+    explicit = {"model", "data", "train", "continuous_learning", "visualization", "device", "multi_gpu"}
     # also exclude any keys not in Config to avoid surprises
     valid = {f.name for f in _dc.fields(Config)}
     extras = {k: v for k, v in cfg.items() if k in valid - explicit}
@@ -300,6 +309,7 @@ def build_config(argv=None) -> Config:
         data=data,
         train=train,
         continuous_learning=cl,
+        visualization=viz,
         device=resolved_device,
         multi_gpu=multi_gpu_flag,
         **extras,
