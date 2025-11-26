@@ -299,7 +299,15 @@ def build_config(argv=None) -> Config:
         else raw_device
     )
 
-    explicit = {"model", "data", "train", "continuous_learning", "visualization", "device", "multi_gpu"}
+    explicit = {
+        "model",
+        "data",
+        "train",
+        "continuous_learning",
+        "visualization",
+        "device",
+        "multi_gpu",
+    }
     # also exclude any keys not in Config to avoid surprises
     valid = {f.name for f in _dc.fields(Config)}
     extras = {k: v for k, v in cfg.items() if k in valid - explicit}

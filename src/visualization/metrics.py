@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Drift Metric Visualization Script
+Metric Visualization Script
 
-Generates comprehensive drift detection dashboards from continual learning metrics.
+Generates comprehensive dashboards from continual learning metrics.
 Reads configuration from TOML file and creates visualizations for:
 - Test and historical accuracy
 - Loss metrics
@@ -12,37 +12,19 @@ Reads configuration from TOML file and creates visualizations for:
 Configuration in TOML file ([visualization] section):
     baseline: Accuracy threshold for drift detection (default: 95.0)
     input: Path to CSV file with metrics (default: "output/cl_only.csv")
-    output: Path to save dashboard image (default: "output/drift_dashboard.png")
-
-Usage:
-    # Run from BaseSim_Framework directory
-    python src/visualization/drift_metric_viz.py --config examples/mnist/mnist.toml
-    # Override baseline threshold
-    python src/visualization/drift_metric_viz.py --config examples/mnist/mnist.toml --set visualization.baseline=85
-    # Override input file
-    python src/visualization/drift_metric_viz.py --config examples/mnist/mnist.toml --set visualization.input=output/custom.csv
+    output: Path to save dashboard image (default: "output/dashboard.png")
 """
-
-import sys
-from pathlib import Path
-
-# Add project root to Python path to enable imports
-project_root = Path(__file__).resolve().parent.parent.parent
-if str(project_root) not in sys.path:
-    sys.path.insert(0, str(project_root))
 
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from src.config.configuration import build_config, Config
-
 
 def load_data(csv_path):
     """Load metrics data from CSV file.
-    
+
     Args:
         csv_path: Path to the CSV file containing metrics data
-        
+
     Returns:
         DataFrame with metrics data
     """
@@ -52,10 +34,10 @@ def load_data(csv_path):
 
 def create_pivot_table(df):
     """Create pivot table from metrics dataframe.
-    
+
     Args:
         df: DataFrame with metrics in long format (step, metric, value)
-        
+
     Returns:
         Pivoted DataFrame with metrics as columns
     """
@@ -63,9 +45,9 @@ def create_pivot_table(df):
     return pivot_df
 
 
-def create_drift_dashboard(pivot_df, show_plot=True, save_path=None, baseline=95.0):
+def create_dashboard(pivot_df, show_plot=True, save_path=None, baseline=95.0):
     """
-    Create comprehensive drift detection dashboard.
+    Create metric dashboard.
 
     Args:
         pivot_df: Pivoted dataframe with metrics
@@ -75,7 +57,7 @@ def create_drift_dashboard(pivot_df, show_plot=True, save_path=None, baseline=95
     """
     # Create figure with subplots
     fig, axes = plt.subplots(3, 2, figsize=(14, 15))
-    fig.suptitle("Drift Detection Dashboard", fontsize=16, fontweight="bold")
+    fig.suptitle("Metric Dashboard", fontsize=16, fontweight="bold")
 
     # ----------------------------------------------------------
     # 1. Test Accuracy
@@ -172,7 +154,7 @@ def create_drift_dashboard(pivot_df, show_plot=True, save_path=None, baseline=95
     ax1.grid(True, alpha=0.3)
 
     # ----------------------------------------------------------
-    # 3. Loss Drift Detection
+    # 3. Loss
     # ----------------------------------------------------------
     ax2 = axes[1, 0]
     loss_cols = [col for col in pivot_df.columns if "loss" in col]
@@ -297,7 +279,7 @@ def create_drift_dashboard(pivot_df, show_plot=True, save_path=None, baseline=95
 
 def print_timing_analysis(pivot_df):
     """Print execution time statistics.
-    
+
     Args:
         pivot_df: Pivoted dataframe with metrics
     """
@@ -314,8 +296,8 @@ def print_timing_analysis(pivot_df):
                 print(f"  Max:  {data_clean.max() * 1000:.3f} ms")
 
 
-def print_drift_summary(pivot_df, baseline=95.0):
-    """Print drift detection summary.
+def print_summary(pivot_df, baseline=95.0):
+    """Print metrics summary.
 
     Args:
         pivot_df: Pivoted dataframe with metrics
@@ -323,7 +305,7 @@ def print_drift_summary(pivot_df, baseline=95.0):
     """
     loss_cols = [col for col in pivot_df.columns if "loss" in col]
 
-    print("\n=== Drift Detection Summary ===")
+    print("\n=== Metrics Summary ===")
     print(f"Steps analyzed: {pivot_df.index.min()} - {pivot_df.index.max()}")
 
     if "test/acc" in pivot_df.columns:
@@ -344,7 +326,7 @@ def print_drift_summary(pivot_df, baseline=95.0):
 
 def print_flops_analysis(pivot_df):
     """Print FLOPS performance statistics.
-    
+
     Args:
         pivot_df: Pivoted dataframe with metrics
     """
@@ -363,7 +345,7 @@ def print_flops_analysis(pivot_df):
 
 def print_unique_metrics(pivot_df):
     """Print information about available metrics.
-    
+
     Args:
         pivot_df: Pivoted dataframe with metrics
     """
@@ -392,13 +374,13 @@ def print_unique_metrics(pivot_df):
 
 def get_visualization_config(cfg):
     """Extract visualization configuration with defaults.
-    
+
     Args:
         cfg: Config object from build_config
-        
+
     Returns:
         tuple: (baseline, csv_path, output_path) with default values if not specified
-        
+
     Raises:
         ValueError: If [visualization] section is missing from config
     """
@@ -416,25 +398,13 @@ def get_visualization_config(cfg):
             "[visualization]\n"
             "baseline = 95.0\n"
             'input = "output/cl_only.csv"\n'
-            'output = "output/drift_dashboard.png"'
+            'output = "output/dashboard.png"'
         )
 
     return baseline, csv_path, output_path
 
 
-def main(argv=None) -> int:
-    """Main execution function.
-    
-    Args:
-        argv: Command-line arguments (for testing)
-        
-    Returns:
-        int: Exit code (0 for success)
-    """
-    # Load configuration from TOML file
-    cfg: Config = build_config(argv)
-    baseline, csv_path, output_path = get_visualization_config(cfg)
-
+def dashboard(baseline, csv_path, output_path, data_name):
     # Load and process data
     print(f"\nLoading metrics data from {csv_path}...")
     df = load_data(csv_path)
@@ -448,20 +418,12 @@ def main(argv=None) -> int:
     print_unique_metrics(pivot_df)
 
     # Create dashboard
-    print(f"\nGenerating drift detection dashboard...")
-    print(f"  Dataset: {cfg.data.name}")
+    print("\nGenerating dashboard...")
+    print(f"  Dataset: {data_name}")
     print(f"  Baseline: {baseline}%")
-    create_drift_dashboard(
-        pivot_df, show_plot=True, save_path=output_path, baseline=baseline
-    )
+    create_dashboard(pivot_df, show_plot=True, save_path=output_path, baseline=baseline)
 
     # Print detailed analyses
     print_timing_analysis(pivot_df)
-    print_drift_summary(pivot_df, baseline=baseline)
+    print_summary(pivot_df, baseline=baseline)
     print_flops_analysis(pivot_df)
-    
-    return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())

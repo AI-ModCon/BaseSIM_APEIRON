@@ -25,4 +25,4 @@ max_iter = 300
 [visualization]
 baseline = 90.0
 input = "output/cl_only.csv"
-output = "output/drift_dashboard.png"
+output = "output/mnist_dashboard.png"
