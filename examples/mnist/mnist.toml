@@ -21,3 +21,8 @@ init_lr = 0.001
 jvp_reg = 0.001
 deltax_norm = 1
 max_iter = 300
+
+[visualization]
+baseline = 90.0
+input = "output/cl_only.csv"
+output = "output/mnist_dashboard.png"

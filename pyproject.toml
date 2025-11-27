@@ -18,7 +18,8 @@ dependencies = [
     "wandb (>=0.22.0)",
     "transformers (>=4.57.1,<5.0.0)",
     "river (>=0.21.0,<0.24.0)",
-    "evidently (>=0.4.0,<0.8.0)"
+    "evidently (>=0.4.0,<0.8.0)",
+    "matplotlib (>=3.10.7,<4.0.0)"
 ]
 
 [dependency-groups]
