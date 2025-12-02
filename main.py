@@ -19,7 +19,6 @@ def main(argv=None) -> int:
 
     progress_bar = tqdm(range(10), desc="CL Tasks", leave=True)
     for i in progress_bar:
-
         drift_signal = drift_detection_driver(cfg, modelHarness, logger)
         logger.log({"drift_signal": drift_signal.drift_detected}, step=i)
 

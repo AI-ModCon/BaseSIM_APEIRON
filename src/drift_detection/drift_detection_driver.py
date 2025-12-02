@@ -8,7 +8,6 @@ from src.model.torch_model_harness import BaseModelHarness
 def drift_detection_driver(
     cfg: Config, modelHarness: BaseModelHarness, logger
 ) -> DriftSignal:
-
     cur_train_loader, cur_test_loader = modelHarness.get_cur_data_loaders()
     criterion = modelHarness.get_criterion()
     model = modelHarness.model

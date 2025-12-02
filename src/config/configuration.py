@@ -117,8 +117,9 @@ class ContinuousLearningCfg:
 class DriftDetectionCfg:
     detector_name: str
     detection_steps: int
-      
-@dataclass(frozen=True)      
+
+
+@dataclass(frozen=True)
 class VisualizationCfg:
     baseline: float = 95.0  # baseline accuracy threshold for drift detection
     input: str = "output/cl_only.csv"  # input CSV file path
