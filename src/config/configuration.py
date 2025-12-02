@@ -117,6 +117,12 @@ class ContinuousLearningCfg:
 class DriftDetectionCfg:
     detector_name: str
     detection_steps: int
+      
+@dataclass(frozen=True)      
+class VisualizationCfg:
+    baseline: float = 95.0  # baseline accuracy threshold for drift detection
+    input: str = "output/cl_only.csv"  # input CSV file path
+    output: str = "output/drift_dashboard.png"  # output dashboard image path
 
 
 @dataclass(frozen=True)
@@ -130,6 +136,7 @@ class Config:
     seed: int
     device: str
     multi_gpu: bool
+    visualization: VisualizationCfg | None = None
 
 
 def parse_args(argv=None):
@@ -280,8 +287,9 @@ def build_config(argv=None) -> Config:
     model = ModelCfg(**cfg["model"])
     data = DataCfg(**cfg["data"])
     train = TrainCfg(**cfg["train"])
-    cl = ContinuousLearningCfg(**cfg["continuous_learning"])
     dd = DriftDetectionCfg(**cfg["drift_detection"])
+    cl = ContinuousLearningCfg(**cfg.get("continuous_learning", {}))
+    viz = VisualizationCfg(**cfg["visualization"]) if "visualization" in cfg else None
 
     raw_device = str(
         cfg.get(
@@ -303,6 +311,7 @@ def build_config(argv=None) -> Config:
         "train",
         "continuous_learning",
         "drift_detection",
+        "visualization",
         "device",
         "multi_gpu",
     }
@@ -316,6 +325,7 @@ def build_config(argv=None) -> Config:
         train=train,
         continuous_learning=cl,
         drift_detection=dd,
+        visualization=viz,
         device=resolved_device,
         multi_gpu=multi_gpu_flag,
         **extras,

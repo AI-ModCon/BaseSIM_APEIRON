@@ -12,14 +12,14 @@ dependencies = [
     "numpy (>=2.3.4,<3.0.0)",
     "torchvision (>=0.24.1,<0.25.0)",
     "pandas (>=2.3.3,<3.0.0)",
-    "pandas (>=2.3.3,<3.0.0)",
     "pandas-stubs (>=2.3.0)",
     "tqdm (>=4.67.1,<5.0.0)",
     "types-tqdm (>=4.66.0)",
     "wandb (>=0.22.0)",
     "transformers (>=4.57.1,<5.0.0)",
     "river (>=0.21.0,<0.24.0)",
-    "evidently (>=0.4.0,<0.8.0)"
+    "evidently (>=0.4.0,<0.8.0)",
+    "matplotlib (>=3.10.7,<4.0.0)"
 ]
 
 [dependency-groups]

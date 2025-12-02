@@ -15,7 +15,6 @@ batch_size = 64
 num_workers = 4
 init_lr = 0.001
 
-
 [continuous_learning]
 jvp_reg = 0.001
 deltax_norm = 1
@@ -24,3 +23,8 @@ max_iter = 300
 [drift_detection]
 detector_name = "ADWINDetector"
 detection_steps = 10
+
+[visualization]
+baseline = 90.0
+input = "output/cl_only.csv"
+output = "output/mnist_dashboard.png"

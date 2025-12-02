@@ -1,0 +1,16 @@
+name: Docker-test
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Build Docker image
+      run: docker build -t image -f dockerfiles/Dockerfile .
+
+    - name: Run pytest on image
+      run: docker run image poetry run pytest

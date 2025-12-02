@@ -5,17 +5,18 @@ FROM python:3.13-slim
 WORKDIR /app
 
 # Install poetry
-RUN pip install poetry
+RUN pip install --no-cache-dir poetry poetry-plugin-export
 
 # Copy the dependency files to the working directory
+COPY pyproject.toml poetry.lock ./
+
+# Using poetry to make a requirements.txt then pip to do the install.
+# Pip is aggressive with storage space.
+RUN poetry export -f requirements.txt -o requirements.txt --without-hashes --with dev
+
+RUN pip install --no-cache-dir -r requirements.txt \
+    && rm requirements.txt
+
 # Copy the rest of the application code to the working directory
 COPY . .
-#COPY pyproject.toml poetry.lock README.md ./
 
-
-# Install project dependencies
-RUN poetry install
-
-
-
-# No CMD or ENTRYPOINT is specified as this is for CI/CD
