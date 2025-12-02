@@ -14,6 +14,7 @@ def load_drift_detector(cfg: Config) -> BaseDriftDetector:
     """
     detector_name = cfg.drift_detection.detector_name
 
+    detector_instance: BaseDriftDetector
     if detector_name == "ADWINDetector":
         from src.drift_detection.detectors.statistical_detectors import ADWINDetector
 
@@ -35,11 +36,17 @@ def load_drift_detector(cfg: Config) -> BaseDriftDetector:
 
         detector_instance = ModelPerformanceDetector()
     elif detector_name == "EnsembleDetector":
-        from src.drift_detection.detectors.model_performance_detector import (
-            EnsembleDetector,
+        raise NotImplementedError(
+            "EnsembleDetector requires configuration of sub-detectors, "
+            "which is not yet implemented. Use ADWINDetector, KSWINDetector, "
+            "PageHinkleyDetector, or ModelPerformanceDetector instead."
         )
 
-        detector_instance = EnsembleDetector()
+        #from src.drift_detection.detectors.model_performance_detector import (
+        #    EnsembleDetector,
+        #)
+
+        #detector_instance = EnsembleDetector()
     else:
         raise ValueError(f"Unknown drift detector: {detector_name}")
 

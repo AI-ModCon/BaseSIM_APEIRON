@@ -56,7 +56,7 @@ def drift_detection_driver(
             loss = criterion(outputs, targets)
 
         # Update the drift detector with new data
-        drift_signal = detector.update(loss.cpu().numpy())
+        drift_signal = detector.update(loss.item())
         any_drift = drift_signal.drift_detected
         if any_drift:
             break
