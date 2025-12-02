@@ -42,11 +42,11 @@ def load_drift_detector(cfg: Config) -> BaseDriftDetector:
             "PageHinkleyDetector, or ModelPerformanceDetector instead."
         )
 
-        #from src.drift_detection.detectors.model_performance_detector import (
+        # from src.drift_detection.detectors.model_performance_detector import (
         #    EnsembleDetector,
-        #)
+        # )
 
-        #detector_instance = EnsembleDetector()
+        # detector_instance = EnsembleDetector()
     else:
         raise ValueError(f"Unknown drift detector: {detector_name}")
 
