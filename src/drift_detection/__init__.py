@@ -15,9 +15,16 @@ Available detectors:
 - EnsembleDetector: Combine multiple detectors
 """
 
-from .base import BaseDriftDetector, DriftSignal, LearningRegime
-from .statistical_detectors import ADWINDetector, KSWINDetector, PageHinkleyDetector
-from .model_performance_detector import ModelPerformanceDetector, EnsembleDetector
+from .detectors.base import BaseDriftDetector, DriftSignal, LearningRegime
+from .detectors.statistical_detectors import (
+    ADWINDetector,
+    KSWINDetector,
+    PageHinkleyDetector,
+)
+from .detectors.model_performance_detector import (
+    ModelPerformanceDetector,
+    EnsembleDetector,
+)
 
 __all__ = [
     "BaseDriftDetector",
