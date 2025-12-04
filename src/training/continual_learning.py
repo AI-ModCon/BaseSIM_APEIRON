@@ -5,11 +5,15 @@ from src.training.updaters.basic import step_method_baseline
 
 from src.training.updaters.jvp_reg import step_method_jvp_reg, JVPRegularizedLoss
 
-from src.training.profilers import FLOPSProfiler
+from src.profilers import FLOPSProfiler
 
 
 def continual_learning_loop(
-    cfg: Config, modelHarness: BaseModelHarness, logger, global_iter=0
+    cfg: Config,
+    modelHarness: BaseModelHarness,
+    logger,
+    global_step=0,
+    basic_only=False, # Needed to test drift_detection, will remove in future PR.
 ):
     # 1) select the right cl update method #TODO
 
@@ -68,14 +72,14 @@ def continual_learning_loop(
     flops_profiler = FLOPSProfiler()
 
     # 2) run the outer loop
-    curr_global_iter = cfg.continuous_learning.max_iter * global_iter
     for iter_count in range(cfg.continuous_learning.max_iter):
+
         # Fetch valid batches from both streams
         train_iter, train_batch = _safe_next(
             train_iter, cur_train_loader, min_batch=batch_size
         )
 
-        if hist_train_iter is None:
+        if hist_train_iter is None or basic_only:
             # Fall back to basic training if no historical data is available
 
             # - Count Flops
@@ -90,8 +94,8 @@ def continual_learning_loop(
             )
 
             logger.log(
-                {"train/total_loss": total_loss},
-                step=iter_count + curr_global_iter,
+                {"cl/basic/total_loss": total_loss},
+                step=iter_count + global_step,
                 commit=iter_count < (cfg.continuous_learning.max_iter - 1),
             )
 
@@ -117,11 +121,11 @@ def continual_learning_loop(
 
             logger.log(
                 {
-                    "hist_train/total_loss": total_loss,
-                    "hist_train/forgetting_loss": forgetting_loss,
-                    "hist_train/generation_loss": generation_loss,
+                    "cl/jvp_reg/total_loss": total_loss,
+                    "cl/jvp_reg/forgetting_loss": forgetting_loss,
+                    "cl/jvp_reg/generation_loss": generation_loss,
                 },
-                step=iter_count + curr_global_iter,
+                step=iter_count + global_step,
                 commit=iter_count < (cfg.continuous_learning.max_iter - 1),
             )
 
@@ -143,10 +147,10 @@ def continual_learning_loop(
 
     logger.log(
         {
-            "test/acc": test_acc,
-            "hist_test/acc": mem_test_acc,
+            "cl/test_curr/acc": test_acc,
+            "cl/test_hist/acc": mem_test_acc,
         },
-        step=iter_count + curr_global_iter,
+        step=iter_count + global_step,
         commit=False,
     )
 
@@ -154,8 +158,8 @@ def continual_learning_loop(
         flops_perf = flops_profiler.get_performance()
         flops_profiler.print_performance()
         logger.log(
-            {f"cperf/{k}": v for k, v in flops_perf.items()},
-            step=iter_count + curr_global_iter,
+            {f"cl/cperf/{k}": v for k, v in flops_perf.items()},
+            step=iter_count + global_step,
         )
 
     return 0
