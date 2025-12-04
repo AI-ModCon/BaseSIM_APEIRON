@@ -13,7 +13,7 @@ def continual_learning_loop(
     modelHarness: BaseModelHarness,
     logger,
     global_step=0,
-    basic_only=False, # Needed to test drift_detection, will remove in future PR.
+    basic_only=False,  # Needed to test drift_detection, will remove in future PR.
 ):
     # 1) select the right cl update method #TODO
 
@@ -73,7 +73,6 @@ def continual_learning_loop(
 
     # 2) run the outer loop
     for iter_count in range(cfg.continuous_learning.max_iter):
-
         # Fetch valid batches from both streams
         train_iter, train_batch = _safe_next(
             train_iter, cur_train_loader, min_batch=batch_size

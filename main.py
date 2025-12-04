@@ -22,7 +22,9 @@ def main(argv=None) -> int:
     global_step = 0
     progress_bar = tqdm(range(10), desc="CL Tasks", leave=True)
     for i in progress_bar:
-        drift_signal = drift_detection_driver(cfg, modelHarness, logger, global_step=global_step)
+        drift_signal = drift_detection_driver(
+            cfg, modelHarness, logger, global_step=global_step
+        )
         print("Drift Detected:", drift_signal.drift_detected)
 
         # Self-improvement actuation.
@@ -35,7 +37,7 @@ def main(argv=None) -> int:
                 modelHarness=modelHarness,
                 logger=logger,
                 global_step=global_step,
-                basic_only=(i<2 and not drift_signal.drift_detected)
+                basic_only=(i < 2 and not drift_signal.drift_detected),
             )
 
         # Update steps are tracked and require advancing global step.
@@ -43,7 +45,6 @@ def main(argv=None) -> int:
         #  when model update is skipped we assume (for now)
         #  global step still proceeds as if model updates.
         global_step += cfg.continuous_learning.max_iter
-
 
     print("\nLogged Metrics:\n", logger.to_dataframe())
 

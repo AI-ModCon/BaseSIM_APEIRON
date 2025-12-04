@@ -140,7 +140,9 @@ def step_method_jvp_reg(
             param.grad = grads_dict[name].detach()
 
         # Optimizer step
-        with profiler.measure_flops_optimizer(tag="jvp_optim", model=model, device=cfg.device):
+        with profiler.measure_flops_optimizer(
+            tag="jvp_optim", model=model, device=cfg.device
+        ):
             optimizer.step()
 
     else:

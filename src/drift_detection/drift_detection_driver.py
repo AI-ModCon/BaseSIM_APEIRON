@@ -44,7 +44,6 @@ def drift_detection_driver(
                 # If we cannot inspect batch size, just accept the batch
                 return current_iter, [b.to(cfg.device) for b in batch]
 
-
     flops_profiler = FLOPSProfiler()
 
     for iter_count in range(cfg.drift_detection.detection_steps):
@@ -53,47 +52,55 @@ def drift_detection_driver(
         )
         inputs, targets = batch
 
-        if iter_count > flops_profiler.warmup_iters: # Give warmup iterations, for accuracy.
+        if (
+            iter_count > flops_profiler.warmup_iters
+        ):  # Give warmup iterations, for accuracy.
+            with flops_profiler.measure_flops(tag="infer"):
+                with torch.no_grad():
+                    outputs = model(inputs)
+                    loss = criterion(outputs, targets)
 
-          with flops_profiler.measure_flops(tag="infer"):
+            # NOTE: Profiler only covers Pytorch operations
+            # Even so, we measure runtime to see if its a potential bottleneck
+            with flops_profiler.measure_flops(tag="detector"):
+                drift_signal = detector.update(loss.item())
+                any_drift = drift_signal.drift_detected
+                if any_drift:
+                    break
+        else:
+            # Get model predictions
             with torch.no_grad():
                 outputs = model(inputs)
                 loss = criterion(outputs, targets)
 
-          # NOTE: Profiler only covers Pytorch operations
-          # Even so, we measure runtime to see if its a potential bottleneck
-          with flops_profiler.measure_flops(tag="detector"):
+            # Update the drift detector with new data
             drift_signal = detector.update(loss.item())
             any_drift = drift_signal.drift_detected
             if any_drift:
                 break
-        else:
 
-          # Get model predictions
-          with torch.no_grad():
-              outputs = model(inputs)
-              loss = criterion(outputs, targets)
+    # -
+    logger.log(
+        {"drift/regime": drift_signal.regime.value}, step=global_step, commit=False
+    )
+    logger.log(
+        {"drift/detected": drift_signal.drift_detected}, step=global_step, commit=False
+    )
+    logger.log(
+        {"drift/score": drift_signal.drift_score}, step=global_step, commit=False
+    )
+    logger.log(
+        {"drift/confidence": drift_signal.confidence}, step=global_step, commit=False
+    )
 
-          # Update the drift detector with new data
-          drift_signal = detector.update(loss.item())
-          any_drift = drift_signal.drift_detected
-          if any_drift:
-              break
-
-    #-
-    logger.log({"drift/regime": drift_signal.regime.value}, step=global_step, commit=False)
-    logger.log({"drift/detected": drift_signal.drift_detected}, step=global_step, commit=False)
-    logger.log({"drift/score": drift_signal.drift_score}, step=global_step, commit=False)
-    logger.log({"drift/confidence": drift_signal.confidence}, step=global_step, commit=False)
-
-    #-
+    # -
     if flops_profiler:
         flops_perf = flops_profiler.get_performance()
         flops_profiler.print_performance()
         logger.log(
             {f"drift/cperf/{k}": v for k, v in flops_perf.items()},
             step=global_step,
-            commit=False
+            commit=False,
         )
 
     return drift_signal

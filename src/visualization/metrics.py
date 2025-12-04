@@ -53,19 +53,23 @@ def plot_colored_vlines(ax, x_values, colors_bools):
     Args:
         ax (matplotlib.axes.Axes): The Matplotlib Axes object to plot on.
         x_values (list or array-like): The x-coordinates for the vertical lines.
-        colors_bools (list or array-like): Binary list (True/False) determining 
-                                            the color of each corresponding line. 
+        colors_bools (list or array-like): Binary list (True/False) determining
+                                            the color of each corresponding line.
                                             True = 'red', False = 'blue'.
     """
     # Define colors based on the boolean state
-    colors = ['red' if is_true else 'gray' for is_true in colors_bools]
+    colors = ["red" if is_true else "gray" for is_true in colors_bools]
 
     # Plot the vertical lines using a list comprehension
-    [ax.axvline(x=x, color=c, linestyle='--', alpha=0.7)
-     for x, c in zip(x_values, colors)]
+    [
+        ax.axvline(x=x, color=c, linestyle="--", alpha=0.7)
+        for x, c in zip(x_values, colors)
+    ]
 
 
-def create_dashboard(pivot_df, show_plot=True, save_path=None, baseline=95.0, cl_iters=500):
+def create_dashboard(
+    pivot_df, show_plot=True, save_path=None, baseline=95.0, cl_iters=500
+):
     """
     Create metric dashboard.
 
@@ -124,7 +128,7 @@ def create_dashboard(pivot_df, show_plot=True, save_path=None, baseline=95.0, cl
 
     plot_colored_vlines(ax0, drift_detected.index, drift_detected)
 
-    ax0.set_xlim(pivot_df.index.min()-100, pivot_df.index.max())
+    ax0.set_xlim(pivot_df.index.min() - 100, pivot_df.index.max())
     ax0.set_xticks(xticks_)
     ax0.set_xlabel("Step")
     ax0.set_ylabel("Accuracy (%)")
@@ -175,7 +179,7 @@ def create_dashboard(pivot_df, show_plot=True, save_path=None, baseline=95.0, cl
 
     plot_colored_vlines(ax1, drift_detected.index, drift_detected)
 
-    ax1.set_xlim(pivot_df.index.min()-100, pivot_df.index.max())
+    ax1.set_xlim(pivot_df.index.min() - 100, pivot_df.index.max())
     ax1.set_xticks(xticks_)
     ax1.set_xlabel("Step")
     ax1.set_ylabel("Accuracy (%)")
@@ -205,7 +209,7 @@ def create_dashboard(pivot_df, show_plot=True, save_path=None, baseline=95.0, cl
 
     plot_colored_vlines(ax2, drift_detected.index, drift_detected)
 
-    ax2.set_xlim(pivot_df.index.min()-100, pivot_df.index.max())
+    ax2.set_xlim(pivot_df.index.min() - 100, pivot_df.index.max())
     ax2.set_xticks(xticks_)
     ax2.set_xlabel("Step")
     ax2.set_ylabel("Loss")
@@ -222,7 +226,15 @@ def create_dashboard(pivot_df, show_plot=True, save_path=None, baseline=95.0, cl
         for col in pivot_df.columns
         if "flop" in col.lower() and "flops" not in col.lower()
     ]
-    colors_flops = ["#008837", "#5aa07e", "#a6dba0", "#7b3294", "#c2a5cf", "#f1b6da", "#d01c8b"]
+    colors_flops = [
+        "#008837",
+        "#5aa07e",
+        "#a6dba0",
+        "#7b3294",
+        "#c2a5cf",
+        "#f1b6da",
+        "#d01c8b",
+    ]
     for i, col in enumerate(flops_cols):
         if col in pivot_df.columns:
             data_clean = pivot_df[col].dropna().astype("float")
@@ -239,7 +251,7 @@ def create_dashboard(pivot_df, show_plot=True, save_path=None, baseline=95.0, cl
 
     plot_colored_vlines(ax3, drift_detected.index, drift_detected)
 
-    ax3.set_xlim(pivot_df.index.min()-100, pivot_df.index.max())
+    ax3.set_xlim(pivot_df.index.min() - 100, pivot_df.index.max())
     ax3.set_xticks(xticks_)
     ax3.set_xlabel("Step", fontsize=10)
     ax3.set_ylabel("GFLOP (×10⁹)", fontsize=10)
@@ -252,7 +264,15 @@ def create_dashboard(pivot_df, show_plot=True, save_path=None, baseline=95.0, cl
     # ----------------------------------------------------------
     ax4 = axes[2, 0]
     flops_cols_perf = [col for col in pivot_df.columns if "flops" in col.lower()]
-    colors_flops = ["#008837", "#5aa07e", "#a6dba0", "#7b3294", "#c2a5cf", "#f1b6da", "#d01c8b"]
+    colors_flops = [
+        "#008837",
+        "#5aa07e",
+        "#a6dba0",
+        "#7b3294",
+        "#c2a5cf",
+        "#f1b6da",
+        "#d01c8b",
+    ]
     for i, col in enumerate(flops_cols_perf):
         if col in pivot_df.columns:
             data_clean = pivot_df[col].dropna().astype("float")
@@ -269,7 +289,7 @@ def create_dashboard(pivot_df, show_plot=True, save_path=None, baseline=95.0, cl
 
     plot_colored_vlines(ax4, drift_detected.index, drift_detected)
 
-    ax4.set_xlim(pivot_df.index.min()-100, pivot_df.index.max())
+    ax4.set_xlim(pivot_df.index.min() - 100, pivot_df.index.max())
     ax4.set_xticks(xticks_)
     ax4.set_xlabel("Step", fontsize=10)
     ax4.set_ylabel("GFLOPS (×10⁹)", fontsize=10)
@@ -284,7 +304,15 @@ def create_dashboard(pivot_df, show_plot=True, save_path=None, baseline=95.0, cl
 
     # Get timing columns
     time_cols = [col for col in pivot_df.columns if "time" in col.lower()]
-    colors_time = ["#a6611a", "#b35806", "#dfc27d", "#018571", "#80cdc1", "#c51b7d", "#7c1254"]
+    colors_time = [
+        "#a6611a",
+        "#b35806",
+        "#dfc27d",
+        "#018571",
+        "#80cdc1",
+        "#c51b7d",
+        "#7c1254",
+    ]
 
     # Plot each timing metric
     for i, col in enumerate(time_cols):
@@ -303,7 +331,7 @@ def create_dashboard(pivot_df, show_plot=True, save_path=None, baseline=95.0, cl
 
     plot_colored_vlines(ax5, drift_detected.index, drift_detected)
 
-    ax5.set_xlim(pivot_df.index.min()-100, pivot_df.index.max())
+    ax5.set_xlim(pivot_df.index.min() - 100, pivot_df.index.max())
     ax5.set_xticks(xticks_)
     ax5.set_xlabel("Step", fontsize=12)
     ax5.set_ylabel("Time (ms)", fontsize=12)
@@ -467,7 +495,13 @@ def dashboard(baseline, csv_path, output_path, data_name, cl_iters):
     print("\nGenerating dashboard...")
     print(f"  Dataset: {data_name}")
     print(f"  Baseline: {baseline}%")
-    create_dashboard(pivot_df, show_plot=True, save_path=output_path, baseline=baseline, cl_iters=cl_iters)
+    create_dashboard(
+        pivot_df,
+        show_plot=True,
+        save_path=output_path,
+        baseline=baseline,
+        cl_iters=cl_iters,
+    )
 
     # Print detailed analyses
     print_timing_analysis(pivot_df)

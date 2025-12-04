@@ -16,7 +16,9 @@ def main(argv=None) -> int:
     cfg: Config = build_config(argv)
     baseline, csv_path, output_path = get_visualization_config(cfg)
 
-    dashboard(baseline, csv_path, output_path, cfg.data.name, cfg.continuous_learning.max_iter)
+    dashboard(
+        baseline, csv_path, output_path, cfg.data.name, cfg.continuous_learning.max_iter
+    )
     return 0
 
 
