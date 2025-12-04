@@ -14,18 +14,36 @@ def main(argv=None) -> int:
     cfg: Config = build_config(argv)
     modelHarness = get_example(cfg=cfg)
 
-    logger = get_logger(enabled=True, csv_path="./output/main.csv")
+    logger = get_logger(enabled=True, csv_path=cfg.visualization.input)
     logger.init(cfg, project="main")
 
+    # Global step tracked over self-improvement loop.
+    #   Managing global step can be implemented into logger in future PR.
+    global_step = 0
     progress_bar = tqdm(range(10), desc="CL Tasks", leave=True)
     for i in progress_bar:
-        drift_signal = drift_detection_driver(cfg, modelHarness, logger)
-        logger.log({"drift_signal": drift_signal.drift_detected}, step=i)
+        drift_signal = drift_detection_driver(cfg, modelHarness, logger, global_step=global_step)
+        print("Drift Detected:", drift_signal.drift_detected)
 
-        if drift_signal.drift_detected or i == 0:
+        # Self-improvement actuation.
+        # NOTE: To test visualization, hardcodes
+        # 2 rounds of basic and
+        # 3 rounds of jvp_reg
+        if drift_signal.drift_detected or i < 5:
             continual_learning_loop(
-                cfg=cfg, modelHarness=modelHarness, logger=logger, global_iter=i
+                cfg=cfg,
+                modelHarness=modelHarness,
+                logger=logger,
+                global_step=global_step,
+                basic_only=(i<2 and not drift_signal.drift_detected)
             )
+
+        # Update steps are tracked and require advancing global step.
+        # NOTE: Given drift_signal actuates model update,
+        #  when model update is skipped we assume (for now)
+        #  global step still proceeds as if model updates.
+        global_step += cfg.continuous_learning.max_iter
+
 
     print("\nLogged Metrics:\n", logger.to_dataframe())
 

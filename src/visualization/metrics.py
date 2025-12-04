@@ -16,6 +16,7 @@ Configuration in TOML file ([visualization] section):
 """
 
 import matplotlib.pyplot as plt  # type: ignore
+import numpy as np
 import pandas as pd
 
 
@@ -45,7 +46,26 @@ def create_pivot_table(df):
     return pivot_df
 
 
-def create_dashboard(pivot_df, show_plot=True, save_path=None, baseline=95.0):
+def plot_colored_vlines(ax, x_values, colors_bools):
+    """
+    Plots vertical lines on a Matplotlib Axes object.
+
+    Args:
+        ax (matplotlib.axes.Axes): The Matplotlib Axes object to plot on.
+        x_values (list or array-like): The x-coordinates for the vertical lines.
+        colors_bools (list or array-like): Binary list (True/False) determining 
+                                            the color of each corresponding line. 
+                                            True = 'red', False = 'blue'.
+    """
+    # Define colors based on the boolean state
+    colors = ['red' if is_true else 'gray' for is_true in colors_bools]
+
+    # Plot the vertical lines using a list comprehension
+    [ax.axvline(x=x, color=c, linestyle='--', alpha=0.7)
+     for x, c in zip(x_values, colors)]
+
+
+def create_dashboard(pivot_df, show_plot=True, save_path=None, baseline=95.0, cl_iters=500):
     """
     Create metric dashboard.
 
@@ -58,15 +78,17 @@ def create_dashboard(pivot_df, show_plot=True, save_path=None, baseline=95.0):
     # Create figure with subplots
     fig, axes = plt.subplots(3, 2, figsize=(14, 15))
     fig.suptitle("Metric Dashboard", fontsize=16, fontweight="bold")
+    xticks_ = np.arange(0, pivot_df.index.max(), cl_iters)
+    drift_detected = pivot_df["drift/detected"].dropna().apply(lambda x: x == "True")
 
     # ----------------------------------------------------------
     # 1. Test Accuracy
     # ----------------------------------------------------------
     ax0 = axes[0, 0]
-    if "test/acc" in pivot_df.columns:
+    if "cl/test_curr/acc" in pivot_df.columns:
         ax0.plot(
             pivot_df.index,
-            pivot_df["test/acc"],
+            pivot_df["cl/test_curr/acc"].astype("float"),
             marker="o",
             linewidth=2,
             color="#2E86AB",
@@ -100,6 +122,10 @@ def create_dashboard(pivot_df, show_plot=True, save_path=None, baseline=95.0):
             label="Critical Zone",
         )
 
+    plot_colored_vlines(ax0, drift_detected.index, drift_detected)
+
+    ax0.set_xlim(pivot_df.index.min()-100, pivot_df.index.max())
+    ax0.set_xticks(xticks_)
     ax0.set_xlabel("Step")
     ax0.set_ylabel("Accuracy (%)")
     ax0.set_title("Test Accuracy")
@@ -110,10 +136,10 @@ def create_dashboard(pivot_df, show_plot=True, save_path=None, baseline=95.0):
     # 2. Hist Test Accuracy
     # ----------------------------------------------------------
     ax1 = axes[0, 1]
-    if "hist_test/acc" in pivot_df.columns:
+    if "cl/test_hist/acc" in pivot_df.columns:
         ax1.plot(
             pivot_df.index,
-            pivot_df["hist_test/acc"],
+            pivot_df["cl/test_hist/acc"].astype("float"),
             marker="o",
             linewidth=2,
             color="#2E86AB",
@@ -147,6 +173,10 @@ def create_dashboard(pivot_df, show_plot=True, save_path=None, baseline=95.0):
             label="Critical Zone",
         )
 
+    plot_colored_vlines(ax1, drift_detected.index, drift_detected)
+
+    ax1.set_xlim(pivot_df.index.min()-100, pivot_df.index.max())
+    ax1.set_xticks(xticks_)
     ax1.set_xlabel("Step")
     ax1.set_ylabel("Accuracy (%)")
     ax1.set_title("Hist Test Accuracy")
@@ -158,11 +188,11 @@ def create_dashboard(pivot_df, show_plot=True, save_path=None, baseline=95.0):
     # ----------------------------------------------------------
     ax2 = axes[1, 0]
     loss_cols = [col for col in pivot_df.columns if "loss" in col]
-    colors = ["#d7191c", "#fdae61", "#abd9e9", "#2c7bb6"]
+    colors = ["#2c7bb6", "#fdae61", "#abd9e9", "#d7191c"]
 
     for i, col in enumerate(loss_cols):
         if col in pivot_df.columns:
-            data_clean = pivot_df[col].dropna()
+            data_clean = pivot_df[col].dropna().astype("float")
             ax2.plot(
                 data_clean.index,
                 data_clean.values,
@@ -173,6 +203,10 @@ def create_dashboard(pivot_df, show_plot=True, save_path=None, baseline=95.0):
                 alpha=0.6,
             )
 
+    plot_colored_vlines(ax2, drift_detected.index, drift_detected)
+
+    ax2.set_xlim(pivot_df.index.min()-100, pivot_df.index.max())
+    ax2.set_xticks(xticks_)
     ax2.set_xlabel("Step")
     ax2.set_ylabel("Loss")
     ax2.set_title("Loss Metrics")
@@ -188,10 +222,10 @@ def create_dashboard(pivot_df, show_plot=True, save_path=None, baseline=95.0):
         for col in pivot_df.columns
         if "flop" in col.lower() and "flops" not in col.lower()
     ]
-    colors_flops = ["#7b3294", "#c2a5cf", "#a6dba0", "#008837"]
+    colors_flops = ["#008837", "#5aa07e", "#a6dba0", "#7b3294", "#c2a5cf", "#f1b6da", "#d01c8b"]
     for i, col in enumerate(flops_cols):
         if col in pivot_df.columns:
-            data_clean = pivot_df[col].dropna()
+            data_clean = pivot_df[col].dropna().astype("float")
             ax3.plot(
                 data_clean.index,
                 data_clean.values / 1e9,  # Convert to GFLOPS
@@ -202,7 +236,11 @@ def create_dashboard(pivot_df, show_plot=True, save_path=None, baseline=95.0):
                 label=col,
                 alpha=0.8,
             )
-    ax3.set_xlim(left=0, right=None)
+
+    plot_colored_vlines(ax3, drift_detected.index, drift_detected)
+
+    ax3.set_xlim(pivot_df.index.min()-100, pivot_df.index.max())
+    ax3.set_xticks(xticks_)
     ax3.set_xlabel("Step", fontsize=10)
     ax3.set_ylabel("GFLOP (×10⁹)", fontsize=10)
     ax3.set_title("Computational Performance: FLOP", fontsize=12)
@@ -214,10 +252,10 @@ def create_dashboard(pivot_df, show_plot=True, save_path=None, baseline=95.0):
     # ----------------------------------------------------------
     ax4 = axes[2, 0]
     flops_cols_perf = [col for col in pivot_df.columns if "flops" in col.lower()]
-    colors_flops = ["#7b3294", "#c2a5cf", "#a6dba0", "#008837"]
+    colors_flops = ["#008837", "#5aa07e", "#a6dba0", "#7b3294", "#c2a5cf", "#f1b6da", "#d01c8b"]
     for i, col in enumerate(flops_cols_perf):
         if col in pivot_df.columns:
-            data_clean = pivot_df[col].dropna()
+            data_clean = pivot_df[col].dropna().astype("float")
             ax4.plot(
                 data_clean.index,
                 data_clean.values / 1e9,  # Convert to GFLOPS
@@ -228,7 +266,11 @@ def create_dashboard(pivot_df, show_plot=True, save_path=None, baseline=95.0):
                 label=col,
                 alpha=0.8,
             )
-    ax4.set_xlim(left=0, right=None)
+
+    plot_colored_vlines(ax4, drift_detected.index, drift_detected)
+
+    ax4.set_xlim(pivot_df.index.min()-100, pivot_df.index.max())
+    ax4.set_xticks(xticks_)
     ax4.set_xlabel("Step", fontsize=10)
     ax4.set_ylabel("GFLOPS (×10⁹)", fontsize=10)
     ax4.set_title("Computational Performance: FLOPS", fontsize=12)
@@ -242,12 +284,12 @@ def create_dashboard(pivot_df, show_plot=True, save_path=None, baseline=95.0):
 
     # Get timing columns
     time_cols = [col for col in pivot_df.columns if "time" in col.lower()]
-    colors_time = ["#80cdc1", "#018571", "#a6611a", "#dfc27d"]
+    colors_time = ["#a6611a", "#b35806", "#dfc27d", "#018571", "#80cdc1", "#c51b7d", "#7c1254"]
 
     # Plot each timing metric
     for i, col in enumerate(time_cols):
         if col in pivot_df.columns:
-            data_clean = pivot_df[col].dropna()
+            data_clean = pivot_df[col].dropna().astype("float")
             ax5.plot(
                 data_clean.index,
                 data_clean.values * 1000,  # Convert to ms
@@ -258,7 +300,11 @@ def create_dashboard(pivot_df, show_plot=True, save_path=None, baseline=95.0):
                 label=col,
                 alpha=0.8,
             )
-    ax5.set_xlim(left=0, right=None)
+
+    plot_colored_vlines(ax5, drift_detected.index, drift_detected)
+
+    ax5.set_xlim(pivot_df.index.min()-100, pivot_df.index.max())
+    ax5.set_xticks(xticks_)
     ax5.set_xlabel("Step", fontsize=12)
     ax5.set_ylabel("Time (ms)", fontsize=12)
     ax5.set_title("Execution Time by Step", fontsize=14)
@@ -288,7 +334,7 @@ def print_timing_analysis(pivot_df):
     print("\n=== Execution Time Analysis ===")
     for col in time_cols:
         if col in pivot_df.columns:
-            data_clean = pivot_df[col].dropna()
+            data_clean = pivot_df[col].dropna().astype("float")
             if len(data_clean) > 0:
                 print(f"\n{col}:")
                 print(f"  Mean: {data_clean.mean() * 1000:.3f} ms")
@@ -308,8 +354,8 @@ def print_summary(pivot_df, baseline=95.0):
     print("\n=== Metrics Summary ===")
     print(f"Steps analyzed: {pivot_df.index.min()} - {pivot_df.index.max()}")
 
-    if "test/acc" in pivot_df.columns:
-        acc_vals = pivot_df["test/acc"].dropna()
+    if "cl/test/acc" in pivot_df.columns:
+        acc_vals = pivot_df["cl/test/acc"].dropna().astype("float")
         if len(acc_vals) > 0:
             print(f"\nAccuracy range: {acc_vals.min():.2f}% - {acc_vals.max():.2f}%")
             if acc_vals.min() < baseline:
@@ -319,7 +365,7 @@ def print_summary(pivot_df, baseline=95.0):
         print(f"\nLoss metrics tracked: {len(loss_cols)}")
         for col in loss_cols:
             if col in pivot_df.columns:
-                loss_vals = pivot_df[col].dropna()
+                loss_vals = pivot_df[col].dropna().astype("float")
                 if len(loss_vals) > 0:
                     print(f"  {col}: {loss_vals.min():.3f} - {loss_vals.max():.3f}")
 
@@ -335,7 +381,7 @@ def print_flops_analysis(pivot_df):
     print("\n=== FLOPS Analysis ===")
     for col in flops_cols:
         if col in pivot_df.columns:
-            data_clean = pivot_df[col].dropna()
+            data_clean = pivot_df[col].dropna().astype("float")
             if len(data_clean) > 0:
                 print(f"\n{col}:")
                 print(f"  Mean: {data_clean.mean() / 1e9:.2f} GFLOPS")
@@ -404,7 +450,7 @@ def get_visualization_config(cfg):
     return baseline, csv_path, output_path
 
 
-def dashboard(baseline, csv_path, output_path, data_name):
+def dashboard(baseline, csv_path, output_path, data_name, cl_iters):
     # Load and process data
     print(f"\nLoading metrics data from {csv_path}...")
     df = load_data(csv_path)
@@ -421,7 +467,7 @@ def dashboard(baseline, csv_path, output_path, data_name):
     print("\nGenerating dashboard...")
     print(f"  Dataset: {data_name}")
     print(f"  Baseline: {baseline}%")
-    create_dashboard(pivot_df, show_plot=True, save_path=output_path, baseline=baseline)
+    create_dashboard(pivot_df, show_plot=True, save_path=output_path, baseline=baseline, cl_iters=cl_iters)
 
     # Print detailed analyses
     print_timing_analysis(pivot_df)
