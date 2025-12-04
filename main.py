@@ -14,7 +14,9 @@ def main(argv=None) -> int:
     cfg: Config = build_config(argv)
     modelHarness = get_example(cfg=cfg)
 
-    logger = get_logger(enabled=True, csv_path=cfg.visualization.input)
+    logger = get_logger(
+        enabled=True, csv_path=cfg.visualization.input if cfg.visualization else None
+    )
     logger.init(cfg, project="main")
 
     # Global step tracked over self-improvement loop.
