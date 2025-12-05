@@ -1,6 +1,6 @@
 import torch
 from config.configuration import Config
-from .detectors.base import DriftSignal
+from drift_detection.detectors.base import DriftSignal
 from drift_detection.load_drift_detector import load_drift_detector
 from model.torch_model_harness import BaseModelHarness
 
