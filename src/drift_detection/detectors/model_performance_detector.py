@@ -12,7 +12,11 @@ import pandas as pd
 from typing import Optional, List
 from evidently import Report
 from evidently.presets import DataDriftPreset
-from drift_detection.detectors.base import BaseDriftDetector, DriftSignal, LearningRegime
+from drift_detection.detectors.base import (
+    BaseDriftDetector,
+    DriftSignal,
+    LearningRegime,
+)
 
 
 class ModelPerformanceDetector(BaseDriftDetector):

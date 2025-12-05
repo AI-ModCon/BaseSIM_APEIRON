@@ -15,7 +15,11 @@ Available detectors:
 - EnsembleDetector: Combine multiple detectors
 """
 
-from drift_detection.detectors.base import BaseDriftDetector, DriftSignal, LearningRegime
+from drift_detection.detectors.base import (
+    BaseDriftDetector,
+    DriftSignal,
+    LearningRegime,
+)
 from drift_detection.detectors.statistical_detectors import (
     ADWINDetector,
     KSWINDetector,

@@ -10,7 +10,11 @@ References:
 
 import numpy as np
 from river import drift as river_drift
-from drift_detection.detectors.base import BaseDriftDetector, DriftSignal, LearningRegime
+from drift_detection.detectors.base import (
+    BaseDriftDetector,
+    DriftSignal,
+    LearningRegime,
+)
 
 
 class ADWINDetector(BaseDriftDetector):
