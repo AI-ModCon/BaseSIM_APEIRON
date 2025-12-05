@@ -17,7 +17,7 @@ import pandas as pd
 import torch.nn as nn
 from typing import Tuple, Union
 from torch.utils.data import DataLoader
-from src.drift_detection import (
+from drift_detection import (
     ADWINDetector,
     ModelPerformanceDetector,
     DriftSignal,

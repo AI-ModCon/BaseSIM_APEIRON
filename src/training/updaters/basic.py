@@ -1,13 +1,13 @@
 """
-Docstring for src.training.updaters.basic
+Docstring for training.updaters.basic
 
 This module implements a baseline update step method for neural network training
 """
 
 import torch
 
-from src.config.configuration import Config
-from src.training.profilers import FLOPSProfiler
+from config.configuration import Config
+from training.profilers import FLOPSProfiler
 
 
 def step_method_baseline(

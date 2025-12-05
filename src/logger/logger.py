@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional, List
 from dataclasses import asdict
 
-from src.config.configuration import Config
+from config.configuration import Config
 
 
 class WandBLogger:
@@ -300,7 +300,7 @@ def get_logger(
 
     Examples
     --------
-    >>> from src.logging.logger import get_logger
+    >>> from logging.logger import get_logger
     >>> logger = get_logger(csv_path="./output/my_experiment.csv")
     >>> logger.init(cfg, project="my-experiment")
     >>> logger.log({"loss": 0.5})

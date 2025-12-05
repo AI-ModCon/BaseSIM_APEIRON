@@ -15,13 +15,17 @@ Available detectors:
 - EnsembleDetector: Combine multiple detectors
 """
 
-from .detectors.base import BaseDriftDetector, DriftSignal, LearningRegime
-from .detectors.statistical_detectors import (
+from drift_detection.detectors.base import (
+    BaseDriftDetector,
+    DriftSignal,
+    LearningRegime,
+)
+from drift_detection.detectors.statistical_detectors import (
     ADWINDetector,
     KSWINDetector,
     PageHinkleyDetector,
 )
-from .detectors.model_performance_detector import (
+from drift_detection.detectors.model_performance_detector import (
     ModelPerformanceDetector,
     EnsembleDetector,
 )

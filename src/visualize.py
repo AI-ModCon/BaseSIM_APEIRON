@@ -5,10 +5,10 @@ Usage:
 
 import sys
 
-from src.visualization.metrics import get_visualization_config
-from src.visualization.metrics import dashboard
+from visualization.metrics import get_visualization_config
+from visualization.metrics import dashboard
 
-from src.config.configuration import build_config, Config
+from config.configuration import build_config, Config
 
 
 def main(argv=None) -> int:
