@@ -1,5 +1,5 @@
 import torch
-from src.config.configuration import Config
+from config.configuration import Config
 
 
 # -----------------------------------------
