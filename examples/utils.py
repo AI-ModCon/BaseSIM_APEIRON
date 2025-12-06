@@ -1,8 +1,8 @@
 from examples.cifar.model import CIFAR_VISION
 from examples.mnist.model import MNIST_CNN
 
-from src.config.configuration import Config
-from src.model.torch_model_harness import BaseModelHarness
+from config.configuration import Config
+from model.torch_model_harness import BaseModelHarness
 
 
 def get_example(cfg: Config) -> BaseModelHarness:

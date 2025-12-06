@@ -1,12 +1,12 @@
 import sys
 from tqdm import tqdm
 
-from src.logging import get_logger
-from src.config.configuration import build_config, Config
+from logger import get_logger
+from config.configuration import build_config, Config
 
 from examples.utils import get_example
 
-from src.training.continual_learning import continual_learning_loop
+from training.continual_learning import continual_learning_loop
 
 
 def main(argv=None) -> int:

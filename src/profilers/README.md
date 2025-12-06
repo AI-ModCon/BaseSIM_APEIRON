@@ -11,7 +11,7 @@ of the optimizer step and reference a lookup table for the number of FLOPs expen
 # Basic Usage
 
 ```python
-from src.training.profilers import FLOPSProfiler
+from training.profilers import FLOPSProfiler
 
 # Initialize profiler
 profiler = FLOPSProfiler(warmup_iters=10)

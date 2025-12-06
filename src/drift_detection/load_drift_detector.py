@@ -1,5 +1,5 @@
-from src.config.configuration import Config
-from src.drift_detection.detectors.base import BaseDriftDetector
+from config.configuration import Config
+from drift_detection.detectors.base import BaseDriftDetector
 
 
 def load_drift_detector(cfg: Config) -> BaseDriftDetector:
@@ -16,21 +16,21 @@ def load_drift_detector(cfg: Config) -> BaseDriftDetector:
 
     detector_instance: BaseDriftDetector
     if detector_name == "ADWINDetector":
-        from src.drift_detection.detectors.statistical_detectors import ADWINDetector
+        from drift_detection.detectors.statistical_detectors import ADWINDetector
 
         detector_instance = ADWINDetector()
     elif detector_name == "KSWINDetector":
-        from src.drift_detection.detectors.statistical_detectors import KSWINDetector
+        from drift_detection.detectors.statistical_detectors import KSWINDetector
 
         detector_instance = KSWINDetector()
     elif detector_name == "PageHinkleyDetector":
-        from src.drift_detection.detectors.statistical_detectors import (
+        from drift_detection.detectors.statistical_detectors import (
             PageHinkleyDetector,
         )
 
         detector_instance = PageHinkleyDetector()
     elif detector_name == "ModelPerformanceDetector":
-        from src.drift_detection.detectors.model_performance_detector import (
+        from drift_detection.detectors.model_performance_detector import (
             ModelPerformanceDetector,
         )
 
@@ -42,7 +42,7 @@ def load_drift_detector(cfg: Config) -> BaseDriftDetector:
             "PageHinkleyDetector, or ModelPerformanceDetector instead."
         )
 
-        # from src.drift_detection.detectors.model_performance_detector import (
+        # from drift_detection.detectors.model_performance_detector import (
         #    EnsembleDetector,
         # )
 

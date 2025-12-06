@@ -6,8 +6,8 @@ from torch import nn, Tensor
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader, ConcatDataset
 
-from src.model.torch_model_harness import BaseModelHarness
-from src.config.configuration import Config
+from model.torch_model_harness import BaseModelHarness
+from config.configuration import Config
 from examples.cifar.src.utils import (
     get_cifar_train,
     get_cifar_val,

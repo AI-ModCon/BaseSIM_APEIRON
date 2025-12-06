@@ -1,11 +1,11 @@
-from src.evaluation.evaluation import test
-from src.config.configuration import Config
-from src.model.torch_model_harness import BaseModelHarness
-from src.training.updaters.basic import step_method_baseline
+from evaluation.evaluation import test
+from config.configuration import Config
+from model.torch_model_harness import BaseModelHarness
+from training.updaters.basic import step_method_baseline
 
-from src.training.updaters.jvp_reg import step_method_jvp_reg, JVPRegularizedLoss
+from training.updaters.jvp_reg import step_method_jvp_reg, JVPRegularizedLoss
 
-from src.profilers import FLOPSProfiler
+from training.profilers import FLOPSProfiler
 
 
 def continual_learning_loop(

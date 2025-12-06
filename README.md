@@ -14,9 +14,15 @@ poetry install
 ## Running the Experiment
 To run the experiment, execute the following command from the project root:
 ```bash
-poetry run python ./cl_only.py --config examples/mnist/mnist.toml
+poetry run python -m src.main --config examples/mnist/mnist.toml
 ```
 The script uses CUDA automatically when it is available; otherwise it falls back to CPU.
+
+## Visualizing Performance
+To run visualize the training and testing metrics, execute the following command from the project root:
+```bash
+poetry run python -m src.visualize --config examples/mnist/mnist.toml
+```
 
 ## Running Tests
 To run the project's tests, execute the following command from the project root:

@@ -1,13 +1,13 @@
 import sys
 from tqdm import tqdm
 
-from src.logging import get_logger
-from src.config.configuration import build_config, Config
+from logger import get_logger
+from config.configuration import build_config, Config
 
 from examples.utils import get_example
 
-from src.training.continual_learning import continual_learning_loop
-from src.drift_detection.drift_detection_driver import drift_detection_driver
+from training.continual_learning import continual_learning_loop
+from drift_detection.drift_detection_driver import drift_detection_driver
 
 
 def main(argv=None) -> int:

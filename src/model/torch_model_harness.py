@@ -7,7 +7,7 @@ from torch import nn, Tensor
 from torch.utils.data import DataLoader
 from torch.optim import Optimizer
 
-from src.config.configuration import Config
+from config.configuration import Config
 
 MetricFn = Callable[[Tensor, Tensor], Any]
 CriterionFn = Callable[[Tensor, Tensor], Tensor]

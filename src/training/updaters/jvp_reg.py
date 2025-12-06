@@ -3,7 +3,7 @@
 This module provides custom optimizer and loss implementations for training
 neural networks with JVP regularization to mitigate catastrophic forgetting.
 
-Refactored from src/training/updater/jvp_regularized.py for a cleaner
+Refactored from training/updater/jvp_regularized.py for a cleaner
 PyTorch-style implementation.
 
 Comments:
@@ -16,8 +16,8 @@ Comments:
 import torch
 
 
-from src.config.configuration import Config
-from src.profilers import FLOPSProfiler
+from config.configuration import Config
+from training.profilers import FLOPSProfiler
 
 import torch
 import torch.nn as nn
