@@ -36,7 +36,7 @@ import torch.nn as nn
 from torch.profiler import profile, ProfilerActivity
 from torch.utils.flop_counter import FlopCounterMode
 
-from training.profilers.aten_flops_map import ATEN_FLOPS_PER_ELEMENT
+from profilers.aten_flops_map import ATEN_FLOPS_PER_ELEMENT
 
 
 # -

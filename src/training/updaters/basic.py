@@ -7,7 +7,7 @@ This module implements a baseline update step method for neural network training
 import torch
 
 from config.configuration import Config
-from training.profilers import FLOPSProfiler
+from profilers import FLOPSProfiler
 
 
 def step_method_baseline(

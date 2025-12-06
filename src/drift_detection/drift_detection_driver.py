@@ -4,7 +4,7 @@ from config.configuration import Config
 from drift_detection.detectors.base import DriftSignal
 from drift_detection.load_drift_detector import load_drift_detector
 from model.torch_model_harness import BaseModelHarness
-
+from profilers import FLOPSProfiler
 
 def drift_detection_driver(
     cfg: Config, modelHarness: BaseModelHarness, logger, global_step=0

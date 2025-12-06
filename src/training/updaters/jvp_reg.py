@@ -17,7 +17,7 @@ import torch
 
 
 from config.configuration import Config
-from training.profilers import FLOPSProfiler
+from profilers import FLOPSProfiler
 
 import torch
 import torch.nn as nn

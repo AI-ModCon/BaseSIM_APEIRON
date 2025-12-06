@@ -5,7 +5,7 @@ from training.updaters.basic import step_method_baseline
 
 from training.updaters.jvp_reg import step_method_jvp_reg, JVPRegularizedLoss
 
-from training.profilers import FLOPSProfiler
+from profilers import FLOPSProfiler
 
 
 def continual_learning_loop(
