@@ -7,7 +7,7 @@ This module implements a baseline update step method for neural network training
 import torch
 
 from config.configuration import Config
-from training.profilers import FLOPSProfiler
+from profilers import FLOPSProfiler
 
 
 def step_method_baseline(
@@ -43,15 +43,15 @@ def step_method_baseline(
     if (
         profiler and iter > profiler.warmup_iters
     ):  # Give warmup iterations, for accuracy.
-        with profiler.measure_flops(tag="fwd"):
+        with profiler.measure_flops(tag="basic_fwd"):
             outputs = model(in_t)
             loss = criterion(outputs, targets_t)
 
-        with profiler.measure_flops(tag="bwd"):
+        with profiler.measure_flops(tag="basic_bwd"):
             loss.backward()
 
         with profiler.measure_flops_optimizer(
-            tag="optim", model=model, device=cfg.device
+            tag="basic_optim", model=model, device=cfg.device
         ):
             # - Try profiling optimizer step agnostically.
             # profiler.count_optimizer_step(optimizer, model, cfg.device)

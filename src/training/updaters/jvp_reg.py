@@ -17,7 +17,7 @@ import torch
 
 
 from config.configuration import Config
-from training.profilers import FLOPSProfiler
+from profilers import FLOPSProfiler
 
 import torch
 import torch.nn as nn
@@ -130,7 +130,7 @@ def step_method_jvp_reg(
 ):
     if profiler and iter > profiler.warmup_iters:
         # Compute gradients
-        with profiler.measure_flops(tag="hamiltonian"):
+        with profiler.measure_flops(tag="jvp_hamil"):
             grads_dict, J_P, J_M = jvp_loss(train_batch, hist_batch)
 
         # Detach and assign gradients (outside profiling)
@@ -140,7 +140,9 @@ def step_method_jvp_reg(
             param.grad = grads_dict[name].detach()
 
         # Optimizer step
-        with profiler.measure_flops(tag="optim"):
+        with profiler.measure_flops_optimizer(
+            tag="jvp_optim", model=model, device=cfg.device
+        ):
             optimizer.step()
 
     else:
