@@ -2,10 +2,10 @@
 import pytest
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from examples.cifar.src.cnns import model_urls
 from examples.cifar.src.utils import load_model
 from training.updaters.jvp_reg import JVPRegularizedLoss
+
 
 # SHOULD BE REPLACED BY SOMEREGISTRY
 def get_image_models():
@@ -18,7 +18,6 @@ def get_image_models():
 
 #
 class LogitHarness(torch.nn.Module):
-
     def __init__(self, model):
         super().__init__()
         self.model = model
@@ -30,6 +29,7 @@ class LogitHarness(torch.nn.Module):
         else:
             return output[1]
 
+
 #
 class TestTraining:
     """
@@ -40,21 +40,19 @@ class TestTraining:
     def setup(self) -> None:
         pass
 
-
-    @pytest.mark.parametrize("model", get_image_models())
-    def test_image_model_forward(self, model: str) -> None:
-
-        #-
+    @pytest.mark.parametrize("model_nme", get_image_models())
+    def test_image_model_forward(self, model_nme: str) -> None:
+        # -
         batchsize = 1
         nb_features = 3
-        size_image = 518 if model == "vit14g" else 224
+        size_image = 518 if model_nme == "vit14g" else 224
         nb_classes = 10
 
-        #-
-        model = load_model(model, nb_classes)
+        # -
+        model = load_model(model_nme, nb_classes)
 
-        #-
-        x_input  = torch.zeros((batchsize, nb_features, size_image, size_image))
+        # -
+        x_input = torch.zeros((batchsize, nb_features, size_image, size_image))
         output = model(x_input)
         if "logits" in dir(output):
             y_logits = output.logits
@@ -63,18 +61,16 @@ class TestTraining:
 
         assert list(y_logits.size()) == [batchsize, nb_classes]
 
-
-    @pytest.mark.parametrize("model", get_image_models())
-    def test_updater_jvp_reg(self, model: str) -> None:
-
-        #-
+    @pytest.mark.parametrize("model_nme", get_image_models())
+    def test_updater_jvp_reg(self, model_nme: str) -> None:
+        # -
         batchsize = 1
         nb_features = 3
-        size_image = 518 if model == "vit14g" else 224
+        size_image = 518 if model_nme == "vit14g" else 224
         nb_classes = 10
 
-        #-
-        model = load_model(model, nb_classes)
+        # -
+        model = load_model(model_nme, nb_classes)
         criterion = nn.CrossEntropyLoss()
 
         # JVP continual learning setup
@@ -82,13 +78,13 @@ class TestTraining:
             model=LogitHarness(model).train(),
             criterion=criterion,
             # Use defaults for now.
-            #jvp_reg=cfg.continuous_learning.jvp_reg,
-            #deltax_norm=cfg.continuous_learning.deltax_norm,
+            # jvp_reg=cfg.continuous_learning.jvp_reg,
+            # deltax_norm=cfg.continuous_learning.deltax_norm,
         )
 
-        #- Assume dummy data for now
-        x_input  = torch.zeros((batchsize, nb_features, size_image, size_image))
-        x_target  = torch.ones((batchsize, nb_classes))
+        # - Assume dummy data for now
+        x_input = torch.zeros((batchsize, nb_features, size_image, size_image))
+        x_target = torch.ones((batchsize, nb_classes))
         curr_batch = [x_input, x_target]
         hist_batch = [x_input, x_target]
 

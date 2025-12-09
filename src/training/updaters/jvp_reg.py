@@ -80,7 +80,7 @@ class JVPRegularizedLoss(nn.Module):
 
         # - Define loss function for functional API
         def loss_fn(p, x, y):
-            self.model.eval()
+            self.model.eval()  # Prevents BatchNorm's inplace num_batches_tracked.add_(1)
             pred = functional_call(self.model, p, (x,))
             self.model.train()
             return self.criterion(pred, y)
