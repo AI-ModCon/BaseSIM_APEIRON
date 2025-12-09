@@ -22,7 +22,7 @@ from training.profilers import FLOPSProfiler
 import torch
 import torch.nn as nn
 
-from torch.func import grad, jvp, functional_call
+from torch.func import grad, functional_call
 from collections import OrderedDict
 
 
@@ -80,7 +80,9 @@ class JVPRegularizedLoss(nn.Module):
 
         # - Define loss function for functional API
         def loss_fn(p, x, y):
+            self.model.eval()
             pred = functional_call(self.model, p, (x,))
+            self.model.train()
             return self.criterion(pred, y)
 
         # - Compute gradients
@@ -92,17 +94,10 @@ class JVPRegularizedLoss(nn.Module):
         # - Memory task gradient
         grad_mem = grad_fn(params, x_mem, y_mem)
 
-        # - JVP computation
-        def f(p, x):
-            return loss_fn(p, x, y_mem)
-
-        def jvp_func(p, tangents):
-            return jvp(f, (p, x_mem), tangents)[1]
-
-        # - Use current gradient as tangent direction
-        tangents = OrderedDict((k, grad_curr[k]) for k in params)
-
-        grad_jvp = grad(jvp_func)(params, (tangents, deltax))
+        # - JVP regularization using backward-mode AD only
+        # Compute gradient at perturbed input to approximate Hessian-vector product
+        # This avoids forward-mode AD (incompatible with Flash Attention)
+        grad_jvp = grad_fn(params, x_mem + deltax, y_mem)
 
         # - Combine gradients
         combined_grads = {
