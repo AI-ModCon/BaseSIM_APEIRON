@@ -22,7 +22,7 @@ def main(argv=None) -> int:
     # Global step tracked over self-improvement loop.
     #   Managing global step can be implemented into logger in future PR.
     global_step = 0
-    progress_bar = tqdm(range(10), desc="CL Tasks", leave=True)
+    progress_bar = tqdm(range(20), desc="CL Tasks", leave=True)
     for i in progress_bar:
         drift_signal = drift_detection_driver(
             cfg, modelHarness, logger, global_step=global_step
