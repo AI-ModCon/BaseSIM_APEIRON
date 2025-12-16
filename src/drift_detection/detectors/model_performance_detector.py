@@ -18,8 +18,6 @@ from drift_detection.detectors.base import (
     LearningRegime,
 )
 
-from model.torch_model_harness import BaseModelHarness
-
 
 class ModelEvalDetector(BaseDriftDetector):
     def __init__(
