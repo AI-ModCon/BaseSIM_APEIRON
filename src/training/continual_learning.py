@@ -1,3 +1,4 @@
+import torch
 from evaluation.evaluation import test
 from config.configuration import Config
 from model.torch_model_harness import BaseModelHarness
@@ -144,6 +145,11 @@ def continual_learning_loop(
                 step=iter_count + global_step,
                 commit=iter_count < (cfg.continuous_learning.max_iter - 1),
             )
+
+            # Explicitly cleanup batch tensors to free GPU memory
+            del train_batch, hist_batch
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
 
     if hist_train_iter is None:
         mem_test_acc = -1

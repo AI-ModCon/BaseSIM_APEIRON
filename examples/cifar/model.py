@@ -1,4 +1,3 @@
-# src/model/mnist_cnn_harness.py
 import gc
 import torch
 from typing import Tuple, Optional, List, Dict, Any
