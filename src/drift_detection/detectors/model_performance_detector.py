@@ -30,10 +30,16 @@ class ModelEvalDetector(BaseDriftDetector):
 
     def update(
         self,
-        modelHarness: BaseModelHarness,
-        reference_validation_metrics: list[float] = [],
-        higher_is_better: list[bool] = [],
+        value: float,
+        **kwargs,
     ) -> DriftSignal:
+        modelHarness = kwargs.get("modelHarness")
+        reference_validation_metrics = kwargs.get("reference_validation_metrics", [])
+        higher_is_better_list = kwargs.get("higher_is_better", [])
+
+        if modelHarness is None:
+            raise ValueError("modelHarness must be provided in kwargs")
+
         validation_metrics = (
             modelHarness.eval()
         )  # need to find away to explicitly match the metrics to reference values
@@ -41,11 +47,11 @@ class ModelEvalDetector(BaseDriftDetector):
         assert (
             len(reference_validation_metrics)
             == len(validation_metrics)
-            == len(higher_is_better)
+            == len(higher_is_better_list)
         )
 
-        for metric, ref_metric, higher_is_better in zip(
-            validation_metrics, reference_validation_metrics, higher_is_better
+        for metric, ref_metric, is_higher_better in zip(
+            validation_metrics, reference_validation_metrics, higher_is_better_list
         ):
             print(
                 "metric:",
@@ -53,9 +59,9 @@ class ModelEvalDetector(BaseDriftDetector):
                 "ref_metric:",
                 ref_metric,
                 "higher_is_better:",
-                higher_is_better,
+                is_higher_better,
             )
-            if higher_is_better:
+            if is_higher_better:
                 if metric < ref_metric:
                     return DriftSignal(
                         regime=LearningRegime.CONTINUAL_LEARNING,

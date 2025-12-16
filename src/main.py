@@ -6,7 +6,8 @@ from config.configuration import build_config, Config
 from examples.utils import get_example
 
 from training.continual_learning import continual_learning_loop
-from drift_detection.drift_detection_driver import drift_detection_driver
+
+# from drift_detection.drift_detection_driver import drift_detection_driver
 from drift_detection.load_drift_detector import load_drift_detector
 
 
@@ -32,7 +33,8 @@ def main(argv=None) -> int:
         detector = load_drift_detector(cfg)
 
         drift_signal = detector.update(
-            modelHarness,
+            value=0.0,  # dummy value for base class compatibility
+            modelHarness=modelHarness,
             reference_validation_metrics=[90, 1.0],
             higher_is_better=[True, False],
         )

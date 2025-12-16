@@ -31,7 +31,7 @@ class BaseModelHarness(ABC):
         device = torch.device(self.cfg.device)
         self.model.to(device)
 
-        self.eval_metrics: List[(MetricFn, bool)] = []  # metric, higher_is_better
+        self.eval_metrics: List[MetricFn] = []
 
     @abstractmethod
     def get_optmizer(self) -> Optimizer:
