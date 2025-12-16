@@ -34,7 +34,6 @@ class ModelEvalDetector(BaseDriftDetector):
         reference_validation_metrics: list[float] = [],
         higher_is_better: list[bool] = [],
     ) -> DriftSignal:
-
         validation_metrics = (
             modelHarness.eval()
         )  # need to find away to explicitly match the metrics to reference values
