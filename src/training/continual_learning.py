@@ -23,12 +23,6 @@ def continual_learning_loop(
     cur_train_loader, cur_test_loader = modelHarness.get_cur_data_loaders()
     hist_train_loader, hist_test_loader = modelHarness.get_hist_data_loaders()
 
-    print("cur_train_loader length", len(cur_train_loader))
-    print(
-        "hist_train_loader length",
-        len(hist_train_loader) if hist_train_loader is not None else 0,
-    )
-
     train_iter = iter(cur_train_loader)
     if hist_train_loader is not None:
         hist_train_iter = iter(hist_train_loader)
