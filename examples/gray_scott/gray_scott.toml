@@ -1,10 +1,10 @@
 # mnist.min.toml
 seed = 1337
-device = "cpu"
+device = "auto"
 multi_gpu = false
 
 [model]
-name = "dummy"  
+name = "gray_scott"  
 
 [data]
 name = "gray_scott"

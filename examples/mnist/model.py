@@ -17,6 +17,7 @@ from examples.mnist.utils import (
     make_loader,
     sample_aug,
 )
+from evaluation.metrics import accuracy
 
 
 class Cnn(nn.Module):
@@ -55,6 +56,9 @@ class MNIST_CNN(BaseModelHarness):
     def __init__(self, cfg: Config, model: nn.Module = Cnn()):
         super().__init__(cfg=cfg, model=model)
 
+        self.eval_metrics = [accuracy, self.get_criterion()]
+        self.higher_is_better = [True, False]
+
         # FULL datasets (no index split)
         self.ds_train = get_mnist_train("./data", normalize=True)
         self.ds_val = get_mnist_val("./data", normalize=True)
@@ -78,7 +82,10 @@ class MNIST_CNN(BaseModelHarness):
     def get_optmizer(self) -> Optimizer:
         return torch.optim.Adam(self.model.parameters(), lr=self.cfg.train.init_lr)
 
-    def get_cur_data_loaders(self) -> Tuple[DataLoader, DataLoader]:
+    def get_cur_data_loaders(self):
+        return self._cur_train_loader, self._cur_val_loader
+
+    def update_data_stream(self) -> None:
         self._dispose_current_loaders()
 
         # Deterministic per-iteration drift; “one affine for all samples”
@@ -100,7 +107,8 @@ class MNIST_CNN(BaseModelHarness):
         )
 
         self.task_counter += 1
-        return self._cur_train_loader, self._cur_val_loader
+
+        self.aug_history.append(self.cur_aug.copy())
 
     def get_hist_data_loaders(
         self,
@@ -110,19 +118,17 @@ class MNIST_CNN(BaseModelHarness):
         Else: return loaders over ConcatDataset of prior drifts, then append current drift to history.
         Effective dataset length = len(aug_history) * len(full_split).
         """
-        if len(self.aug_history) == 0:
-            if self.cur_aug:
-                self.aug_history.append(self.cur_aug.copy())
+        if self.task_counter == 1:
             return None, None
 
         # Concatenate FULL train/val views for each historical drift
         train_views = [
             TransformedView(self.ds_train, x_transform=FixedAffine(**aug))
-            for aug in self.aug_history
+            for aug in self.aug_history[:-1]
         ]
         val_views = [
             TransformedView(self.ds_val, x_transform=FixedAffine(**aug))
-            for aug in self.aug_history
+            for aug in self.aug_history[:-1]
         ]
 
         ds_hist_train: ConcatDataset[Any] = ConcatDataset(train_views)
@@ -138,9 +144,6 @@ class MNIST_CNN(BaseModelHarness):
         hist_val_loader = make_loader(
             ds_hist_val, bs, shuffle=False, num_workers=nw, pin_memory=pin
         )
-
-        if self.cur_aug:
-            self.aug_history.append(self.cur_aug.copy())
 
         return hist_train_loader, hist_val_loader
 

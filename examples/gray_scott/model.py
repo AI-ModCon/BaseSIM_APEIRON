@@ -92,7 +92,7 @@ class GSimgCNN(BaseModelHarness):
     def get_optmizer(self) -> Optimizer:
         return torch.optim.Adam(self.model.parameters(), lr=self.cfg.train.init_lr)
 
-    def get_cur_data_loaders(self) -> Tuple[DataLoader, DataLoader]:
+    def update_data_stream(self) -> None:
         self._dispose_current_loaders()
 
         # Deterministic per-iteration drift; “one affine for all samples”
@@ -114,6 +114,11 @@ class GSimgCNN(BaseModelHarness):
         )
 
         self.task_counter += 1
+
+        self.aug_history.append(self.cur_aug.copy())
+
+    def get_cur_data_loaders(self) -> Tuple[DataLoader, DataLoader]:
+
         return self._cur_train_loader, self._cur_val_loader
 
     def get_hist_data_loaders(
@@ -124,19 +129,17 @@ class GSimgCNN(BaseModelHarness):
         Else: return loaders over ConcatDataset of prior drifts, then append current drift to history.
         Effective dataset length = len(aug_history) * len(full_split).
         """
-        if len(self.aug_history) == 0:
-            if self.cur_aug:
-                self.aug_history.append(self.cur_aug.copy())
+        if self.task_counter == 1:
             return None, None
 
         # Concatenate FULL train/val views for each historical drift
         train_views = [
             TransformedView(self.ds_train, x_transform=FixedAffine(**aug))
-            for aug in self.aug_history
+            for aug in self.aug_history[:-1]
         ]
         val_views = [
             TransformedView(self.ds_val, x_transform=FixedAffine(**aug))
-            for aug in self.aug_history
+            for aug in self.aug_history[:-1]
         ]
 
         ds_hist_train: ConcatDataset[Any] = ConcatDataset(train_views)
@@ -152,9 +155,6 @@ class GSimgCNN(BaseModelHarness):
         hist_val_loader = make_loader(
             ds_hist_val, bs, shuffle=False, num_workers=nw, pin_memory=pin
         )
-
-        if self.cur_aug:
-            self.aug_history.append(self.cur_aug.copy())
 
         return hist_train_loader, hist_val_loader
 

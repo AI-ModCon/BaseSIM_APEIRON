@@ -86,12 +86,12 @@ class BaseDriftDetector(ABC):
         Returns:
             DriftSignal indicating whether drift occurred and recommended regime
         """
-        pass
+        raise NotImplementedError(f"Method not implemented for {self.name}")
 
     @abstractmethod
     def reset(self) -> None:
         """Reset detector to initial state."""
-        pass
+        raise NotImplementedError(f"Method not implemented for {self.name}")
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(name='{self.name}')"

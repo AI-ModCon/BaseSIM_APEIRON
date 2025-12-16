@@ -18,6 +18,74 @@ from drift_detection.detectors.base import (
     LearningRegime,
 )
 
+from model.torch_model_harness import BaseModelHarness
+
+
+class ModelEvalDetector(BaseDriftDetector):
+    def __init__(
+        self,
+        name: str = "ModelEval",
+    ):
+        super().__init__(name=name)
+
+    def update(
+        self,
+        modelHarness: BaseModelHarness,
+        reference_validation_metrics: list[float] = [],
+        higher_is_better: list[bool] = [],
+    ) -> DriftSignal:
+
+        validation_metrics = (
+            modelHarness.eval()
+        )  # need to find away to explicitly match the metrics to reference values
+
+        assert (
+            len(reference_validation_metrics)
+            == len(validation_metrics)
+            == len(higher_is_better)
+        )
+
+        for metric, ref_metric, higher_is_better in zip(
+            validation_metrics, reference_validation_metrics, higher_is_better
+        ):
+            print(
+                "metric:",
+                metric,
+                "ref_metric:",
+                ref_metric,
+                "higher_is_better:",
+                higher_is_better,
+            )
+            if higher_is_better:
+                if metric < ref_metric:
+                    return DriftSignal(
+                        regime=LearningRegime.CONTINUAL_LEARNING,
+                        drift_detected=True,
+                        drift_score=1,  # dummy
+                        confidence=0.95,  # dummy
+                        metadata=None,
+                    )
+            else:
+                if metric > ref_metric:
+                    return DriftSignal(
+                        regime=LearningRegime.CONTINUAL_LEARNING,
+                        drift_detected=True,
+                        drift_score=1,  # dummy
+                        confidence=0.95,  # dummy
+                        metadata=None,
+                    )
+
+        return DriftSignal(
+            regime=LearningRegime.STABLE,
+            drift_detected=False,
+            drift_score=1,  # dummy
+            confidence=0.95,  # dummy
+            metadata=None,
+        )
+
+    def reset(self):
+        pass
+
 
 class ModelPerformanceDetector(BaseDriftDetector):
     """

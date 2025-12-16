@@ -8,6 +8,7 @@ from examples.utils import get_example
 
 from training.continual_learning import continual_learning_loop
 from drift_detection.drift_detection_driver import drift_detection_driver
+from drift_detection.load_drift_detector import load_drift_detector
 
 
 def main(argv=None) -> int:
@@ -24,22 +25,35 @@ def main(argv=None) -> int:
     global_step = 0
     progress_bar = tqdm(range(20), desc="CL Tasks", leave=True)
     for i in progress_bar:
-        drift_signal = drift_detection_driver(
-            cfg, modelHarness, logger, global_step=global_step
-        )
-        print("Drift Detected:", drift_signal.drift_detected)
+        # Create an artificial data_drift
+        modelHarness.update_data_stream()
+
+        if i > 0:
+            # drift_signal = drift_detection_driver(
+            #     cfg, modelHarness, logger, global_step=global_step
+            # )
+            detector = load_drift_detector(cfg)
+
+            drift_signal = detector.update(
+                modelHarness,
+                reference_validation_metrics=[90, 1.0],
+                higher_is_better=[True, False],
+            )
+
+            print(drift_signal)
+            print("Drift Detected:", drift_signal.drift_detected)
+        else:
+            drift_signal = None
 
         # Self-improvement actuation.
-        # NOTE: To test visualization, hardcodes
-        # 2 rounds of basic and
-        # 3 rounds of jvp_reg
-        if drift_signal.drift_detected or i < 5:
+
+        if i == 0 or drift_signal.drift_detected:
             continual_learning_loop(
                 cfg=cfg,
                 modelHarness=modelHarness,
                 logger=logger,
                 global_step=global_step,
-                basic_only=(i < 2 and not drift_signal.drift_detected),
+                basic_only=False,
             )
 
         # Update steps are tracked and require advancing global step.
