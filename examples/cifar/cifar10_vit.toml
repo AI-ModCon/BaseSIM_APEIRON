@@ -27,5 +27,5 @@ detection_steps = 10
 
 [visualization]
 baseline = 90.0
-input = "output/mnist.csv"
-output = "output/mnist_dashboard.png"
+input = "output/cifar10_vit.csv"
+output = "output/cifar10_vit_dashboard.png"
