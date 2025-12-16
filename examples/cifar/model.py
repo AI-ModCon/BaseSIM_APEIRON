@@ -17,6 +17,7 @@ from examples.cifar.src.utils import (
     sample_aug,
 )
 from examples.cifar.src.utils import load_model
+from evaluation.metrics import accuracy
 
 
 class VisionModelCifar(nn.Module):
@@ -38,15 +39,43 @@ class VisionModelCifar(nn.Module):
 
         if cfg.data.name == "cifar10":
             num_classes = 10
+            pretrained_path = "./examples/cifar/cifar10.pth"
+
         elif cfg.data.name == "cifar100":
             num_classes = 100
+            pretrained_path = "./examples/cifar/pretrained_cifar100.pth"
         else:
             raise NotImplementedError
 
         self.model = load_model(model_name=cfg.model.name, num_classes=num_classes)
+
         print(
             f"Number of trainable parameters: {sum(p.numel() for p in self.model.parameters() if p.requires_grad)}"
         )
+
+        # Load pretrained weights if available
+        try:
+            state_dict = torch.load(
+                pretrained_path, map_location=cfg.device, weights_only=False
+            )
+
+            # Remove '_orig_mod.' prefix if present (from torch.compile)
+            new_state_dict = {}
+            for key, value in state_dict.items():
+                if key.startswith("_orig_mod."):
+                    new_key = key.replace("_orig_mod.", "")
+                    new_state_dict[new_key] = value
+                else:
+                    new_state_dict[key] = value
+
+            self.model.load_state_dict(new_state_dict)
+            print(f"Loaded pretrained model from {pretrained_path}")
+        except FileNotFoundError:
+            print(
+                f"Warning: Pretrained model not found at {pretrained_path}, using randomly initialized weights"
+            )
+        except Exception as e:
+            print(f"Warning: Failed to load pretrained model: {e}")
 
     def forward(self, x: Tensor) -> Tensor:
         """
@@ -92,6 +121,9 @@ class CIFAR_VISION(BaseModelHarness):
         self._cur_train_loader: Optional[DataLoader] = None
         self._cur_val_loader: Optional[DataLoader] = None
 
+        self.eval_metrics = [accuracy, self.get_criterion()]
+        self.higher_is_better = [True, False]
+
     def _dispose_current_loaders(self):
         if self._cur_train_loader is not None:
             del self._cur_train_loader
@@ -104,7 +136,10 @@ class CIFAR_VISION(BaseModelHarness):
     def get_optmizer(self) -> Optimizer:
         return torch.optim.Adam(self.model.parameters(), lr=self.cfg.train.init_lr)
 
-    def get_cur_data_loaders(self) -> Tuple[DataLoader, DataLoader]:
+    def get_cur_data_loaders(self):
+        return self._cur_train_loader, self._cur_val_loader
+
+    def update_data_stream(self) -> None:
         self._dispose_current_loaders()
 
         # Deterministic per-iteration drift; “one affine for all samples”
@@ -126,7 +161,8 @@ class CIFAR_VISION(BaseModelHarness):
         )
 
         self.task_counter += 1
-        return self._cur_train_loader, self._cur_val_loader
+
+        self.aug_history.append(self.cur_aug.copy())
 
     def get_hist_data_loaders(
         self,
@@ -136,23 +172,21 @@ class CIFAR_VISION(BaseModelHarness):
         Else: return loaders over ConcatDataset of prior drifts, then append current drift to history.
         Effective dataset length = len(aug_history) * len(full_split).
         """
-        if len(self.aug_history) == 0:
-            if self.cur_aug:
-                self.aug_history.append(self.cur_aug.copy())
+        if self.task_counter == 1:
             return None, None
 
         # Concatenate FULL train/val views for each historical drift
         train_views = [
             TransformedView(self.ds_train, x_transform=FixedAffine(**aug))
-            for aug in self.aug_history
+            for aug in self.aug_history[:-1]
         ]
         val_views = [
             TransformedView(self.ds_val, x_transform=FixedAffine(**aug))
-            for aug in self.aug_history
+            for aug in self.aug_history[:-1]
         ]
 
-        ds_hist_train: ConcatDataset = ConcatDataset(train_views)
-        ds_hist_val: ConcatDataset = ConcatDataset(val_views)
+        ds_hist_train: ConcatDataset[Any] = ConcatDataset(train_views)
+        ds_hist_val: ConcatDataset[Any] = ConcatDataset(val_views)
 
         bs = self.cfg.train.batch_size
         nw = getattr(self.cfg.data, "num_workers", 4)
@@ -164,9 +198,6 @@ class CIFAR_VISION(BaseModelHarness):
         hist_val_loader = make_loader(
             ds_hist_val, bs, shuffle=False, num_workers=nw, pin_memory=pin
         )
-
-        if self.cur_aug:
-            self.aug_history.append(self.cur_aug.copy())
 
         return hist_train_loader, hist_val_loader
 

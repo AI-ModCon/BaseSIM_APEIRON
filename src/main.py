@@ -1,5 +1,4 @@
 import sys
-from tqdm import tqdm
 
 from logger import get_logger
 from config.configuration import build_config, Config
@@ -23,31 +22,28 @@ def main(argv=None) -> int:
     # Global step tracked over self-improvement loop.
     #   Managing global step can be implemented into logger in future PR.
     global_step = 0
-    progress_bar = tqdm(range(20), desc="CL Tasks", leave=True)
-    for i in progress_bar:
+    for i in range(20):
         # Create an artificial data_drift
         modelHarness.update_data_stream()
 
-        if i > 0:
-            # drift_signal = drift_detection_driver(
-            #     cfg, modelHarness, logger, global_step=global_step
-            # )
-            detector = load_drift_detector(cfg)
+        # drift_signal = drift_detection_driver(
+        #     cfg, modelHarness, logger, global_step=global_step
+        # )
+        detector = load_drift_detector(cfg)
 
-            drift_signal = detector.update(
-                modelHarness,
-                reference_validation_metrics=[90, 1.0],
-                higher_is_better=[True, False],
-            )
+        drift_signal = detector.update(
+            modelHarness,
+            reference_validation_metrics=[90, 1.0],
+            higher_is_better=[True, False],
+        )
 
-            print(drift_signal)
-            print("Drift Detected:", drift_signal.drift_detected)
-        else:
-            drift_signal = None
+        print(drift_signal)
+        print("Drift Detected:", drift_signal.drift_detected)
+        print("------------------")
 
         # Self-improvement actuation.
 
-        if i == 0 or drift_signal.drift_detected:
+        if drift_signal.drift_detected:
             continual_learning_loop(
                 cfg=cfg,
                 modelHarness=modelHarness,

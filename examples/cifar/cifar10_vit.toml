@@ -12,14 +12,14 @@ name = "cifar10"
 path = ""  # folder or file later for custom dataset
 
 [train]
-batch_size = 64
+batch_size = 32
 num_workers = 4
-init_lr = 0.001
+init_lr = 0.0001
 
 [continuous_learning]
 jvp_reg = 0.001
 deltax_norm = 1
-max_iter = 300
+max_iter = 100
 
 [drift_detection]
 detector_name = "EvalDetector"

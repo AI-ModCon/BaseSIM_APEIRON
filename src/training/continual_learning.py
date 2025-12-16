@@ -6,6 +6,7 @@ from training.updaters.basic import step_method_baseline
 from training.updaters.jvp_reg import step_method_jvp_reg, JVPRegularizedLoss
 
 from profilers import FLOPSProfiler
+from tqdm import tqdm
 
 
 def continual_learning_loop(
@@ -18,9 +19,14 @@ def continual_learning_loop(
     # 1) select the right cl update method #TODO
 
     # 2) Get loaders
-    #  cur data loadershas to be called before hist data loaders
     cur_train_loader, cur_test_loader = modelHarness.get_cur_data_loaders()
     hist_train_loader, hist_test_loader = modelHarness.get_hist_data_loaders()
+
+    print("cur_train_loader length", len(cur_train_loader))
+    print(
+        "hist_train_loader length",
+        len(hist_train_loader) if hist_train_loader is not None else 0,
+    )
 
     train_iter = iter(cur_train_loader)
     if hist_train_loader is not None:
@@ -71,8 +77,19 @@ def continual_learning_loop(
 
     flops_profiler = FLOPSProfiler()
 
+    validation_metrics = (
+        modelHarness.eval()
+    )  # TODO: need to find away to explicitly match the metrics to their name/label
+
+    print("Initial test acc:", validation_metrics[0])
+    print("-------------")
+
     # 2) run the outer loop
-    for iter_count in range(cfg.continuous_learning.max_iter):
+    progress_bar = tqdm(
+        range(cfg.continuous_learning.max_iter), desc="Continuous Learning", leave=True
+    )
+
+    for iter_count in progress_bar:
         # Fetch valid batches from both streams
         train_iter, train_batch = _safe_next(
             train_iter, cur_train_loader, min_batch=batch_size
@@ -134,7 +151,7 @@ def continual_learning_loop(
     else:
         mem_test_acc, _ = test(model, hist_test_loader, criterion, cfg=cfg)
 
-    test_acc, _ = test(model, cur_test_loader, criterion, cfg=cfg)
+    test_acc = modelHarness.eval()[0]
 
     print(
         "Task Summary:",
