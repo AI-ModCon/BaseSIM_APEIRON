@@ -11,7 +11,7 @@ name = "mnist"
 path = ""  # folder or file later for custom dataset
 
 [train]
-batch_size = 32
+batch_size = 64
 num_workers = 4
 init_lr = 0.001
 

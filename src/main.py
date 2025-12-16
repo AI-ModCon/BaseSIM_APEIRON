@@ -58,6 +58,8 @@ def main(argv=None) -> int:
         #  global step still proceeds as if model updates.
         global_step += cfg.continuous_learning.max_iter
 
+        # TODO: Save a model checkpoint
+
     print("\nLogged Metrics:\n", logger.to_dataframe())
 
     logger.finish()

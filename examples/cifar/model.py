@@ -38,19 +38,23 @@ class VisionModelCifar(nn.Module):
 
         if cfg.data.name == "cifar10":
             num_classes = 10
-            pretrained_path = "./examples/cifar/cifar10.pth"
-
+            pretrained_path = (
+                "./examples/cifar/cifar10_vit.pth"
+                if self.is_vit
+                else "./examples/cifar/cifar10_vgg11.pth"
+            )
         elif cfg.data.name == "cifar100":
             num_classes = 100
-            pretrained_path = "./examples/cifar/pretrained_cifar100.pth"
+            pretrained_path = (
+                "./examples/cifar/cifar100_vit.pth"
+                if self.is_vit
+                else "./examples/cifar/cifar100_vgg11.pth"
+            )
         else:
             raise NotImplementedError
 
+        # ----- load model -----
         self.model = load_model(model_name=cfg.model.name, num_classes=num_classes)
-
-        print(
-            f"Number of trainable parameters: {sum(p.numel() for p in self.model.parameters() if p.requires_grad)}"
-        )
 
         # Load pretrained weights if available
         try:
@@ -75,6 +79,7 @@ class VisionModelCifar(nn.Module):
             )
         except Exception as e:
             print(f"Warning: Failed to load pretrained model: {e}")
+        # ------------------
 
     def forward(self, x: Tensor) -> Tensor:
         """

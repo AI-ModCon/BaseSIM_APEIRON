@@ -59,6 +59,26 @@ class MNIST_CNN(BaseModelHarness):
         self.eval_metrics = [accuracy, self.get_criterion()]
         self.higher_is_better = [True, False]
 
+        # Load pretrained weights if available
+        pretrained_path = "./examples/mnist/mnist.pth"
+        try:
+            state_dict = torch.load(
+                pretrained_path, map_location=cfg.device, weights_only=False
+            )
+
+            new_state_dict = {}
+            for key, value in state_dict.items():
+                new_state_dict[key] = value
+
+            self.model.load_state_dict(new_state_dict)
+            print(f"Loaded pretrained MNIST model from {pretrained_path}")
+        except FileNotFoundError:
+            print(
+                f"Warning: Pretrained model not found at {pretrained_path}, using randomly initialized weights"
+            )
+        except Exception as e:
+            print(f"Warning: Failed to load pretrained MNIST model: {e}")
+
         # FULL datasets (no index split)
         self.ds_train = get_mnist_train("./data", normalize=True)
         self.ds_val = get_mnist_val("./data", normalize=True)
