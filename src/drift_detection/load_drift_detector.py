@@ -18,17 +18,30 @@ def load_drift_detector(cfg: Config) -> BaseDriftDetector:
     if detector_name == "ADWINDetector":
         from drift_detection.detectors.statistical_detectors import ADWINDetector
 
-        detector_instance = ADWINDetector()
+        detector_instance = ADWINDetector(
+            delta=cfg.drift_detection.adwin_delta,
+            minor_threshold=cfg.drift_detection.adwin_minor_threshold,
+            moderate_threshold=cfg.drift_detection.adwin_moderate_threshold,
+        )
     elif detector_name == "KSWINDetector":
         from drift_detection.detectors.statistical_detectors import KSWINDetector
 
-        detector_instance = KSWINDetector()
+        detector_instance = KSWINDetector(
+            alpha=cfg.drift_detection.kswin_alpha,
+            window_size=cfg.drift_detection.kswin_window_size,
+            stat_size=cfg.drift_detection.kswin_stat_size,
+        )
     elif detector_name == "PageHinkleyDetector":
         from drift_detection.detectors.statistical_detectors import (
             PageHinkleyDetector,
         )
 
-        detector_instance = PageHinkleyDetector()
+        detector_instance = PageHinkleyDetector(
+            min_instances=cfg.drift_detection.ph_min_instances,
+            delta=cfg.drift_detection.ph_delta,
+            threshold=cfg.drift_detection.ph_threshold,
+            alpha=cfg.drift_detection.ph_alpha,
+        )
     elif detector_name == "ModelPerformanceDetector":
         from drift_detection.detectors.model_performance_detector import (
             ModelPerformanceDetector,
