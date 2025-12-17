@@ -16,8 +16,9 @@ import numpy as np
 
 from config.configuration import Config
 from drift_detection.load_drift_detector import load_drift_detector
-from drift_detection.detectors.base import DriftSignal
+from drift_detection.detectors.base import DriftSignal, LearningRegime
 from training.continual_learning import continual_learning_loop
+from profilers import FLOPSProfiler
 
 if TYPE_CHECKING:
     from model.torch_model_harness import BaseModelHarness
@@ -62,6 +63,9 @@ class ContinuousMonitor:
 
         # Create persistent detector instance
         self.detector = load_drift_detector(cfg)
+
+        # Create performance profiler
+        self.flops_profiler = FLOPSProfiler()
 
         # Configuration
         self.metric_idx = cfg.drift_detection.metric_index
@@ -163,18 +167,35 @@ class ContinuousMonitor:
         """
         self.modelHarness.model.eval()
 
-        with torch.no_grad():
-            x, y = self.modelHarness._unpack(batch)
-            x, y = x.to(self.cfg.device), y.to(self.cfg.device)
+        if self.batch_count > self.flops_profiler.warmup_iters:
+            # Profile inference after warmup
+            with self.flops_profiler.measure_flops(tag="infer"):
+                with torch.no_grad():
+                    x, y = self.modelHarness._unpack(batch)
+                    x, y = x.to(self.cfg.device), y.to(self.cfg.device)
 
-            # Forward pass
-            y_hat = self.modelHarness.model(x)
+                    # Forward pass
+                    y_hat = self.modelHarness.model(x)
 
-            # Compute all metrics
-            metrics = []
-            for metric_fn in self.modelHarness.eval_metrics:
-                value = self.modelHarness._to_scalar(metric_fn(y_hat, y))
-                metrics.append(value)
+                    # Compute all metrics
+                    metrics = []
+                    for metric_fn in self.modelHarness.eval_metrics:
+                        value = self.modelHarness._to_scalar(metric_fn(y_hat, y))
+                        metrics.append(value)
+        else:
+            # Skip profiling during warmup
+            with torch.no_grad():
+                x, y = self.modelHarness._unpack(batch)
+                x, y = x.to(self.cfg.device), y.to(self.cfg.device)
+
+                # Forward pass
+                y_hat = self.modelHarness.model(x)
+
+                # Compute all metrics
+                metrics = []
+                for metric_fn in self.modelHarness.eval_metrics:
+                    value = self.modelHarness._to_scalar(metric_fn(y_hat, y))
+                    metrics.append(value)
 
         return metrics
 
@@ -190,17 +211,9 @@ class ContinuousMonitor:
         """
         if not self.metric_buffer:
             # Edge case: no metrics buffered
-            print("Warning: Empty metric buffer, skipping drift check")
-            return DriftSignal(
-                regime=(
-                    self.detector._get_regime(0.0)
-                    if hasattr(self.detector, "_get_regime")
-                    else None
-                ),
-                drift_detected=False,
-                drift_score=0.0,
-                confidence=None,
-            )
+            raise RuntimeError(
+                "Model Harness requires evaluation metrics"
+            )  # Todo: This should be checked in model harness
 
         # Extract the monitored metric from all buffered metrics
         metric_values = [m[self.metric_idx] for m in self.metric_buffer]
@@ -220,7 +233,13 @@ class ContinuousMonitor:
         self.metric_buffer = []
 
         # Update detector with aggregated metric
-        drift_signal = self.detector.update(agg_metric)
+        # NOTE: Profiler only covers Pytorch operations
+        # Even so, we measure runtime to see if it's a potential bottleneck
+        if self.batch_count > self.flops_profiler.warmup_iters:
+            with self.flops_profiler.measure_flops(tag="detector"):
+                drift_signal = self.detector.update(agg_metric)
+        else:
+            drift_signal = self.detector.update(agg_metric)
 
         # Log drift metrics
         self._log_metrics(drift_signal, agg_metric)
@@ -242,7 +261,13 @@ class ContinuousMonitor:
             f"Confidence: {drift_signal.confidence if drift_signal.confidence else 'N/A'}"
         )
         print(f"Global Step: {self.global_step}")
-        print("\nDispatching continual learning module...")
+
+        # Print profiler performance summary
+        print("\nPerformance Summary:")
+        self.flops_profiler.print_performance()
+        print()
+
+        print("Dispatching continual learning module...")
 
         # PAUSE monitoring, dispatch learning module
         continual_learning_loop(
@@ -336,6 +361,14 @@ class ContinuousMonitor:
         # Log the monitored metric value
         self.logger.log(
             {f"drift/metric_{self.metric_idx}": metric_value},
+            step=self.global_step,
+            commit=False,
+        )
+
+        # Log profiler performance metrics
+        flops_perf = self.flops_profiler.get_performance()
+        self.logger.log(
+            {f"drift/cperf/{k}": v for k, v in flops_perf.items()},
             step=self.global_step,
             commit=False,
         )
