@@ -16,7 +16,7 @@ import numpy as np
 
 from config.configuration import Config
 from drift_detection.load_drift_detector import load_drift_detector
-from drift_detection.detectors.base import DriftSignal, LearningRegime
+from drift_detection.detectors.base import DriftSignal
 from training.continual_learning import continual_learning_loop
 from profilers import FLOPSProfiler
 
