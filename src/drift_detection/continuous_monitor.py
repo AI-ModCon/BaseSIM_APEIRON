@@ -77,7 +77,7 @@ class ContinuousMonitor:
         # Metrics accumulation
         self.metric_buffer: list[list[float]] = []
 
-        print(f"ContinuousMonitor initialized:")
+        print("ContinuousMonitor initialized:")
         print(f"  Detector: {cfg.drift_detection.detector_name}")
         print(f"  Monitoring metric index: {self.metric_idx}")
         print(f"  Detection interval: {self.detection_interval} batches")
@@ -242,7 +242,7 @@ class ContinuousMonitor:
             f"Confidence: {drift_signal.confidence if drift_signal.confidence else 'N/A'}"
         )
         print(f"Global Step: {self.global_step}")
-        print(f"\nDispatching continual learning module...")
+        print("\nDispatching continual learning module...")
 
         # PAUSE monitoring, dispatch learning module
         continual_learning_loop(
@@ -277,7 +277,7 @@ class ContinuousMonitor:
         self.stream_update_count += 1
 
         print(f"\n{'-' * 60}")
-        print(f"Stream exhausted. Loading next data buffer...")
+        print("Stream exhausted. Loading next data buffer...")
         print(
             f"Stream update count: {self.stream_update_count}/{self.max_stream_updates}"
         )
