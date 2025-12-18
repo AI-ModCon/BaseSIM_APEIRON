@@ -24,7 +24,7 @@ max_iter = 600
 detector_name = "ADWINDetector"
 detection_interval = 10  # Check drift every 10 batches
 aggregation = "mean"  # Average metric over 10 batches
-metric_index = 1  # Monitor loss (0=accuracy, 1=loss)
+metric_index = 0  # Monitor loss (0=accuracy, 1=loss)
 reset_after_learning = false
 max_stream_updates = 20
 

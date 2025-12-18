@@ -75,8 +75,10 @@ class ContinuousMonitor:
 
         # State tracking
         self.global_step = 0
+        self.global_monitoring_step = 0
         self.stream_update_count = 0
         self.batch_count = 0
+        self.drift_event_count = 0
 
         # Metrics accumulation
         self.metric_buffer: list[list[float]] = []
@@ -140,19 +142,20 @@ class ContinuousMonitor:
 
                 if drift_signal.drift_detected:
                     print(f"\n{'!' * 60}")
-                    print("DRIFT DETECTED")
+                    print(f"DRIFT DETECTED (Event #{self.drift_event_count + 1})")
                     print(f"{'!' * 60}\n")
                     self._handle_drift(drift_signal)
+                self.global_monitoring_step += 1
 
-        # Stream exhausted - check drift one last time if we have buffered metrics
-        # This ensures we don't miss drift when stream has fewer than detection_interval batches
-        if self.metric_buffer:
-            drift_signal = self._check_drift()
-            if drift_signal.drift_detected:
-                print(f"\n{'!' * 60}")
-                print("DRIFT DETECTED")
-                print(f"{'!' * 60}\n")
-                self._handle_drift(drift_signal)
+        # # Stream exhausted - check drift one last time if we have buffered metrics
+        # # This ensures we don't miss drift when stream has fewer than detection_interval batches
+        # if self.metric_buffer:
+        #     drift_signal = self._check_drift()
+        #     if drift_signal.drift_detected:
+        #         print(f"\n{'!' * 60}")
+        #         print("DRIFT DETECTED")
+        #         print(f"{'!' * 60}\n")
+        #         self._handle_drift(drift_signal)
 
         raise StopIteration()
 
@@ -255,6 +258,7 @@ class ContinuousMonitor:
         Args:
             drift_signal: The drift signal from the detector
         """
+        self.drift_event_count += 1
         print(f"Drift Score: {drift_signal.drift_score:.4f}")
         print(f"Regime: {drift_signal.regime.value if drift_signal.regime else 'N/A'}")
         print(
@@ -276,10 +280,11 @@ class ContinuousMonitor:
             logger=self.logger,
             global_step=self.global_step,
             basic_only=False,
+            drift_event_id=self.drift_event_count,
         )
 
         # Update global step (add 1 extra to avoid step conflicts with CL loop's final log)
-        self.global_step += self.cfg.continuous_learning.max_iter + 1
+        self.global_step += self.cfg.continuous_learning.max_iter
 
         print(f"Continual learning complete. New global step: {self.global_step}")
 
@@ -311,13 +316,6 @@ class ContinuousMonitor:
         # Load next data buffer
         self.modelHarness.update_data_stream()
 
-        # Log stream update at current global_step (will be committed with next drift check)
-        self.logger.log(
-            {"monitor/stream_update": self.stream_update_count},
-            step=self.global_step,
-            commit=False,
-        )
-
     def _should_stop(self) -> bool:
         """Check if monitoring should stop.
 
@@ -333,49 +331,22 @@ class ContinuousMonitor:
             drift_signal: The drift signal from the detector
             metric_value: The aggregated metric value
         """
-        self.logger.log(
-            {"drift/detected": drift_signal.drift_detected},
-            step=self.global_step,
-            commit=False,
-        )
-        self.logger.log(
-            {"drift/score": drift_signal.drift_score},
-            step=self.global_step,
-            commit=False,
-        )
-
-        if drift_signal.regime:
-            self.logger.log(
-                {"drift/regime": drift_signal.regime.value},
-                step=self.global_step,
-                commit=False,
-            )
-
-        if drift_signal.confidence is not None:
-            self.logger.log(
-                {"drift/confidence": drift_signal.confidence},
-                step=self.global_step,
-                commit=False,
-            )
-
-        # Log the monitored metric value
-        self.logger.log(
-            {f"drift/metric_{self.metric_idx}": metric_value},
-            step=self.global_step,
-            commit=False,
-        )
-
-        # Log profiler performance metrics
         flops_perf = self.flops_profiler.get_performance()
-        self.logger.log(
-            {f"drift/cperf/{k}": v for k, v in flops_perf.items()},
-            step=self.global_step,
-            commit=False,
-        )
 
-        # Log batch count
+        # Log all drift metrics including performance in a single call
         self.logger.log(
-            {"monitor/batch_count": self.batch_count},
-            step=self.global_step,
-            commit=True,  # Commit all pending logs
+            {
+                "drift/step": self.global_monitoring_step,
+                "drift/detected": drift_signal.drift_detected,
+                "drift/score": drift_signal.drift_score,
+                "drift/regime": (
+                    drift_signal.regime.value if drift_signal.regime else "N/A"
+                ),
+                "drift/confidence": (
+                    drift_signal.confidence if drift_signal.confidence else "N/A"
+                ),
+                f"drift/metric_{self.metric_idx}": metric_value,
+                **{f"drift/cperf/{k}": v for k, v in flops_perf.items()},
+            },
+            step=self.global_monitoring_step,
         )
