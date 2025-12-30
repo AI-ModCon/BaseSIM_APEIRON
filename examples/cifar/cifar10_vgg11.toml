@@ -6,6 +6,7 @@ multi_gpu = false
 
 [model]
 name = "vgg11"  
+pretrained_path = "examples/cifar/cifar10_vgg11.pth"
 
 [data]
 name = "cifar10"

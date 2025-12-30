@@ -7,6 +7,7 @@ def accuracy_topk(output, target, topk=(1,)):
     maxk = max(topk)
     batch_size = target.size(0)
 
+    # maxk, dim, look_for_largest, results_sorted
     _, pred = output.topk(maxk, 1, True, True)
     pred = pred.t()
     correct = pred.eq(target.view(1, -1).expand_as(pred))

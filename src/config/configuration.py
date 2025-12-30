@@ -90,6 +90,7 @@ def get_available_device(multi_gpu: bool = False) -> torch.device:
 @dataclass(frozen=True)
 class ModelCfg:
     name: str
+    pretrained_path: str
     # ckpt: str | None = None # perhaps later support checkpointing files
 
 
