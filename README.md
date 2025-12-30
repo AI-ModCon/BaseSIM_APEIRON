@@ -1,4 +1,4 @@
-# Continual Learning on MNIST
+# SIM: Self Improving Model framework
 
 This project trains a convolutional neural network on a sequence of continually changing MNIST tasks. Each task is built by sampling one digit, applying random affine transformations, and training while replaying everything seen so far.
 

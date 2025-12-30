@@ -19,6 +19,77 @@ from drift_detection.detectors.base import (
 )
 
 
+class ModelEvalDetector(BaseDriftDetector):
+    def __init__(
+        self,
+        name: str = "ModelEval",
+    ):
+        super().__init__(name=name)
+
+    def update(
+        self,
+        value: float,
+        **kwargs,
+    ) -> DriftSignal:
+        modelHarness = kwargs.get("modelHarness")
+        reference_validation_metrics = kwargs.get("reference_validation_metrics", [])
+        higher_is_better_list = kwargs.get("higher_is_better", [])
+
+        if modelHarness is None:
+            raise ValueError("modelHarness must be provided in kwargs")
+
+        validation_metrics = (
+            modelHarness.eval()
+        )  # need to find away to explicitly match the metrics to reference values
+
+        assert (
+            len(reference_validation_metrics)
+            == len(validation_metrics)
+            == len(higher_is_better_list)
+        )
+
+        for metric, ref_metric, is_higher_better in zip(
+            validation_metrics, reference_validation_metrics, higher_is_better_list
+        ):
+            print(
+                "metric:",
+                metric,
+                "ref_metric:",
+                ref_metric,
+                "higher_is_better:",
+                is_higher_better,
+            )
+            if is_higher_better:
+                if metric < ref_metric:
+                    return DriftSignal(
+                        regime=LearningRegime.CONTINUAL_LEARNING,
+                        drift_detected=True,
+                        drift_score=1,  # dummy
+                        confidence=0.95,  # dummy
+                        metadata=None,
+                    )
+            else:
+                if metric > ref_metric:
+                    return DriftSignal(
+                        regime=LearningRegime.CONTINUAL_LEARNING,
+                        drift_detected=True,
+                        drift_score=1,  # dummy
+                        confidence=0.95,  # dummy
+                        metadata=None,
+                    )
+
+        return DriftSignal(
+            regime=LearningRegime.STABLE,
+            drift_detected=False,
+            drift_score=1,  # dummy
+            confidence=0.95,  # dummy
+            metadata=None,
+        )
+
+    def reset(self):
+        pass
+
+
 class ModelPerformanceDetector(BaseDriftDetector):
     """
     Drift detector based on model predictions and performance.

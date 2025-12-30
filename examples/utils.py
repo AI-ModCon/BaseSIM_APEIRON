@@ -11,4 +11,6 @@ def get_example(cfg: Config) -> BaseModelHarness:
     elif cfg.data.name == "cifar10":
         return CIFAR_VISION(cfg=cfg)
     else:
-        raise NotImplementedError
+        raise NotImplementedError(
+            f"Example for dataset {cfg.data.name} is not implemented."
+        )

@@ -47,6 +47,13 @@ def load_drift_detector(cfg: Config) -> BaseDriftDetector:
         # )
 
         # detector_instance = EnsembleDetector()
+
+    elif detector_name == "EvalDetector":
+        from drift_detection.detectors.model_performance_detector import (
+            ModelEvalDetector,
+        )
+
+        detector_instance = ModelEvalDetector()
     else:
         raise ValueError(f"Unknown drift detector: {detector_name}")
 

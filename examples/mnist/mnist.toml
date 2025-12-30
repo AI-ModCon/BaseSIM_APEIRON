@@ -1,10 +1,11 @@
-# mnist.min.toml
+# mnist.toml
 seed = 1337
 device = "auto"
 multi_gpu = false
 
 [model]
 name = "dummy"  
+pretrained_path = "examples/mnist/mnist.pth"
 
 [data]
 name = "mnist"
@@ -18,10 +19,10 @@ init_lr = 0.001
 [continuous_learning]
 jvp_reg = 0.001
 deltax_norm = 1
-max_iter = 300
+max_iter = 600
 
 [drift_detection]
-detector_name = "ADWINDetector"
+detector_name = "EvalDetector"
 detection_steps = 10
 
 [visualization]

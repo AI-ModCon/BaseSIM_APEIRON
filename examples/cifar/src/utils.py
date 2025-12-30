@@ -117,8 +117,9 @@ def sample_aug(seed: int) -> Dict[str, Any]:
     """
     g = torch.Generator()
     g.manual_seed(seed)
-    angle = float(torch.rand(1, generator=g).item() * 180.0)
-    scale = float(1.0 + torch.rand(1, generator=g).item())
+    angle = float(torch.rand(1, generator=g).item() * 180.0) / 10
+    scale = float(1.0 + torch.rand(1, generator=g).item() / 10)
+    print("Mutating the picture using an angle of", angle, "and a scale of", scale)
     shear = angle
     translate = (int(scale), int(scale))
     return dict(angle=angle, scale=scale, translate=translate, shear=shear)

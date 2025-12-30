@@ -31,6 +31,8 @@ class BaseModelHarness(ABC):
         device = torch.device(self.cfg.device)
         self.model.to(device)
 
+        self.eval_metrics: List[MetricFn] = []
+
     @abstractmethod
     def get_optmizer(self) -> Optimizer:
         """
@@ -40,6 +42,14 @@ class BaseModelHarness(ABC):
         raise NotImplementedError
 
     # ----- subclass hooks -----
+
+    @abstractmethod
+    def update_data_stream(self) -> None:
+        """
+        Updates the data stream potentially leading to data drift
+        """
+        raise NotImplementedError
+
     @abstractmethod
     def get_cur_data_loaders(self) -> Tuple[DataLoader, DataLoader]:
         """
@@ -84,11 +94,11 @@ class BaseModelHarness(ABC):
         return float(x)
 
     @torch.no_grad()
-    def eval(self, metrics: List[MetricFn]) -> List[float]:
+    def eval(self) -> List[float]:
         """Stream over batches; return mean(metric) over batches (order preserved)."""
         self.model.eval()
-        sums = [0.0 for _ in metrics]
-        n_batches = 0
+        sums = [0.0 for _ in self.eval_metrics]
+        counts = [0 for _ in self.eval_metrics]
 
         for batch in self.get_cur_data_loaders()[1]:  # assumes iterable
             x, y = self._unpack(batch)
@@ -107,11 +117,15 @@ class BaseModelHarness(ABC):
             # else:
             y_hat = self.model(x)
 
-            for i, m in enumerate(metrics):
-                sums[i] += self._to_scalar(m(y_hat, y))
-            n_batches += 1
+            batch_size = y.size(0)
+            for i, m in enumerate(self.eval_metrics):
+                metric_value = self._to_scalar(m(y_hat, y))
+                # For metrics that return percentages (like accuracy), we need to
+                # convert back to counts for proper averaging across variable batch sizes
+                sums[i] += metric_value * batch_size
+                counts[i] += batch_size
 
-        if n_batches == 0:
+        if counts[0] == 0:
             raise RuntimeError("Empty loader: nothing to evaluate.")
 
-        return [s / n_batches for s in sums]
+        return [s / c for s, c in zip(sums, counts)]

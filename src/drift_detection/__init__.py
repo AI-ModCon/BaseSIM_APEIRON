@@ -28,6 +28,7 @@ from drift_detection.detectors.statistical_detectors import (
 from drift_detection.detectors.model_performance_detector import (
     ModelPerformanceDetector,
     EnsembleDetector,
+    ModelEvalDetector,
 )
 
 __all__ = [
@@ -39,4 +40,5 @@ __all__ = [
     "PageHinkleyDetector",
     "ModelPerformanceDetector",
     "EnsembleDetector",
+    "ModelEvalDetector",
 ]
