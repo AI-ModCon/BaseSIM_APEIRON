@@ -36,6 +36,7 @@ class VisionModelCifar(nn.Module):
         if cfg.model.name.startswith("vit"):
             self.is_vit = True
 
+        pretrained_path = cfg.model.pretrained_path
         if cfg.data.name == "cifar10":
             num_classes = 10
             pretrained_path = (

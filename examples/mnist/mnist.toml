@@ -5,6 +5,7 @@ multi_gpu = false
 
 [model]
 name = "dummy"  
+pretrained_path = "examples/mnist/mnist.pth"
 
 [data]
 name = "mnist"

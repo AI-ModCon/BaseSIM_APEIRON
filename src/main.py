@@ -27,6 +27,8 @@ def main(argv=None) -> int:
     # Run continuous monitoring
     monitor.run()
 
+    # TODO: Save a model checkpoint
+
     print("\nLogged Metrics:\n", logger.to_dataframe())
 
     logger.finish()

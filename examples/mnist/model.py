@@ -60,7 +60,7 @@ class MNIST_CNN(BaseModelHarness):
         self.higher_is_better = [True, False]
 
         # Load pretrained weights if available
-        pretrained_path = "./examples/mnist/mnist.pth"
+        pretrained_path = cfg.model.pretrained_path
         try:
             state_dict = torch.load(
                 pretrained_path, map_location=cfg.device, weights_only=False
