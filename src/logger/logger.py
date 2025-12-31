@@ -95,7 +95,6 @@ class WandBLogger:
 
         # Define custom step metrics for each subsystem
         if self.run is not None:
-
             # Make cl/* plot against cl/step by default
             self.run.define_metric("cl/step")  # x-axis metric
             self.run.define_metric(

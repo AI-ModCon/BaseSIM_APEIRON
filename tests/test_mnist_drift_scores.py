@@ -46,10 +46,17 @@ def test_mnist_drift_scores_reproducible(mnist_config_path, temp_output_csv):
 
     # Build the command
     cmd = [
-        "poetry", "run", "python", "-m", "src.main",
-        "--config", str(mnist_config_path),
-        "--set", f"visualization.input={temp_output_csv}",
-        "--device", "cpu",  # Force CPU for reproducibility
+        "poetry",
+        "run",
+        "python",
+        "-m",
+        "src.main",
+        "--config",
+        str(mnist_config_path),
+        "--set",
+        f"visualization.input={temp_output_csv}",
+        "--device",
+        "cpu",  # Force CPU for reproducibility
     ]
 
     # Run the command
@@ -93,7 +100,9 @@ def test_mnist_drift_scores_reproducible(mnist_config_path, temp_output_csv):
     assert len(drift_scores) >= 1, "Should have at least one drift score"
 
     print(f"\nDrift scores logged: {len(drift_scores)}")
-    print(f"Drift score range: [{drift_scores['value'].min():.4f}, {drift_scores['value'].max():.4f}]")
+    print(
+        f"Drift score range: [{drift_scores['value'].min():.4f}, {drift_scores['value'].max():.4f}]"
+    )
     print(f"Mean drift score: {drift_scores['value'].mean():.4f}")
 
 
@@ -117,10 +126,17 @@ def test_mnist_drift_scores_exact_match(mnist_config_path, tmp_path):
 
     # Build the command
     cmd = [
-        "poetry", "run", "python", "-m", "src.main",
-        "--config", str(mnist_config_path),
-        "--set", f"visualization.input={csv_path}",
-        "--device", "cpu",
+        "poetry",
+        "run",
+        "python",
+        "-m",
+        "src.main",
+        "--config",
+        str(mnist_config_path),
+        "--set",
+        f"visualization.input={csv_path}",
+        "--device",
+        "cpu",
     ]
 
     # Run the command
@@ -194,10 +210,17 @@ def test_mnist_drift_detection_consistency(mnist_config_path, tmp_path):
 
         # Build command (seed is already in the config file)
         cmd = [
-            "poetry", "run", "python", "-m", "src.main",
-            "--config", str(mnist_config_path),
-            "--set", f"visualization.input={csv_path}",
-            "--device", "cpu",
+            "poetry",
+            "run",
+            "python",
+            "-m",
+            "src.main",
+            "--config",
+            str(mnist_config_path),
+            "--set",
+            f"visualization.input={csv_path}",
+            "--device",
+            "cpu",
         ]
 
         # Run the command
@@ -241,7 +264,7 @@ def test_mnist_drift_detection_consistency(mnist_config_path, tmp_path):
             f"Score mismatch at step {step1}: {score1:.6f} vs {score2:.6f}"
         )
 
-    print(f"\nConsistency check passed: Both runs produced identical results")
+    print("\nConsistency check passed: Both runs produced identical results")
     print(f"Number of drift scores: {len(df1)}")
 
 
@@ -266,10 +289,17 @@ def test_mnist_full_config_drift_scores(mnist_full_config_path, tmp_path):
 
     # Build the command
     cmd = [
-        "poetry", "run", "python", "-m", "src.main",
-        "--config", str(mnist_full_config_path),
-        "--set", f"visualization.input={csv_path}",
-        "--device", "cpu",
+        "poetry",
+        "run",
+        "python",
+        "-m",
+        "src.main",
+        "--config",
+        str(mnist_full_config_path),
+        "--set",
+        f"visualization.input={csv_path}",
+        "--device",
+        "cpu",
     ]
 
     # Run the command with longer timeout
@@ -294,12 +324,14 @@ def test_mnist_full_config_drift_scores(mnist_full_config_path, tmp_path):
     drift_scores["value"] = pd.to_numeric(drift_scores["value"], errors="coerce")
 
     # Print comprehensive statistics
-    print(f"\n=== Full MNIST Configuration Results ===")
+    print("\n=== Full MNIST Configuration Results ===")
     print(f"Total drift scores logged: {len(drift_scores)}")
-    print(f"Drift score range: [{drift_scores['value'].min():.6f}, {drift_scores['value'].max():.6f}]")
+    print(
+        f"Drift score range: [{drift_scores['value'].min():.6f}, {drift_scores['value'].max():.6f}]"
+    )
     print(f"Mean drift score: {drift_scores['value'].mean():.6f}")
     print(f"Std dev drift score: {drift_scores['value'].std():.6f}")
-    print(f"\nFirst 10 drift scores:")
+    print("\nFirst 10 drift scores:")
     for i, row in drift_scores.head(10).iterrows():
         print(f"  Step {row['step']:3d}: {row['value']:.6f}")
 

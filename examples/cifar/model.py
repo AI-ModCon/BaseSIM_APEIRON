@@ -39,18 +39,8 @@ class VisionModelCifar(nn.Module):
         pretrained_path = cfg.model.pretrained_path
         if cfg.data.name == "cifar10":
             num_classes = 10
-            pretrained_path = (
-                "./examples/cifar/cifar10_vit.pth"
-                if self.is_vit
-                else "./examples/cifar/cifar10_vgg11.pth"
-            )
         elif cfg.data.name == "cifar100":
             num_classes = 100
-            pretrained_path = (
-                "./examples/cifar/cifar100_vit.pth"
-                if self.is_vit
-                else "./examples/cifar/cifar100_vgg11.pth"
-            )
         else:
             raise NotImplementedError
 
