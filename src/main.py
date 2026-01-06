@@ -5,7 +5,7 @@ from config.configuration import build_config, Config
 
 from examples.utils import get_example
 
-from drift_detection.continuous_monitor import ContinuousMonitor
+from driver.continuous_monitor import ContinuousMonitor
 
 
 def main(argv=None) -> int:
