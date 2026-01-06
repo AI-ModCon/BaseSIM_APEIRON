@@ -93,6 +93,18 @@ class WandBLogger:
             **kwargs,
         )
 
+        # Define custom step metrics for each subsystem
+        if self.run is not None:
+            # Make cl/* plot against cl/step by default
+            self.run.define_metric("cl/step")  # x-axis metric
+            self.run.define_metric(
+                "cl/*", step_metric="cl/step"
+            )  # apply to all CL metrics
+
+            self.run.define_metric("drift/step")
+            self.run.define_metric("drift/*", step_metric="drift/step")
+            self.run.define_metric("drift/*", step_metric="drift/step")
+
         return self.run
 
     def log(
@@ -124,7 +136,7 @@ class WandBLogger:
         if not self.enabled or self.run is None:
             return
 
-        wandb.log(metrics, step=step, commit=commit)
+        wandb.log(metrics, commit=commit)
 
     def save(
         self,

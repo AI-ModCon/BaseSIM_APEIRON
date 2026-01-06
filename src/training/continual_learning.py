@@ -16,6 +16,7 @@ def continual_learning_loop(
     logger,
     global_step=0,
     basic_only=False,  # Needed to test drift_detection, will remove in future PR.
+    drift_event_id: int = 0,
 ):
     # 1) select the right cl update method #TODO
 
@@ -105,9 +106,13 @@ def continual_learning_loop(
             )
 
             logger.log(
-                {"cl/basic/total_loss": total_loss},
+                {
+                    "cl/step": iter_count + global_step,
+                    "cl/basic/total_loss": total_loss,
+                    "cl/drift_event_id": drift_event_id,
+                },
                 step=iter_count + global_step,
-                commit=iter_count < (cfg.continuous_learning.max_iter - 1),
+                # commit=iter_count < (cfg.continuous_learning.max_iter - 1),
             )
 
         else:
@@ -132,12 +137,14 @@ def continual_learning_loop(
 
             logger.log(
                 {
+                    "cl/step": iter_count + global_step,
                     "cl/jvp_reg/total_loss": total_loss,
                     "cl/jvp_reg/forgetting_loss": forgetting_loss,
                     "cl/jvp_reg/generation_loss": generation_loss,
+                    "cl/drift_event_id": drift_event_id,
                 },
                 step=iter_count + global_step,
-                commit=iter_count < (cfg.continuous_learning.max_iter - 1),
+                # commit=iter_count < (cfg.continuous_learning.max_iter - 1),
             )
 
             # Explicitly cleanup batch tensors to free GPU memory
@@ -161,21 +168,25 @@ def continual_learning_loop(
         sep="\n",
     )
 
-    logger.log(
-        {
-            "cl/test_curr/acc": test_acc,
-            "cl/test_hist/acc": mem_test_acc,
-        },
-        step=iter_count + global_step,
-        commit=False,
-    )
+    # logger.log(
+    #     {
+    #         "cl/step": iter_count + global_step,
+    #         "cl/test_curr/acc": test_acc,
+    #         "cl/test_hist/acc": mem_test_acc,
+    #     },
+    #     step=iter_count + global_step,
+    #     commit=False,
+    # )
 
-    if flops_profiler:
-        flops_perf = flops_profiler.get_performance()
-        flops_profiler.print_performance()
-        logger.log(
-            {f"cl/cperf/{k}": v for k, v in flops_perf.items()},
-            step=iter_count + global_step,
-        )
+    # if flops_profiler:
+    #     flops_perf = flops_profiler.get_performance()
+    #     flops_profiler.print_performance()
+    #     logger.log(
+    #         {
+    #             "cl/step": iter_count + global_step,
+    #             **{f"cl/cperf/{k}": v for k, v in flops_perf.items()},
+    #         },
+    #         step=iter_count + global_step,
+    #     )
 
     return 0

@@ -116,8 +116,28 @@ class ContinuousLearningCfg:
 
 @dataclass(frozen=True)
 class DriftDetectionCfg:
-    detector_name: str
-    detection_steps: int
+    detector_name: str  # "ADWINDetector", "KSWINDetector", "PageHinkleyDetector", etc.
+    detection_interval: int = 10  # Check drift every N batches
+    aggregation: str = "mean"  # How to aggregate metrics: "mean", "last", "median"
+    metric_index: int = 0  # Which metric to monitor (0=first, 1=second, etc.)
+    reset_after_learning: bool = False  # Reset detector after CL loop
+    max_stream_updates: int = 20  # Stop after N stream extensions
+
+    # ADWIN hyperparameters
+    adwin_delta: float = 0.002
+    adwin_minor_threshold: float = 0.3
+    adwin_moderate_threshold: float = 0.6
+
+    # KSWIN hyperparameters
+    kswin_alpha: float = 0.005
+    kswin_window_size: int = 100
+    kswin_stat_size: int = 30
+
+    # PageHinkley hyperparameters
+    ph_min_instances: int = 30
+    ph_delta: float = 0.005
+    ph_threshold: float = 50
+    ph_alpha: float = 0.9999
 
 
 @dataclass(frozen=True)
