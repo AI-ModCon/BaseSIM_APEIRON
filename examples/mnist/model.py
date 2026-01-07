@@ -56,8 +56,8 @@ class MNIST_CNN(BaseModelHarness):
     def __init__(self, cfg: Config, model: nn.Module = Cnn()):
         super().__init__(cfg=cfg, model=model)
 
-        self.eval_metrics = [accuracy, self.get_criterion()]
-        self.higher_is_better = [True, False]
+        self.eval_metrics = {"accuracy": accuracy, "loss": self.get_criterion()}
+        self.higher_is_better = {"accuracy": True, "loss": False}
 
         # Load pretrained weights if available
         pretrained_path = cfg.model.pretrained_path

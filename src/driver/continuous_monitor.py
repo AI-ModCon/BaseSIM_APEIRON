@@ -137,7 +137,7 @@ class ContinuousMonitor:
             self.batch_count += 1
 
             # Check drift at specified interval
-            if self.batch_count % self.detection_interval == 0:
+            if self.detection_interval > 0 and self.batch_count % self.detection_interval == 0:
                 drift_signal = self._check_drift()
 
                 if drift_signal.drift_detected:
@@ -182,9 +182,15 @@ class ContinuousMonitor:
 
                     # Compute all metrics
                     metrics = []
-                    for metric_fn in self.modelHarness.eval_metrics:
+                    for key, metric_fn in self.modelHarness.eval_metrics.items():
                         value = self.modelHarness._to_scalar(metric_fn(y_hat, y))
                         metrics.append(value)
+                        self.logger.log(
+                            {
+                                "eval/"+key: value,
+                            },
+                            step=self.global_step,
+                        )
         else:
             # Skip profiling during warmup
             with torch.no_grad():
@@ -196,7 +202,7 @@ class ContinuousMonitor:
 
                 # Compute all metrics
                 metrics = []
-                for metric_fn in self.modelHarness.eval_metrics:
+                for keys, metric_fn in self.modelHarness.eval_metrics.items():
                     value = self.modelHarness._to_scalar(metric_fn(y_hat, y))
                     metrics.append(value)
 
