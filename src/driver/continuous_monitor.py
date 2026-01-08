@@ -137,7 +137,10 @@ class ContinuousMonitor:
             self.batch_count += 1
 
             # Check drift at specified interval
-            if self.detection_interval > 0 and self.batch_count % self.detection_interval == 0:
+            if (
+                self.detection_interval > 0
+                and self.batch_count % self.detection_interval == 0
+            ):
                 drift_signal = self._check_drift()
 
                 if drift_signal.drift_detected:
@@ -187,7 +190,7 @@ class ContinuousMonitor:
                         metrics.append(value)
                         self.logger.log(
                             {
-                                "eval/"+key: value,
+                                "eval/" + key: value,
                             },
                             step=self.global_step,
                         )

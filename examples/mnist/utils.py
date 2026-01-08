@@ -32,7 +32,6 @@ class FixedAffine:
     """Apply chained affine transforms from aug_history to every sample."""
 
     def __init__(self, aug_history: List[Dict[str, Any]]):
-
         # Each dict has keys: angle, scale, translate, shear
         self.transforms = [
             {

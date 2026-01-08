@@ -116,7 +116,9 @@ class ContinuousLearningCfg:
 
 @dataclass(frozen=True)
 class DriftDetectionCfg:
-    detector_name: str = "ADWINDetector" # "ADWINDetector", "KSWINDetector", "PageHinkleyDetector", etc.
+    detector_name: str = (
+        "ADWINDetector"  # "ADWINDetector", "KSWINDetector", "PageHinkleyDetector", etc.
+    )
     detection_interval: int = 10  # Check drift every N batches
     aggregation: str = "mean"  # How to aggregate metrics: "mean", "last", "median"
     metric_index: int = 0  # Which metric to monitor (0=first, 1=second, etc.)
