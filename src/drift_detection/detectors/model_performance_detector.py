@@ -33,7 +33,7 @@ class ModelEvalDetector(BaseDriftDetector):
     ) -> DriftSignal:
         modelHarness = kwargs.get("modelHarness")
         reference_validation_metrics = kwargs.get("reference_validation_metrics", [])
-        higher_is_better_list = kwargs.get("higher_is_better", [])
+        higher_is_better_list = kwargs.get("higher_is_better", {})
 
         if modelHarness is None:
             raise ValueError("modelHarness must be provided in kwargs")
@@ -49,7 +49,9 @@ class ModelEvalDetector(BaseDriftDetector):
         )
 
         for metric, ref_metric, is_higher_better in zip(
-            validation_metrics, reference_validation_metrics, higher_is_better_list
+            validation_metrics,
+            reference_validation_metrics,
+            higher_is_better_list.values(),
         ):
             print(
                 "metric:",
