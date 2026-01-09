@@ -1,0 +1,21 @@
+# mnist-generic.toml
+seed = 1337
+device = "auto"
+multi_gpu = false
+
+[model]
+name = "dummy"
+pretrained_path = "examples/mnist/mnist.pth"
+
+[data]
+name = "mnist"
+path = ""  # folder or file later for custom dataset
+
+[train]
+batch_size = 64
+num_workers = 4
+init_lr = 0.001
+
+[drift_detection]
+detection_interval = 0  # do not check for drift
+# this also means there will be no continuous learning

@@ -116,8 +116,8 @@ class CIFAR_VISION(BaseModelHarness):
         self._cur_train_loader: Optional[DataLoader] = None
         self._cur_val_loader: Optional[DataLoader] = None
 
-        self.eval_metrics = [accuracy, self.get_criterion()]
-        self.higher_is_better = [True, False]
+        self.eval_metrics = {"accuracy": accuracy, "loss": self.get_criterion()}
+        self.higher_is_better = {"accuracy": True, "loss": False}
 
     def _dispose_current_loaders(self):
         if self._cur_train_loader is not None:

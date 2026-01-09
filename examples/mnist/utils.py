@@ -29,25 +29,31 @@ def get_mnist_val(root: str = "./data", normalize: bool = True) -> datasets.MNIS
 
 
 class FixedAffine:
-    """Apply one fixed affine to every sample (tensor) in this view."""
+    """Apply chained affine transforms from aug_history to every sample."""
 
-    def __init__(
-        self, angle: float, scale: float, translate: Tuple[int, int], shear: float
-    ):
-        self.angle = float(angle)
-        self.scale = float(scale)
-        self.translate = (int(translate[0]), int(translate[1]))
-        self.shear = float(shear)
+    def __init__(self, aug_history: List[Dict[str, Any]]):
+        # Each dict has keys: angle, scale, translate, shear
+        self.transforms = [
+            {
+                "angle": float(aug["angle"]),
+                "scale": float(aug["scale"]),
+                "translate": (int(aug["translate"][0]), int(aug["translate"][1])),
+                "shear": float(aug["shear"]),
+            }
+            for aug in aug_history
+        ]
 
     def __call__(self, x: torch.Tensor) -> torch.Tensor:
-        # x: [1,H,W]
-        return TF.affine(
-            x,
-            angle=self.angle,
-            translate=self.translate,
-            scale=self.scale,
-            shear=self.shear,
-        )
+        # x: [1, H, W]
+        for t in self.transforms:
+            x = TF.affine(
+                x,
+                angle=t["angle"],
+                translate=t["translate"],
+                scale=t["scale"],
+                shear=t["shear"],
+            )
+        return x
 
 
 def sample_aug(seed: int) -> Dict[str, Any]:
@@ -66,10 +72,19 @@ def sample_aug(seed: int) -> Dict[str, Any]:
     """
     g = torch.Generator()
     g.manual_seed(seed)
-    angle = float(torch.rand(1, generator=g).item() * 180.0)
-    scale = float(1.0 + torch.rand(1, generator=g).item())
+    MAX_ANGLE = 10
+    MAX_SCALE = 1.25
+    MIN_SCALE = 0.75
+    angle = float(torch.rand(1, generator=g).item() * MAX_ANGLE)
+    scale = float(
+        MIN_SCALE + (MAX_SCALE - MIN_SCALE) * torch.rand(1, generator=g).item()
+    )
     shear = angle
     translate = (int(scale), int(scale))
+
+    print(
+        "Mutating the picture further using an angle of", angle, "and a scale of", scale
+    )
     return dict(angle=angle, scale=scale, translate=translate, shear=shear)
 
 

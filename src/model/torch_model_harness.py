@@ -1,6 +1,6 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Any, Optional, Callable, Tuple, List
+from typing import Any, Optional, Callable, Tuple, List, Dict
 
 import torch
 from torch import nn, Tensor
@@ -31,7 +31,7 @@ class BaseModelHarness(ABC):
         device = torch.device(self.cfg.device)
         self.model.to(device)
 
-        self.eval_metrics: List[MetricFn] = []
+        self.eval_metrics: Dict[str, MetricFn] = {}
 
     @abstractmethod
     def get_optmizer(self) -> Optimizer:
@@ -118,7 +118,7 @@ class BaseModelHarness(ABC):
             y_hat = self.model(x)
 
             batch_size = y.size(0)
-            for i, m in enumerate(self.eval_metrics):
+            for i, m in enumerate(self.eval_metrics.values()):
                 metric_value = self._to_scalar(m(y_hat, y))
                 # For metrics that return percentages (like accuracy), we need to
                 # convert back to counts for proper averaging across variable batch sizes

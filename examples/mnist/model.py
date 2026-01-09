@@ -50,14 +50,14 @@ class MNIST_CNN(BaseModelHarness):
       - Current drift params in self.cur_aug
       - Historical drifts in self.aug_history (previous iterations)
       - get_cur_data_loaders(): build loaders over FULL train/val using self.cur_aug
-      - get_hist_data_loaders(): ConcatDataset over self.aug_history; then append self.cur_aug
+      - get_hist_data_loaders():  build loaders over FULL train/val using the chained augmentations of all historical loades
     """
 
     def __init__(self, cfg: Config, model: nn.Module = Cnn()):
         super().__init__(cfg=cfg, model=model)
 
-        self.eval_metrics = [accuracy, self.get_criterion()]
-        self.higher_is_better = [True, False]
+        self.eval_metrics = {"accuracy": accuracy, "loss": self.get_criterion()}
+        self.higher_is_better = {"accuracy": True, "loss": False}
 
         # Load pretrained weights if available
         pretrained_path = cfg.model.pretrained_path
@@ -110,7 +110,9 @@ class MNIST_CNN(BaseModelHarness):
 
         # Deterministic per-iteration drift; “one affine for all samples”
         self.cur_aug = sample_aug(seed=self.cfg.seed + self.task_counter)
-        tf = FixedAffine(**self.cur_aug)
+        self.aug_history.append(self.cur_aug)
+
+        tf = FixedAffine(aug_history=self.aug_history)
 
         ds_train_tf = TransformedView(self.ds_train, x_transform=tf)
         ds_val_tf = TransformedView(self.ds_val, x_transform=tf)
@@ -128,8 +130,6 @@ class MNIST_CNN(BaseModelHarness):
 
         self.task_counter += 1
 
-        self.aug_history.append(self.cur_aug.copy())
-
     def get_hist_data_loaders(
         self,
     ) -> Tuple[Optional[DataLoader], Optional[DataLoader]]:
@@ -143,12 +143,12 @@ class MNIST_CNN(BaseModelHarness):
 
         # Concatenate FULL train/val views for each historical drift
         train_views = [
-            TransformedView(self.ds_train, x_transform=FixedAffine(**aug))
-            for aug in self.aug_history[:-1]
+            TransformedView(
+                self.ds_train, x_transform=FixedAffine(self.aug_history[:-1])
+            )
         ]
         val_views = [
-            TransformedView(self.ds_val, x_transform=FixedAffine(**aug))
-            for aug in self.aug_history[:-1]
+            TransformedView(self.ds_val, x_transform=FixedAffine(self.aug_history[:-1]))
         ]
 
         ds_hist_train: ConcatDataset[Any] = ConcatDataset(train_views)

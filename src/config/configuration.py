@@ -109,14 +109,16 @@ class DataCfg:
 
 @dataclass(frozen=True)
 class ContinuousLearningCfg:
-    jvp_reg: float  # this is now the lambda factor for the JVP regularization.
-    deltax_norm: float  # the norm of the deltax vector which is used to compute the direction in the data space.
-    max_iter: int  # the maximum number of iterations for one cl application
+    jvp_reg: float = 0.001  # this is now the lambda factor for the JVP regularization.
+    deltax_norm: float = 1  # the norm of the deltax vector which is used to compute the direction in the data space.
+    max_iter: int = 600  # the maximum number of iterations for one cl application
 
 
 @dataclass(frozen=True)
 class DriftDetectionCfg:
-    detector_name: str  # "ADWINDetector", "KSWINDetector", "PageHinkleyDetector", etc.
+    detector_name: str = (
+        "ADWINDetector"  # "ADWINDetector", "KSWINDetector", "PageHinkleyDetector", etc.
+    )
     detection_interval: int = 10  # Check drift every N batches
     aggregation: str = "mean"  # How to aggregate metrics: "mean", "last", "median"
     metric_index: int = 0  # Which metric to monitor (0=first, 1=second, etc.)
