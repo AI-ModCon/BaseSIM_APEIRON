@@ -5,9 +5,41 @@ from model.torch_model_harness import BaseModelHarness
 from training.updaters.basic import step_method_baseline
 
 from training.updaters.jvp_reg import step_method_jvp_reg, JVPRegularizedLoss
+from training.updaters.jvp_reg_backward import (
+    step_method_jvp_reg_backward,
+    JVPRegularizedLossBackward,
+)
 
 from profilers import FLOPSProfiler
 from tqdm import tqdm
+
+
+def _is_transformer_model(model: torch.nn.Module) -> bool:
+    """Check if model is a transformer that requires backward-mode JVP.
+
+    Detects HuggingFace transformers and other models using SDPA/Flash Attention
+    that don't support forward-mode AD.
+    """
+    # Check for HuggingFace model attributes
+    if hasattr(model, "config") and hasattr(model.config, "model_type"):
+        return True
+
+    # Check for common transformer module names
+    module_names = [name for name, _ in model.named_modules()]
+    transformer_indicators = [
+        "attention",
+        "transformer",
+        "encoder",
+        "decoder",
+        "self_attn",
+        "multihead",
+    ]
+    for name in module_names:
+        name_lower = name.lower()
+        if any(indicator in name_lower for indicator in transformer_indicators):
+            return True
+
+    return False
 
 
 def continual_learning_loop(
@@ -37,12 +69,27 @@ def continual_learning_loop(
 
     # JVP continual learning setup
     # Should be done outside of update call to keep optimizer state.
-    jvp_loss = JVPRegularizedLoss(
-        model=model,
-        criterion=criterion,
-        jvp_reg=cfg.continuous_learning.jvp_reg,
-        deltax_norm=cfg.continuous_learning.deltax_norm,
-    )
+    # Use backward-mode AD for transformers (flash attention doesn't support forward-mode AD)
+    use_backward_mode = _is_transformer_model(model)
+
+    jvp_loss_backward: JVPRegularizedLossBackward | None = None
+    jvp_loss_forward: JVPRegularizedLoss | None = None
+
+    if use_backward_mode:
+        print("Using backward-mode JVP (transformer detected)")
+        jvp_loss_backward = JVPRegularizedLossBackward(
+            model=model,
+            criterion=criterion,
+            jvp_reg=cfg.continuous_learning.jvp_reg,
+            deltax_norm=cfg.continuous_learning.deltax_norm,
+        )
+    else:
+        jvp_loss_forward = JVPRegularizedLoss(
+            model=model,
+            criterion=criterion,
+            jvp_reg=cfg.continuous_learning.jvp_reg,
+            deltax_norm=cfg.continuous_learning.deltax_norm,
+        )
 
     # Generic "safe next" for any iterator/loader pair
     def _safe_next(current_iter, loader, min_batch=None):
@@ -123,17 +170,32 @@ def continual_learning_loop(
             )
 
             # - Count Flops
-            forgetting_loss, generation_loss, total_loss = step_method_jvp_reg(
-                model=model,
-                criterion=criterion,  # type: ignore[arg-type]
-                optimizer=optimizer,
-                cfg=cfg,
-                iter=iter_count,
-                train_batch=train_batch,
-                hist_batch=hist_batch,
-                profiler=flops_profiler,
-                jvp_loss=jvp_loss,
-            )
+            if use_backward_mode:
+                assert jvp_loss_backward is not None
+                forgetting_loss, generation_loss, total_loss = step_method_jvp_reg_backward(
+                    model=model,
+                    criterion=criterion,  # type: ignore[arg-type]
+                    optimizer=optimizer,
+                    cfg=cfg,
+                    iter=iter_count,
+                    train_batch=train_batch,
+                    hist_batch=hist_batch,
+                    profiler=flops_profiler,
+                    jvp_loss=jvp_loss_backward,
+                )
+            else:
+                assert jvp_loss_forward is not None
+                forgetting_loss, generation_loss, total_loss = step_method_jvp_reg(
+                    model=model,
+                    criterion=criterion,  # type: ignore[arg-type]
+                    optimizer=optimizer,
+                    cfg=cfg,
+                    iter=iter_count,
+                    train_batch=train_batch,
+                    hist_batch=hist_batch,
+                    profiler=flops_profiler,
+                    jvp_loss=jvp_loss_forward,
+                )
 
             logger.log(
                 {
