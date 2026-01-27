@@ -19,7 +19,7 @@ max_iter = 600
 grad_accumulation_steps = 2
 
 [continual_learning]
-update_mode = "jvp_reg"
+update_mode = "base"
 jvp_lambda = 10
 jvp_deltax_norm = 1
 

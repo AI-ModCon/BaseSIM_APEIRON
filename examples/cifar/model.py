@@ -139,13 +139,15 @@ class CIFAR_VISION(BaseModelHarness):
 
         # Deterministic per-iteration drift; “one affine for all samples”
         self.cur_aug = sample_aug(seed=self.cfg.seed + self.task_counter)
-        tf = FixedAffine(**self.cur_aug)
+        self.aug_history.append(self.cur_aug)
+
+        tf = FixedAffine(aug_history=self.aug_history)
 
         ds_train_tf = TransformedView(self.ds_train, x_transform=tf)
         ds_val_tf = TransformedView(self.ds_val, x_transform=tf)
 
         bs = self.cfg.train.batch_size
-        nw = self.cfg.train.num_workers
+        nw = getattr(self.cfg.train, "num_workers", self.cfg.train.num_workers)
         pin = torch.cuda.is_available()
 
         self._cur_train_loader = make_loader(
@@ -156,8 +158,6 @@ class CIFAR_VISION(BaseModelHarness):
         )
 
         self.task_counter += 1
-
-        self.aug_history.append(self.cur_aug.copy())
 
     def get_hist_data_loaders(
         self,
@@ -172,19 +172,22 @@ class CIFAR_VISION(BaseModelHarness):
 
         # Concatenate FULL train/val views for each historical drift
         train_views = [
-            TransformedView(self.ds_train, x_transform=FixedAffine(**aug))
-            for aug in self.aug_history[:-1]
+            TransformedView(
+                self.ds_train,
+                x_transform=FixedAffine(aug_history=self.aug_history[:-1]),
+            )
         ]
         val_views = [
-            TransformedView(self.ds_val, x_transform=FixedAffine(**aug))
-            for aug in self.aug_history[:-1]
+            TransformedView(
+                self.ds_val, x_transform=FixedAffine(aug_history=self.aug_history[:-1])
+            )
         ]
 
         ds_hist_train: ConcatDataset[Any] = ConcatDataset(train_views)
         ds_hist_val: ConcatDataset[Any] = ConcatDataset(val_views)
 
         bs = self.cfg.train.batch_size
-        nw = getattr(self.cfg.data, "num_workers", 4)
+        nw = getattr(self.cfg.data, "num_workers", self.cfg.train.num_workers)
         pin = torch.cuda.is_available()
 
         hist_train_loader = make_loader(
