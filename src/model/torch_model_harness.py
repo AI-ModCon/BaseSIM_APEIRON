@@ -129,3 +129,40 @@ class BaseModelHarness(ABC):
             raise RuntimeError("Empty loader: nothing to evaluate.")
 
         return [s / c for s, c in zip(sums, counts)]
+
+    @torch.no_grad()
+    def history_eval(self):
+        """Stream over batches; return mean(metric) over batches (order preserved)."""
+        self.model.eval()
+        sums = [0.0 for _ in self.eval_metrics]
+        counts = [0 for _ in self.eval_metrics]
+
+        for batch in self.get_hist_data_loaders()[1]:  # assumes iterable
+            x, y = self._unpack(batch)
+            x, y = x.to(self.cfg.device), y.to(self.cfg.device)
+
+            # TODO: Add cuda amp support later. Needs config entry for amp
+            # if self.cfg.amp:
+
+            #     with torch.autocast(
+            #         device_type=self.device.type,
+            #         dtype=(
+            #             torch.float16 if self.device.type == "cuda" else torch.bfloat16
+            #         ),
+            #     ):
+            #         y_hat = self.model(x)
+            # else:
+            y_hat = self.model(x)
+
+            batch_size = y.size(0)
+            for i, m in enumerate(self.eval_metrics.values()):
+                metric_value = self._to_scalar(m(y_hat, y))
+                # For metrics that return percentages (like accuracy), we need to
+                # convert back to counts for proper averaging across variable batch sizes
+                sums[i] += metric_value * batch_size
+                counts[i] += batch_size
+
+        if counts[0] == 0:
+            raise RuntimeError("Empty loader: nothing to evaluate.")
+
+        return [s / c for s, c in zip(sums, counts)]

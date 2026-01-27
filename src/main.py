@@ -12,8 +12,11 @@ def main(argv=None) -> int:
     cfg: Config = build_config(argv)
     modelHarness = get_example(cfg=cfg)
 
+    # Configure logger on entry to main
     logger = get_logger(
-        enabled=True, csv_path=cfg.visualization.input if cfg.visualization else None
+        verbosity="INFO",  # INFO:n for granular verbosity of INFO.
+        wandb_enabled=True,
+        csv_path=cfg.visualization.input if cfg.visualization else None,
     )
     logger.init(cfg, project="main")
 
@@ -21,15 +24,12 @@ def main(argv=None) -> int:
     monitor = ContinuousMonitor(
         cfg=cfg,
         modelHarness=modelHarness,
-        logger=logger,
     )
 
     # Run continuous monitoring
     monitor.run()
 
     # TODO: Save a model checkpoint
-
-    print("\nLogged Metrics:\n", logger.to_dataframe())
 
     logger.finish()
 
