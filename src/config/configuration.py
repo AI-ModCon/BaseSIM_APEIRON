@@ -99,6 +99,8 @@ class TrainCfg:
     batch_size: int
     num_workers: int
     init_lr: float
+    grad_accumulation_steps: int = 1
+    max_iter: int = 600  # the maximum number of iterations for one cl application
 
 
 @dataclass(frozen=True)
@@ -108,10 +110,20 @@ class DataCfg:
 
 
 @dataclass(frozen=True)
-class ContinuousLearningCfg:
-    jvp_reg: float = 0.001  # this is now the lambda factor for the JVP regularization.
-    deltax_norm: float = 1  # the norm of the deltax vector which is used to compute the direction in the data space.
-    max_iter: int = 600  # the maximum number of iterations for one cl application
+class ContinualLearningCfg:
+    update_mode: str = "basic"
+
+    # For JVP regularization
+    jvp_lambda: float = 0.001
+    jvp_deltax_norm: float = 1
+
+    # For EWC method
+    ewc_lambda: float = 1000.0
+    ewc_ema_decay: float = 0.95
+
+    # For KFAC method
+    kfac_lambda: float = 0.01
+    kfac_ema_decay: float = 0.95
 
 
 @dataclass(frozen=True)
@@ -154,7 +166,7 @@ class Config:
     model: ModelCfg
     data: DataCfg
     train: TrainCfg
-    continuous_learning: ContinuousLearningCfg
+    continual_learning: ContinualLearningCfg
     drift_detection: DriftDetectionCfg
 
     seed: int
@@ -312,7 +324,7 @@ def build_config(argv=None) -> Config:
     data = DataCfg(**cfg["data"])
     train = TrainCfg(**cfg["train"])
     dd = DriftDetectionCfg(**cfg["drift_detection"])
-    cl = ContinuousLearningCfg(**cfg.get("continuous_learning", {}))
+    cl = ContinualLearningCfg(**cfg.get("continual_learning", {}))
     viz = VisualizationCfg(**cfg["visualization"]) if "visualization" in cfg else None
 
     raw_device = str(
@@ -333,7 +345,7 @@ def build_config(argv=None) -> Config:
         "model",
         "data",
         "train",
-        "continuous_learning",
+        "continual_learning",
         "drift_detection",
         "visualization",
         "device",
@@ -347,7 +359,7 @@ def build_config(argv=None) -> Config:
         model=model,
         data=data,
         train=train,
-        continuous_learning=cl,
+        continual_learning=cl,
         drift_detection=dd,
         visualization=viz,
         device=resolved_device,

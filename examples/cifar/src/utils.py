@@ -1,6 +1,6 @@
 # examples/cifar10_vit/utils.py
 from __future__ import annotations
-from typing import Tuple, Dict, Any
+from typing import Dict, Any
 import torch
 from torch import nn
 from torch.utils.data import Dataset, DataLoader
@@ -80,15 +80,24 @@ def get_cifar_val(
 
 
 class FixedAffine:
-    """Apply one fixed affine to every sample (tensor) in this view."""
+    """Apply one fixed affine to every sample (tensor) in this view.
 
-    def __init__(
-        self, angle: float, scale: float, translate: Tuple[int, int], shear: float
-    ):
-        self.angle = float(angle)
-        self.scale = float(scale)
-        self.translate = (int(translate[0]), int(translate[1]))
-        self.shear = float(shear)
+    Accepts a list of augmentation dicts with keys: angle, scale, translate, shear.
+    Uses the last augmentation in the list.
+    """
+
+    def __init__(self, aug_history: list[Dict[str, Any]]) -> None:
+        if not aug_history:
+            self.angle = 0.0
+            self.scale = 1.0
+            self.translate = (0, 0)
+            self.shear = 0.0
+        else:
+            aug = aug_history[-1]
+            self.angle = float(aug["angle"])
+            self.scale = float(aug["scale"])
+            self.translate = (int(aug["translate"][0]), int(aug["translate"][1]))
+            self.shear = float(aug["shear"])
 
     def __call__(self, x: torch.Tensor) -> torch.Tensor:
         # x: [3,H,W] for CIFAR-10 / ViT preprocessing

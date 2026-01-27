@@ -324,27 +324,35 @@ class FLOPSProfiler:
         else:
             return f"{flops_per_sec:.0f} FLOP/s"
 
-    def print_performance(self) -> None:
+    def print_performance(self, logger=None, level: int = 0) -> None:
         """Pretty print the performance metrics (averaged per update).
 
         Displays a formatted table showing FLOPs, time, and throughput for each
         profiled operation tag, along with totals.
+
+        Args:
+            logger: Optional logger instance. If provided, uses logger.info().
+                    If None, falls back to print() for backward compatibility.
+            level: Verbosity level for logging (default: 0). Only used when logger is provided.
+                   Higher values are more verbose (e.g., level=1 for INFO:1, level=2 for INFO:2).
         """
         perf = self.get_performance()
 
+        output_fn = (lambda msg: logger.info(msg, level=level)) if logger else print
+
         if not perf:
-            print("No performance data collected yet.")
+            output_fn("No performance data collected yet.")
             return
 
         # Extract unique tags
         tags = sorted(set(key.rsplit("_", 1)[0] for key in perf.keys()))
 
         # Print header
-        print("\n" + "=" * 75)
-        print("Compute Performance Metrics (Averaged per Update)")
-        print("=" * 75)
-        print(f"{'Operation':<15} {'FLOPs':<18} {'Time':<15} {'Throughput':<20}")
-        print("-" * 75)
+        output_fn("-" * 75)
+        output_fn("Compute Performance Metrics (Averaged per Update)")
+        output_fn("-" * 75)
+        output_fn(f"{'Operation':<15} {'FLOPs':<18} {'Time':<15} {'Throughput':<20}")
+        output_fn("-" * 75)
 
         # Track totals
         total_flops: float = 0
@@ -361,21 +369,23 @@ class FLOPSProfiler:
                 time_str = self._format_time(perf[time_key])
                 throughput_str = self._format_throughput(perf[flops_key])
 
-                print(f"{tag:<15} {flop_str:<18} {time_str:<15} {throughput_str:<20}")
+                output_fn(
+                    f"{tag:<15} {flop_str:<18} {time_str:<15} {throughput_str:<20}"
+                )
 
                 total_flops += perf[flop_key]
                 total_time += perf[time_key]
 
         # Print total row
         if total_flops > 0 and total_time > 0:
-            print("-" * 75)
+            output_fn("-" * 75)
             total_throughput = total_flops / total_time
             total_flop_str = self._format_flops(total_flops)
             total_time_str = self._format_time(total_time)
             total_throughput_str = self._format_throughput(total_throughput)
 
-            print(
+            output_fn(
                 f"{'TOTAL':<15} {total_flop_str:<18} {total_time_str:<15} {total_throughput_str:<20}"
             )
 
-        print("=" * 75 + "\n")
+        output_fn("-" * 75)
