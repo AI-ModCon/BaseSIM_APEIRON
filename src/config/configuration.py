@@ -103,7 +103,7 @@ class DataCfg:
 
 @dataclass(frozen=True)
 class ContinualLearningCfg:
-    update_mode: str = "basic"
+    update_mode: str = "base"
 
     # For JVP regularization
     jvp_lambda: float = 0.001
