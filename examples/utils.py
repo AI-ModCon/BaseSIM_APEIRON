@@ -1,4 +1,5 @@
 from examples.cifar.model import CIFAR_VISION
+from examples.imagenet.model import IMAGENET_VISION
 from examples.mnist.model import MNIST_CNN
 
 from config.configuration import Config
@@ -10,6 +11,8 @@ def get_example(cfg: Config) -> BaseModelHarness:
         return MNIST_CNN(cfg=cfg)
     elif cfg.data.name == "cifar10":
         return CIFAR_VISION(cfg=cfg)
+    elif cfg.data.name == "imagenet":
+        return IMAGENET_VISION(cfg=cfg)
     else:
         raise NotImplementedError(
             f"Example for dataset {cfg.data.name} is not implemented."

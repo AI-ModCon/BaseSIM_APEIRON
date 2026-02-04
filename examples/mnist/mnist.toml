@@ -13,7 +13,7 @@ path = ""  # folder or file later for custom dataset
 
 [train]
 batch_size = 64
-num_workers = 1
+num_workers = 4
 init_lr = 0.001
 max_iter = 600
 grad_accumulation_steps = 2

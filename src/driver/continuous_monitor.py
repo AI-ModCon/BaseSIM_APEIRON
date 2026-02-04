@@ -20,6 +20,7 @@ from drift_detection.detectors.base import DriftSignal
 from profilers import FLOPSProfiler
 from logger import get_logger
 from training import ContinuousTrainer
+from tqdm import tqdm
 
 if TYPE_CHECKING:
     from model.torch_model_harness import BaseModelHarness
@@ -131,9 +132,13 @@ class ContinuousMonitor:
         Raises:
             StopIteration: When the data loader is exhausted
         """
-        train_loader, _ = self.modelHarness.get_cur_data_loaders()
+        train_loader, val_loader = self.modelHarness.get_cur_data_loaders()
 
-        for batch_idx, batch in enumerate(train_loader):
+        for batch_idx, batch in tqdm(
+            enumerate(val_loader),
+            desc="Processing batches",
+            leave=False,
+        ):
             # Evaluate batch and compute all metrics
             metrics = self._evaluate_batch(batch)
             self.metric_buffer.append(metrics)
@@ -144,21 +149,11 @@ class ContinuousMonitor:
                 self.detection_interval > 0
                 and self.batch_count % self.detection_interval == 0
             ):
+
                 drift_signal = self._check_drift()
 
                 if drift_signal.drift_detected:
                     self._handle_drift(drift_signal)
-                # self.global_monitoring_step += 1
-
-        # # Stream exhausted - check drift one last time if we have buffered metrics
-        # # This ensures we don't miss drift when stream has fewer than detection_interval batches
-        # if self.metric_buffer:
-        #     drift_signal = self._check_drift()
-        #     if drift_signal.drift_detected:
-        #         print(f"\n{'!' * 60}")
-        #         print("DRIFT DETECTED")
-        #         print(f"{'!' * 60}\n")
-        #         self._handle_drift(drift_signal)
 
         raise StopIteration()
 

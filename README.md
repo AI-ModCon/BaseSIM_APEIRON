@@ -15,6 +15,8 @@ poetry install
 To run the experiment, execute the following command from the project root:
 ```bash
 poetry run python -m src.main --config examples/mnist/mnist.toml
+poetry run python -m src.main --config examples/cifar10/cifar10_vit.toml
+poetry run python -m src.main --config examples/imagenet/imagenet_vit.toml
 ```
 The script uses CUDA automatically when it is available; otherwise it falls back to CPU.
 

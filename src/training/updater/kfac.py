@@ -11,7 +11,10 @@ warnings.filterwarnings("ignore", "Full backward hook is firing")
 
 class OnlineKFACUpdater(BaseUpdater):
     """
-    Online K-FAC EWC-style regularizer.
+    Online K-FAC EWC-style regularizer. See work by
+    Title: Optimizing neural networks with Kronecker-factored approximate curvature
+    Authors: James Martens, Roger Grosse
+    Link: http://proceedings.mlr.press/v37/martens15.html
 
     - Accumulates Kronecker factors during a CL loop
     - Commits them once at cl_postprocessing()
