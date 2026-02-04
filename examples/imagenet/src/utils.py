@@ -1,9 +1,8 @@
 # examples/imagenet/src/utils.py
 from __future__ import annotations
-from typing import Dict, List, Any, TYPE_CHECKING
+from typing import Dict, List, Any
 
-if TYPE_CHECKING:
-    from typing import Any as TypeAny
+
 import os
 import torch
 from torch import nn
