@@ -1,6 +1,16 @@
 # SIM: Self Improving Model framework
+A PyTorch framework for continuous learning that automatically detects concept drift in data streams and adapts models through JVP regularized retraining.
 
-This project trains a convolutional neural network on a sequence of continually changing MNIST tasks. Each task is built by sampling one digit, applying random affine transformations, and training while replaying everything seen so far.
+## Overview
+This repo trains models on continuously changing data streams. The system monitors model performance in real-time, detects when the data distribution (concept drift) shifts, and automatically triggers adaptive learning to maintain performance without catastrophic forgetting.
+
+Concept drift occurs when the statistical relationship between inputs and outputs changes overtime, causing model performance to degrade. This framework detects drift by monitoring performance metrics (like accuracy or loss) and applies JVP-regularized learning only when needed.
+
+## Adaptive Learning 
+- Evaluates model performance on incoming batches, tracking metrics in real-time.
+- Monitors metrics and identifies when data distribution shift significantly.
+- When drift is detected, monitoring pauses, JVP regularization prevent catastrophic forgetting, and model updates balance new patterns and old knowledge.
+- Monitoring resumes with updated model weights.
 
 ## Prerequisites
 This project uses [Poetry](https://python-poetry.org/) for dependency management. You will need to have Poetry installed.
@@ -21,7 +31,7 @@ poetry run python -m src.main --config examples/imagenet/imagenet_vit.toml
 The script uses CUDA automatically when it is available; otherwise it falls back to CPU.
 
 ## Visualizing Performance
-To run visualize the training and testing metrics, execute the following command from the project root:
+To visualize the training and testing continous learning metrics, execute the following command from the project root:
 ```bash
 poetry run python -m src.visualize --config examples/mnist/mnist.toml
 ```
