@@ -131,13 +131,20 @@ class BaseModelHarness(ABC):
         return [s / c for s, c in zip(sums, counts)]
 
     @torch.no_grad()
-    def history_eval(self):
-        """Stream over batches; return mean(metric) over batches (order preserved)."""
+    def history_eval(self) -> Optional[List[float]]:
+        """Stream over batches; return mean(metric) over batches (order preserved).
+
+        Returns None if no historical data is available.
+        """
+        hist_loaders = self.get_hist_data_loaders()
+        if hist_loaders is None or hist_loaders[1] is None:
+            return None
+
         self.model.eval()
         sums = [0.0 for _ in self.eval_metrics]
         counts = [0 for _ in self.eval_metrics]
 
-        for batch in self.get_hist_data_loaders()[1]:  # assumes iterable
+        for batch in hist_loaders[1]:
             x, y = self._unpack(batch)
             x, y = x.to(self.cfg.device), y.to(self.cfg.device)
 

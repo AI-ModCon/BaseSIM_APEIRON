@@ -32,50 +32,23 @@ def get_available_device(multi_gpu: bool = False) -> torch.device:
       - CPU-only hosts: 'cpu'
       - CUDA hosts:
           * multi_gpu=True  -> 'cuda' (let caller handle DDP/DataParallel)
-          * multi_gpu=False -> choose GPU with most free memory (torch.cuda.mem_get_info)
-            (falls back to nvidia-smi if needed; then to cuda:0)
+          * multi_gpu=False -> choose GPU with most free memory, then restrict
+            CUDA_VISIBLE_DEVICES so only that GPU is visible.
       - Apple Silicon with PyTorch MPS: 'mps' if CUDA is unavailable
     Never raises if nvidia-smi is missing.
     """
-    # Prefer CUDA if available
+    # Single-GPU mode: must set CUDA_VISIBLE_DEVICES *before* CUDA init
+    if not multi_gpu and "CUDA_VISIBLE_DEVICES" not in os.environ:
+        best = _select_best_gpu()
+        if best is not None:
+            os.environ["CUDA_VISIBLE_DEVICES"] = str(best)
+
+    # Now check CUDA availability (this initializes CUDA)
     if torch.cuda.is_available():
         if multi_gpu:
             return torch.device("cuda")
-
-        # Single-GPU selection: prefer PyTorch's mem_get_info (no external deps)
-        try:
-            n = torch.cuda.device_count()
-            free_bytes = []
-            for i in range(n):
-                # Ensure we query device i
-                with torch.cuda.device(i):
-                    free_i, _total_i = torch.cuda.mem_get_info()
-                free_bytes.append(free_i)
-
-            best = max(range(n), key=lambda i: free_bytes[i])
-            return torch.device(f"cuda:{best}")
-
-        except Exception:
-            # Fallback to nvidia-smi if mem_get_info is unavailable/problematic
-            try:
-                out = subprocess.check_output(
-                    [
-                        "nvidia-smi",
-                        "--query-gpu=memory.free",
-                        "--format=csv,noheader,nounits",
-                    ],
-                    stderr=subprocess.STDOUT,
-                )
-                rows = [
-                    int(x.strip())
-                    for x in out.decode().strip().splitlines()
-                    if x.strip()
-                ]
-                best = max(range(len(rows)), key=lambda i: rows[i])
-                return torch.device(f"cuda:{best}")
-            except (FileNotFoundError, subprocess.CalledProcessError):
-                # Last resort: first CUDA device
-                return torch.device("cuda:0")
+        # After restricting, there's only cuda:0
+        return torch.device("cuda:0")
 
     # CUDA not available: try MPS (Apple), otherwise CPU
     try:
@@ -85,6 +58,25 @@ def get_available_device(multi_gpu: bool = False) -> torch.device:
         pass
 
     return torch.device("cpu")
+
+
+def _select_best_gpu() -> int | None:
+    """Select GPU with most free memory using nvidia-smi (pre-CUDA-init safe)."""
+    try:
+        out = subprocess.check_output(
+            [
+                "nvidia-smi",
+                "--query-gpu=memory.free",
+                "--format=csv,noheader,nounits",
+            ],
+            stderr=subprocess.STDOUT,
+        )
+        rows = [int(x.strip()) for x in out.decode().strip().splitlines() if x.strip()]
+        if rows:
+            return max(range(len(rows)), key=lambda i: rows[i])
+    except (FileNotFoundError, subprocess.CalledProcessError, ValueError):
+        pass
+    return None
 
 
 @dataclass(frozen=True)
@@ -111,7 +103,7 @@ class DataCfg:
 
 @dataclass(frozen=True)
 class ContinualLearningCfg:
-    update_mode: str = "basic"
+    update_mode: str = "base"
 
     # For JVP regularization
     jvp_lambda: float = 0.001

@@ -7,7 +7,10 @@ from model.torch_model_harness import BaseModelHarness
 
 class OnlineEWCUpdater(BaseUpdater):
     """
-    Online Elastic Weight Consolidation (EWC) updater.
+    Online Elastic Weight Consolidation (EWC) updater. See work by
+    Title: Overcoming catastrophic forgetting in neural networks
+    Authors: James Kirkpatrick, Razvan Pascanu, Neil Rabinowitz, Joel Veness, Guillaume Desjardins, Andrei A. Rusu, Kieran Milan, John Quan, Tiago Ramalho, Agnieszka Grabska-Barwińska, Demis Hassabis, Claudia Clopath, Dharshan Kumaran, Raia Hadsell
+    DOI: https://doi.org/10.1073/pnas.1611835114
 
     - Anchor (theta_star) and Fisher are held fixed during a CL loop.
     - Fisher is accumulated from gradients during CL.

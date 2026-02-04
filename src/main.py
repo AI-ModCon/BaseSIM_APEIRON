@@ -8,7 +8,7 @@ from examples.utils import get_example
 from driver.continuous_monitor import ContinuousMonitor
 
 
-def main(argv=None) -> int:
+def main(argv: list[str] | None = None) -> int:
     cfg: Config = build_config(argv)
     modelHarness = get_example(cfg=cfg)
 

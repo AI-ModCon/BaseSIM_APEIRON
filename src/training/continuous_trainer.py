@@ -82,10 +82,13 @@ class ContinuousTrainer:
 
         logger.info("==== Continual Learning ====")
         logger.info("\tInitial test acc: {}".format(cur_validation_metrics[0]), level=1)
-        logger.info(
-            "\tInitial historical test acc: {}".format(hist_validation_metrics[0]),
-            level=1,
-        )
+        if hist_validation_metrics is not None:
+            logger.info(
+                "\tInitial historical test acc: {}".format(hist_validation_metrics[0]),
+                level=1,
+            )
+        else:
+            logger.info("\tNo historical data available for evaluation", level=1)
 
         self.modelHarness.model.train()
         # 2) run the outer loop
@@ -124,17 +127,32 @@ class ContinuousTrainer:
         cur_validation_metrics = self.modelHarness.eval()
         hist_validation_metrics = self.modelHarness.history_eval()
 
-        logger.info(f"\tTest Accuracy: {cur_validation_metrics[0]:.1f}%")
-        logger.info(f"\tHist Test Accuracy: {hist_validation_metrics[0]:.1f}%")
+        logger.info(f"\tTest Accuracy: {cur_validation_metrics[0]:.1f}%", level=1)
+        if hist_validation_metrics is not None:
+            logger.info(
+                f"\tHist Test Accuracy: {hist_validation_metrics[0]:.1f}%",
+                level=1,
+            )
+
+        else:
+            logger.info("\tNo historical data available for evaluation", level=1)
 
         logger.stage("eval")
-        logger.log(
-            {
-                "test_curr_acc": cur_validation_metrics[0],
-                "test_hist_acc": hist_validation_metrics[0],
-            },
-            commit=False,
-        )
+        if hist_validation_metrics is not None:
+            logger.log(
+                {
+                    "test_curr_acc": cur_validation_metrics[0],
+                    "test_hist_acc": hist_validation_metrics[0],
+                },
+                commit=False,
+            )
+        else:
+            logger.log(
+                {
+                    "test_curr_acc": cur_validation_metrics[0],
+                },
+                commit=False,
+            )
 
         if self.profiler:
             flops_perf = self.profiler.get_performance()
