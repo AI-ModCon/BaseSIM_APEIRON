@@ -1,0 +1,130 @@
+_wandb:
+    value:
+        cli_version: 0.23.0
+        e:
+            986jfqp65hb58g1l1013wp7vklby8o5f:
+                args:
+                    - --config
+                    - examples/mnist/mnist.toml
+                cpu_count: 64
+                cpu_count_logical: 128
+                cudaVersion: "13.0"
+                disk:
+                    /:
+                        total: "7934048849920"
+                        used: "1173501759488"
+                executable: /home/8v5/projects/BaseSim_Framework/.venv/bin/python
+                git:
+                    commit: fbf643126e21834957d9e9811d21b86405b79ac1
+                    remote: git@github.com:AI-ModCon/BaseSim_Framework.git
+                gpu: NVIDIA GeForce RTX 4090
+                gpu_count: 2
+                gpu_nvidia:
+                    - architecture: Ada
+                      cudaCores: 16384
+                      memoryTotal: "25757220864"
+                      name: NVIDIA GeForce RTX 4090
+                      uuid: GPU-0681cfa4-6dc1-5d6f-aeda-87159a3e5370
+                    - architecture: Ada
+                      cudaCores: 16384
+                      memoryTotal: "25757220864"
+                      name: NVIDIA GeForce RTX 4090
+                      uuid: GPU-fae6d9e3-b259-4436-1b4c-815a949ba0b2
+                host: telos
+                memory:
+                    total: "270038093824"
+                os: Linux-6.14.0-37-generic-x86_64-with-glibc2.39
+                program: -m src.main
+                python: CPython 3.13.11
+                root: /home/8v5/projects/BaseSim_Framework
+                startedAt: "2026-02-06T15:59:48.835908Z"
+                writerId: 986jfqp65hb58g1l1013wp7vklby8o5f
+        m:
+            - "1": step
+              "6":
+                - 3
+              "7": []
+            - "2": '*'
+              "5": 1
+              "6":
+                - 1
+              "7": []
+        python_version: 3.13.11
+        t:
+            "1":
+                - 1
+                - 5
+                - 11
+                - 41
+                - 49
+                - 53
+            "2":
+                - 1
+                - 5
+                - 11
+                - 41
+                - 49
+                - 53
+            "3":
+                - 7
+                - 16
+            "4": 3.13.11
+            "5": 0.23.0
+            "6": 4.57.1
+            "12": 0.23.0
+            "13": linux-x86_64
+continual_learning:
+    value:
+        ewc_ema_decay: 0.95
+        ewc_lambda: 1000
+        jvp_deltax_norm: 1
+        jvp_lambda: 10
+        kfac_ema_decay: 0.95
+        kfac_lambda: 0.01
+        update_mode: base
+data:
+    value:
+        name: mnist
+        path: ""
+device:
+    value: cuda:0
+drift_detection:
+    value:
+        adwin_delta: 0.002
+        adwin_minor_threshold: 0.3
+        adwin_moderate_threshold: 0.6
+        aggregation: mean
+        detection_interval: 10
+        detector_name: ADWINDetector
+        kswin_alpha: 0.005
+        kswin_stat_size: 30
+        kswin_window_size: 100
+        max_stream_updates: 20
+        metric_index: 0
+        ph_alpha: 0.9999
+        ph_delta: 0.005
+        ph_min_instances: 30
+        ph_threshold: 50
+        reset_after_learning: false
+model:
+    value:
+        name: dummy
+        pretrained_path: examples/mnist/mnist.pth
+multi_gpu:
+    value: false
+seed:
+    value: 1337
+train:
+    value:
+        batch_size: 64
+        grad_accumulation_steps: 2
+        init_lr: 0.001
+        max_iter: 600
+        num_workers: 4
+verbosity:
+    value: INFO
+visualization:
+    value:
+        baseline: 90
+        input: output/mnist.csv
+        output: output/mnist_dashboard.png
