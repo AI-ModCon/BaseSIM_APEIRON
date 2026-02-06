@@ -149,6 +149,7 @@ class ContinuousMonitor:
                 self.detection_interval > 0
                 and self.batch_count % self.detection_interval == 0
             ):
+
                 drift_signal = self._check_drift()
 
                 if drift_signal.drift_detected:
