@@ -164,6 +164,7 @@ class Config:
     seed: int
     device: str
     multi_gpu: bool
+    verbosity: str = "INFO"
     visualization: VisualizationCfg | None = None
 
 
