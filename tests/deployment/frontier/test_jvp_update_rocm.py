@@ -15,7 +15,6 @@ from config.configuration import (
 from examples.mnist.model import MNIST_CNN
 
 from training.updater.jvp_reg import JVPRegUpdater
-from profilers import FLOPSProfiler
 
 
 @pytest.fixture
@@ -26,7 +25,7 @@ def rocm_config():
         data=DataCfg(name="mnist", path="./data"),
         train=TrainCfg(batch_size=32, num_workers=0, init_lr=0.001),
         continual_learning=ContinualLearningCfg(
-            jvp_reg=0.001, deltax_norm=1.0, max_iter=5
+            jvp_lambda=0.001, jvp_deltax_norm=1.0, max_iter=5
         ),
         drift_detection=DriftDetectionCfg(),
         seed=42,
@@ -44,28 +43,22 @@ def harness_with_history(rocm_config):
     return harness
 
 
-class TestJVPRegularizedLoss:
-    """Tests for JVPRegularizedLoss module."""
+class TestJVPRegUpdater:
+    """Tests for JVPRegUpdater class."""
 
-    def test_jvp_loss_creation(self, harness_with_history):
-        """Test that JVPRegularizedLoss can be created."""
-        criterion = harness_with_history.get_criterion()
-        jvp_loss = JVPRegUpdater(
-            model=harness_with_history.model,
-            criterion=criterion,
-            jvp_reg=0.001,
-            deltax_norm=1.0,
+    def test_jvp_updater_creation(self, rocm_config, harness_with_history):
+        """Test that JVPRegUpdater can be created."""
+        jvp_updater = JVPRegUpdater(
+            cfg=rocm_config,
+            modelHarness=harness_with_history,
         )
-        assert jvp_loss is not None
+        assert jvp_updater is not None
 
-    def test_jvp_loss_forward(self, rocm_config, harness_with_history):
-        """Test that JVPRegularizedLoss forward pass works on GPU."""
-        criterion = harness_with_history.get_criterion()
-        jvp_loss = JVPRegularizedLoss(
-            model=harness_with_history.model,
-            criterion=criterion,
-            jvp_reg=0.001,
-            deltax_norm=1.0,
+    def test_jvp_updater_forward_backward(self, rocm_config, harness_with_history):
+        """Test that JVPRegUpdater forward-backward pass works on GPU."""
+        jvp_updater = JVPRegUpdater(
+            cfg=rocm_config,
+            modelHarness=harness_with_history,
         )
 
         # Get batches
@@ -76,24 +69,23 @@ class TestJVPRegularizedLoss:
         hist_batch = next(iter(hist_train_loader))
 
         # Move to device
-        train_batch = [b.to(rocm_config.device) for b in train_batch]
-        hist_batch = [b.to(rocm_config.device) for b in hist_batch]
+        train_batch = tuple(b.to(rocm_config.device) for b in train_batch)
+        hist_batch = tuple(b.to(rocm_config.device) for b in hist_batch)
 
-        # Forward pass
-        grad_dict, loss_curr, loss_mem = jvp_loss(train_batch, hist_batch)
+        # Run forward-backward pass
+        jvp_updater.update_pre_fwd_bwd()
+        loss_curr = jvp_updater.fwd_bwd(train_batch, hist_batch)
+        loss_mem = jvp_updater.update_post_fwd_bwd()
 
-        assert grad_dict is not None, "Gradient dict is None"
         assert loss_curr is not None, "Current loss is None"
         assert loss_mem is not None, "Memory loss is None"
+        assert loss_curr > 0, "Current loss should be positive"
 
-    def test_jvp_loss_gradients_on_gpu(self, rocm_config, harness_with_history):
+    def test_jvp_gradients_on_gpu(self, rocm_config, harness_with_history):
         """Test that JVP gradients are computed on GPU."""
-        criterion = harness_with_history.get_criterion()
-        jvp_loss = JVPRegularizedLoss(
-            model=harness_with_history.model,
-            criterion=criterion,
-            jvp_reg=0.001,
-            deltax_norm=1.0,
+        jvp_updater = JVPRegUpdater(
+            cfg=rocm_config,
+            modelHarness=harness_with_history,
         )
 
         # Get batches
@@ -103,34 +95,31 @@ class TestJVPRegularizedLoss:
         train_batch = next(iter(train_loader))
         hist_batch = next(iter(hist_train_loader))
 
-        train_batch = [b.to(rocm_config.device) for b in train_batch]
-        hist_batch = [b.to(rocm_config.device) for b in hist_batch]
+        train_batch = tuple(b.to(rocm_config.device) for b in train_batch)
+        hist_batch = tuple(b.to(rocm_config.device) for b in hist_batch)
 
         # Compute gradients
-        grad_dict, _, _ = jvp_loss(train_batch, hist_batch)
+        jvp_updater.update_pre_fwd_bwd()
+        jvp_updater.fwd_bwd(train_batch, hist_batch)
+        jvp_updater.update_post_fwd_bwd()
 
         # Check gradients exist for all parameters
         for name, param in harness_with_history.model.named_parameters():
-            assert name in grad_dict, f"No gradient for {name}"
-            assert grad_dict[name].is_cuda, f"Gradient for {name} not on GPU"
-            assert not torch.isnan(grad_dict[name]).any(), f"NaN in gradient for {name}"
+            assert param.grad is not None, f"No gradient for {name}"
+            assert param.grad.is_cuda, f"Gradient for {name} not on GPU"
+            assert not torch.isnan(param.grad).any(), f"NaN in gradient for {name}"
 
 
 class TestJVPUpdateStep:
-    """Tests for step_method_jvp_reg function."""
+    """Tests for JVP update step with optimizer."""
 
     def test_jvp_step_runs(self, rocm_config, harness_with_history):
         """Test that JVP update step executes without error."""
-        criterion = harness_with_history.get_criterion()
         optimizer = harness_with_history.get_optmizer()
-        model = harness_with_history.model
-        profiler = FLOPSProfiler()
 
-        jvp_loss = JVPRegularizedLoss(
-            model=model,
-            criterion=criterion,
-            jvp_reg=rocm_config.continuous_learning.jvp_reg,
-            deltax_norm=rocm_config.continuous_learning.deltax_norm,
+        jvp_updater = JVPRegUpdater(
+            cfg=rocm_config,
+            modelHarness=harness_with_history,
         )
 
         # Get batches
@@ -140,43 +129,32 @@ class TestJVPUpdateStep:
         train_batch = next(iter(train_loader))
         hist_batch = next(iter(hist_train_loader))
 
-        train_batch = [b.to(rocm_config.device) for b in train_batch]
-        hist_batch = [b.to(rocm_config.device) for b in hist_batch]
+        train_batch = tuple(b.to(rocm_config.device) for b in train_batch)
+        hist_batch = tuple(b.to(rocm_config.device) for b in hist_batch)
 
         # Run update step
-        loss_curr, loss_mem, loss_total = step_method_jvp_reg(
-            model=model,
-            criterion=criterion,
-            optimizer=optimizer,
-            cfg=rocm_config,
-            iter=0,
-            train_batch=train_batch,
-            hist_batch=hist_batch,
-            profiler=profiler,
-            jvp_loss=jvp_loss,
-        )
+        optimizer.zero_grad()
+        jvp_updater.update_pre_fwd_bwd()
+        loss_curr = jvp_updater.fwd_bwd(train_batch, hist_batch)
+        loss_mem = jvp_updater.update_post_fwd_bwd()
+        optimizer.step()
 
         assert loss_curr > 0, "Current loss should be positive"
-        assert loss_mem > 0, "Memory loss should be positive"
-        assert loss_total > 0, "Total loss should be positive"
+        assert loss_mem >= 0, "Memory loss should be non-negative"
 
     def test_jvp_step_updates_weights(self, rocm_config, harness_with_history):
         """Test that JVP update step modifies model weights."""
-        criterion = harness_with_history.get_criterion()
         optimizer = harness_with_history.get_optmizer()
         model = harness_with_history.model
-        profiler = FLOPSProfiler()
 
         # Get initial weights
         initial_weights = {
             name: param.clone().detach() for name, param in model.named_parameters()
         }
 
-        jvp_loss = JVPRegularizedLoss(
-            model=model,
-            criterion=criterion,
-            jvp_reg=rocm_config.continuous_learning.jvp_reg,
-            deltax_norm=rocm_config.continuous_learning.deltax_norm,
+        jvp_updater = JVPRegUpdater(
+            cfg=rocm_config,
+            modelHarness=harness_with_history,
         )
 
         # Get batches
@@ -186,21 +164,15 @@ class TestJVPUpdateStep:
         train_batch = next(iter(train_loader))
         hist_batch = next(iter(hist_train_loader))
 
-        train_batch = [b.to(rocm_config.device) for b in train_batch]
-        hist_batch = [b.to(rocm_config.device) for b in hist_batch]
+        train_batch = tuple(b.to(rocm_config.device) for b in train_batch)
+        hist_batch = tuple(b.to(rocm_config.device) for b in hist_batch)
 
         # Run update step
-        step_method_jvp_reg(
-            model=model,
-            criterion=criterion,
-            optimizer=optimizer,
-            cfg=rocm_config,
-            iter=0,
-            train_batch=train_batch,
-            hist_batch=hist_batch,
-            profiler=profiler,
-            jvp_loss=jvp_loss,
-        )
+        optimizer.zero_grad()
+        jvp_updater.update_pre_fwd_bwd()
+        jvp_updater.fwd_bwd(train_batch, hist_batch)
+        jvp_updater.update_post_fwd_bwd()
+        optimizer.step()
 
         # Check weights changed
         weights_changed = False
@@ -213,16 +185,11 @@ class TestJVPUpdateStep:
 
     def test_jvp_step_multiple_iterations(self, rocm_config, harness_with_history):
         """Test that multiple JVP update steps work correctly."""
-        criterion = harness_with_history.get_criterion()
         optimizer = harness_with_history.get_optmizer()
-        model = harness_with_history.model
-        profiler = FLOPSProfiler()
 
-        jvp_loss = JVPRegularizedLoss(
-            model=model,
-            criterion=criterion,
-            jvp_reg=rocm_config.continuous_learning.jvp_reg,
-            deltax_norm=rocm_config.continuous_learning.deltax_norm,
+        jvp_updater = JVPRegUpdater(
+            cfg=rocm_config,
+            modelHarness=harness_with_history,
         )
 
         # Get loaders
@@ -237,21 +204,16 @@ class TestJVPUpdateStep:
             train_batch = next(train_iter)
             hist_batch = next(hist_iter)
 
-            train_batch = [b.to(rocm_config.device) for b in train_batch]
-            hist_batch = [b.to(rocm_config.device) for b in hist_batch]
+            train_batch = tuple(b.to(rocm_config.device) for b in train_batch)
+            hist_batch = tuple(b.to(rocm_config.device) for b in hist_batch)
 
-            loss_curr, loss_mem, loss_total = step_method_jvp_reg(
-                model=model,
-                criterion=criterion,
-                optimizer=optimizer,
-                cfg=rocm_config,
-                iter=i,
-                train_batch=train_batch,
-                hist_batch=hist_batch,
-                profiler=profiler,
-                jvp_loss=jvp_loss,
-            )
+            optimizer.zero_grad()
+            jvp_updater.update_pre_fwd_bwd()
+            loss_curr = jvp_updater.fwd_bwd(train_batch, hist_batch)
+            loss_mem = jvp_updater.update_post_fwd_bwd()
+            optimizer.step()
 
+            loss_total = loss_curr + loss_mem
             losses.append(loss_total)
 
         # All losses should be positive
