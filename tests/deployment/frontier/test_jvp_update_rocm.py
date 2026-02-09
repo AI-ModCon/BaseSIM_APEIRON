@@ -25,7 +25,8 @@ def rocm_config():
         data=DataCfg(name="mnist", path="./data"),
         train=TrainCfg(batch_size=32, num_workers=0, init_lr=0.001),
         continual_learning=ContinualLearningCfg(
-            jvp_lambda=0.001, jvp_deltax_norm=1.0,
+            jvp_lambda=0.001,
+            jvp_deltax_norm=1.0,
         ),
         drift_detection=DriftDetectionCfg(),
         seed=42,
