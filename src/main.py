@@ -1,6 +1,6 @@
 import sys
 
-from logger import get_logger
+from logger import get_logger, configure_backend
 from config.configuration import build_config, Config
 
 from examples.utils import get_example
@@ -12,13 +12,20 @@ def main(argv: list[str] | None = None) -> int:
     cfg: Config = build_config(argv)
     modelHarness = get_example(cfg=cfg)
 
-    # Configure logger on entry to main
+    # Configure logger
+    backend = configure_backend(cfg)
     logger = get_logger(
         verbosity=cfg.verbosity,
-        wandb_enabled=True,
+        backend=backend,
         csv_path=cfg.visualization.input if cfg.visualization else None,
     )
-    logger.init(cfg, project="main")
+
+    # Determine project/experiment name
+    project_name = "basesim-framework"
+    if cfg.logging and cfg.logging.experiment_name:
+        project_name = cfg.logging.experiment_name
+
+    logger.init(cfg, project=project_name)
 
     # Create continuous monitor - replaces fixed loop and detector instantiation
     monitor = ContinuousMonitor(

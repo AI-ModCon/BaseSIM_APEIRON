@@ -156,8 +156,8 @@ class VisualizationCfg:
 @dataclass(frozen=True)
 class LoggingCfg:
     backend: str = "wandb"  # "wandb", "mlflow", or "none"
+    experiment_name: str | None = None  # Project name for WandB/Experiment name for MLflow
     mlflow_tracking_uri: str | None = None  # MLflow tracking server URI
-    mlflow_experiment_name: str | None = None  # Override experiment name
 
 
 @dataclass(frozen=True)

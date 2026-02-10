@@ -192,3 +192,19 @@ def reset_logger() -> None:
     """Reset the default logger instance. Useful for testing."""
     global _default_logger
     _default_logger = None
+
+
+def configure_backend(cfg: Config | None) -> MetricsBackend:
+    """Configure and return the logging backend from config."""
+    if cfg is None or cfg.logging is None:
+        return "wandb"
+
+    backend = cfg.logging.backend
+    if backend == "mlflow" and cfg.logging.mlflow_tracking_uri:
+        import mlflow
+        mlflow.set_tracking_uri(cfg.logging.mlflow_tracking_uri)
+
+    if backend not in ("wandb", "mlflow", "none"):
+        raise ValueError(f"Invalid logging backend: {backend}")
+
+    return backend

@@ -47,8 +47,8 @@ adwin_moderate_threshold = 0.6
 
 [logging]
 backend = "wandb"  # "wandb", "mlflow", or "none"
+experiment_name = "mnist-continual-learning"  # Optional: project/experiment name
 # mlflow_tracking_uri = "http://localhost:5000"  # Optional: MLflow tracking server
-# mlflow_experiment_name = "mnist-continual-learning"  # Optional: override experiment name
 
 [visualization]
 baseline = 90.0

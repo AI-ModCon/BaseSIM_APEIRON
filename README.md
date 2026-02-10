@@ -30,6 +30,14 @@ poetry run python -m src.main --config examples/imagenet/imagenet_vit.toml
 ```
 The script uses CUDA automatically when it is available; otherwise it falls back to CPU.
 
+## Metrics Logging
+Currently, we support two metrics logging backends: Weights & Biases (WandB) and MLflow. You can configure the desired `backend` in the `config` file's `logging` section. To disable logging, you can set the `logging` section to `none` to disable logging. Alternatively, you can set the logging choice via command line arguments, for example:
+
+```bash
+poetry run python -m src.main --config examples/mnist/mnist.toml --set logging.backend=mlflow --set logging.experiment_name="My Experiment"
+# To view results for MLflow, run `mlflow ui` in another terminal and navigate to http://localhost:5000
+```
+
 ## Visualizing Performance
 To visualize the training and testing continous learning metrics, execute the following command from the project root:
 ```bash
