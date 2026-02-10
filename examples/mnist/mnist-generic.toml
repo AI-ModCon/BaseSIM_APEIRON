@@ -2,6 +2,7 @@
 seed = 1337
 device = "auto"
 multi_gpu = false
+verbosity = "INFO"  # DEBUG, INFO, INFO:0-9, WARNING, ERROR, CRITICAL
 
 [model]
 name = "dummy"

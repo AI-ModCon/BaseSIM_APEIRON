@@ -14,7 +14,7 @@ def main(argv: list[str] | None = None) -> int:
 
     # Configure logger on entry to main
     logger = get_logger(
-        verbosity="INFO",  # INFO:n for granular verbosity of INFO.
+        verbosity=cfg.verbosity,
         wandb_enabled=True,
         csv_path=cfg.visualization.input if cfg.visualization else None,
     )
