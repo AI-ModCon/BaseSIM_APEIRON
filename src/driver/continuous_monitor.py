@@ -263,7 +263,7 @@ class ContinuousMonitor:
         """
         self.drift_event_count += 1
         self.logger.info(
-            f"==== DRIFT DETECTED (Event #{self.drift_event_count + 1})! ====", level=0
+            f"==== DRIFT DETECTED (Event #{self.drift_event_count})! ====", level=0
         )
         self.logger.info(
             f"\tRegime: {drift_signal.regime.value if drift_signal.regime else 'N/A'}",
