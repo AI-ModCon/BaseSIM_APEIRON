@@ -38,6 +38,8 @@ poetry run python -m src.main --config examples/mnist/mnist.toml --set logging.b
 # To view results for MLflow, run `mlflow ui` in another terminal and navigate to http://localhost:5000
 ```
 
+Currently the mnist example sets the logging to wandb in the toml `config` file. The other examples do not set any metric for the logging backend, which defaults to wandb.
+
 ## Visualizing Performance
 To visualize the training and testing continous learning metrics, execute the following command from the project root:
 ```bash
