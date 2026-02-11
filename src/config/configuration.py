@@ -25,6 +25,8 @@ from pathlib import Path
 from typing import Any
 from typing import Mapping
 
+from logger.logger import MetricsBackend
+
 
 def get_available_device(multi_gpu: bool = False) -> torch.device:
     """
@@ -155,8 +157,10 @@ class VisualizationCfg:
 
 @dataclass(frozen=True)
 class LoggingCfg:
-    backend: str = "wandb"  # "wandb", "mlflow", or "none"
-    experiment_name: str | None = None  # Project name for WandB/Experiment name for MLflow
+    backend: MetricsBackend = "wandb"  # "wandb", "mlflow", or "none"
+    experiment_name: str | None = (
+        None  # Project name for WandB/Experiment name for MLflow
+    )
     mlflow_tracking_uri: str | None = None  # MLflow tracking server URI
 
 

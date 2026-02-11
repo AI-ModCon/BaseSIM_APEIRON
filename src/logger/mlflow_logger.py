@@ -105,16 +105,13 @@ class MLFlowLogger:
             for i, tag in enumerate(tags):
                 run_tags[f"user_tag_{i}"] = tag
 
-        self.run = mlflow.start_run(
-            run_name=name, tags=run_tags if run_tags else None
-        )
+        self.run = mlflow.start_run(run_name=name, tags=run_tags if run_tags else None)
 
         # Log config as params (flatten nested dataclass)
         flat_config = self._flatten_config(asdict(cfg))
         # MLflow params have a 500 char limit per value
         truncated_config = {
-            k: str(v)[:500] if len(str(v)) > 500 else v
-            for k, v in flat_config.items()
+            k: str(v)[:500] if len(str(v)) > 500 else v for k, v in flat_config.items()
         }
         mlflow.log_params(truncated_config)
 

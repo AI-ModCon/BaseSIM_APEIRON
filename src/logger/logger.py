@@ -200,11 +200,13 @@ def configure_backend(cfg: Config | None) -> MetricsBackend:
         return "wandb"
 
     backend = cfg.logging.backend
-    if backend == "mlflow" and cfg.logging.mlflow_tracking_uri:
-        import mlflow
-        mlflow.set_tracking_uri(cfg.logging.mlflow_tracking_uri)
 
     if backend not in ("wandb", "mlflow", "none"):
         raise ValueError(f"Invalid logging backend: {backend}")
+
+    if backend == "mlflow" and cfg.logging.mlflow_tracking_uri:
+        import mlflow
+
+        mlflow.set_tracking_uri(cfg.logging.mlflow_tracking_uri)
 
     return backend
