@@ -45,6 +45,11 @@ adwin_delta = 0.002
 adwin_minor_threshold = 0.3
 adwin_moderate_threshold = 0.6
 
+[logging]
+backend = "wandb"  # "wandb", "mlflow", or "none"
+experiment_name = "mnist-continual-learning"  # Optional: project/experiment name
+# mlflow_tracking_uri = "http://localhost:5000"  # Optional: MLflow tracking server
+
 [visualization]
 baseline = 90.0
 input = "output/mnist.csv"
