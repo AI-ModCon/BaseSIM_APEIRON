@@ -21,8 +21,10 @@ data/*
 *.png
 *.txt
 *.csv
+!tests/references/*.csv
 *.pdf
 *.json
+/wandb/
 
 # Github
 *.orig
