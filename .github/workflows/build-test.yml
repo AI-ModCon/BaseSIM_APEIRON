@@ -16,9 +16,13 @@ jobs:
       with:
         python-version: '3.13'
 
+    # We're doing this craziness beecause of limitations on the github CI runners. They're quite small
+    # some of our dependencies like torch are kind large. Poetry install takes up a bit more space than
+    # delegating to pip.
     - name: Install dependencies
       run: |
         pip install --no-cache-dir poetry poetry-plugin-export
+        poetry config virtualenvs.create false
         poetry export -f requirements.txt -o requirements.txt --without-hashes --with dev
         pip install --no-cache-dir -r requirements.txt && rm requirements.txt
 
