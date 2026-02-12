@@ -7,6 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PYTHONPATH: src
+      WANDB_MODE: disabled
 
     steps:
     - uses: actions/checkout@v4
