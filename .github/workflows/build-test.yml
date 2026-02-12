@@ -28,3 +28,12 @@ jobs:
 
     - name: Run mypy
       run: poetry run mypy .
+
+    - name: Run tests
+      run: poetry run pytest
+
+    - name: Run mnist
+      run: poetry run python -m src.main --config examples/mnist/mnist.toml
+
+    - name: Run cifar
+      run: poetry run python -m src.main --config examples/cifar/cifar10_vit.toml 
