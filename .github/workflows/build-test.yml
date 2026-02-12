@@ -1,6 +1,6 @@
 name: CI
 
-on: [push]
+on: [push, workflow_dispatch]
 
 jobs:
   build:
@@ -39,8 +39,30 @@ jobs:
     - name: Run tests
       run: poetry run pytest
 
+  examples:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    env:
+      PYTHONPATH: src
+      WANDB_MODE: disabled
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.13'
+
+    - name: Install dependencies
+      run: |
+        pip install --no-cache-dir poetry poetry-plugin-export
+        poetry config virtualenvs.create false
+        poetry export -f requirements.txt -o requirements.txt --without-hashes --with dev
+        pip install --no-cache-dir -r requirements.txt && rm requirements.txt
+
     - name: Run mnist
       run: poetry run python -m src.main --config examples/mnist/mnist.toml
 
     - name: Run cifar
-      run: poetry run python -m src.main --config examples/cifar/cifar10_vit.toml 
+      run: poetry run python -m src.main --config examples/cifar/cifar10_vit.toml
