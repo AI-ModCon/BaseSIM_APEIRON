@@ -24,8 +24,10 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 from typing import Mapping
+from typing import TYPE_CHECKING
 
-from logger.logger import MetricsBackend
+if TYPE_CHECKING:
+    from logger.logger import MetricsBackend
 
 
 def get_available_device(multi_gpu: bool = False) -> torch.device:
