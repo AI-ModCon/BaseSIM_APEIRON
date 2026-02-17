@@ -1,4 +1,4 @@
-"""Unified logging interface combining WandB metrics and console output."""
+"""Unified logging interface combining metrics tracking and console output."""
 
 from __future__ import annotations
 
@@ -9,28 +9,55 @@ from typing import Any, Literal
 from config.configuration import Config
 from logger.console_logger import ConsoleLogger
 from logger.wandb_logger import StageType, WandBLogger
+from logger.mlflow_logger import MLFlowLogger
+
+
+# Type alias for metrics backend
+MetricsBackend = Literal["wandb", "mlflow", "none"]
 
 
 class Logger:
-    """Unified logger with metrics tracking (WandB) and console output."""
+    """Unified logger with metrics tracking (WandB/MLflow) and console output."""
 
     def __init__(
         self,
         verbosity: str = "INFO",
-        wandb_enabled: bool = True,
+        backend: MetricsBackend = "wandb",
         csv_path: str | Path | None = None,
+        # Legacy parameter for backwards compatibility
+        wandb_enabled: bool | None = None,
     ):
         """Initialize unified logger.
 
         Args:
             verbosity: Console level (DEBUG, INFO, INFO:n, WARNING, ERROR, CRITICAL)
-            wandb_enabled: Enable WandB logging
+            backend: Metrics backend to use ("wandb", "mlflow", or "none")
             csv_path: Save metrics to CSV at this path (disabled if None)
+            wandb_enabled: Deprecated. Use backend="wandb" or backend="none" instead.
         """
-        self._metrics = WandBLogger(enabled=wandb_enabled, csv_path=csv_path)
+        # Handle legacy wandb_enabled parameter
+        if wandb_enabled is not None:
+            backend = "wandb" if wandb_enabled else "none"
+
+        # Initialize metrics backend
+        if backend == "mlflow":
+            self._metrics: WandBLogger | MLFlowLogger = MLFlowLogger(
+                enabled=True, csv_path=csv_path
+            )
+        elif backend == "wandb":
+            self._metrics = WandBLogger(enabled=True, csv_path=csv_path)
+        else:  # "none"
+            self._metrics = WandBLogger(enabled=False, csv_path=csv_path)
+
+        self._backend = backend
         self._console = ConsoleLogger(
             verbosity=verbosity, get_step=lambda: self._metrics.step
         )
+
+    @property
+    def backend(self) -> MetricsBackend:
+        """Get the current metrics backend."""
+        return self._backend
 
     # Metrics/WandB methods
     def init(
@@ -134,13 +161,52 @@ _default_logger: Logger | None = None
 
 def get_logger(
     verbosity: str = "INFO",
-    wandb_enabled: bool = True,
+    backend: MetricsBackend = "wandb",
     csv_path: str | Path | None = None,
+    # Legacy parameter for backwards compatibility
+    wandb_enabled: bool | None = None,
 ) -> Logger:
-    """Get or create the default Logger instance."""
+    """Get or create the default Logger instance.
+
+    Args:
+        verbosity: Console level (DEBUG, INFO, INFO:n, WARNING, ERROR, CRITICAL)
+        backend: Metrics backend to use ("wandb", "mlflow", or "none")
+        csv_path: Save metrics to CSV at this path (disabled if None)
+        wandb_enabled: Deprecated. Use backend="wandb" or backend="none" instead.
+
+    Returns:
+        Logger instance
+    """
     global _default_logger
     if _default_logger is None:
         _default_logger = Logger(
-            verbosity=verbosity, wandb_enabled=wandb_enabled, csv_path=csv_path
+            verbosity=verbosity,
+            backend=backend,
+            csv_path=csv_path,
+            wandb_enabled=wandb_enabled,
         )
     return _default_logger
+
+
+def reset_logger() -> None:
+    """Reset the default logger instance. Useful for testing."""
+    global _default_logger
+    _default_logger = None
+
+
+def configure_backend(cfg: Config | None) -> MetricsBackend:
+    """Configure and return the logging backend from config."""
+    if cfg is None or cfg.logging is None:
+        return "wandb"
+
+    backend = cfg.logging.backend
+
+    if backend not in ("wandb", "mlflow", "none"):
+        raise ValueError(f"Invalid logging backend: {backend}")
+
+    if backend == "mlflow" and cfg.logging.mlflow_tracking_uri:
+        import mlflow
+
+        mlflow.set_tracking_uri(cfg.logging.mlflow_tracking_uri)
+
+    return backend

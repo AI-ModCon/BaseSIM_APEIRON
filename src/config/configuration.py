@@ -24,6 +24,10 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 from typing import Mapping
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from logger.logger import MetricsBackend
 
 
 def get_available_device(multi_gpu: bool = False) -> torch.device:
@@ -154,6 +158,15 @@ class VisualizationCfg:
 
 
 @dataclass(frozen=True)
+class LoggingCfg:
+    backend: MetricsBackend = "wandb"  # "wandb", "mlflow", or "none"
+    experiment_name: str | None = (
+        None  # Project name for WandB/Experiment name for MLflow
+    )
+    mlflow_tracking_uri: str | None = None  # MLflow tracking server URI
+
+
+@dataclass(frozen=True)
 class Config:
     model: ModelCfg
     data: DataCfg
@@ -164,7 +177,9 @@ class Config:
     seed: int
     device: str
     multi_gpu: bool
+    verbosity: str = "INFO"
     visualization: VisualizationCfg | None = None
+    logging: LoggingCfg | None = None
 
 
 def parse_args(argv=None):
@@ -318,6 +333,7 @@ def build_config(argv=None) -> Config:
     dd = DriftDetectionCfg(**cfg["drift_detection"])
     cl = ContinualLearningCfg(**cfg.get("continual_learning", {}))
     viz = VisualizationCfg(**cfg["visualization"]) if "visualization" in cfg else None
+    log_cfg = LoggingCfg(**cfg["logging"]) if "logging" in cfg else None
 
     raw_device = str(
         cfg.get(
@@ -340,6 +356,7 @@ def build_config(argv=None) -> Config:
         "continual_learning",
         "drift_detection",
         "visualization",
+        "logging",
         "device",
         "multi_gpu",
     }
@@ -354,6 +371,7 @@ def build_config(argv=None) -> Config:
         continual_learning=cl,
         drift_detection=dd,
         visualization=viz,
+        logging=log_cfg,
         device=resolved_device,
         multi_gpu=multi_gpu_flag,
         **extras,
