@@ -22,7 +22,6 @@ source ./src/deployment/frontier/install_rocm.sh
 ```
 
 Prior to running experiments, test ROCM support from the project root:
-> Pass project account via PROJECT_ACCOUNT
 ```bash
 poetry run pytest tests/test_rocm.py
 ```
@@ -40,5 +39,5 @@ poetry run python -c "from examples.mnist.utils import get_mnist_data; get_mnist
 Submit run from project root:
 
 ```bash
-SLURM_ACCOUNT=lrnxxx sbatch src/deployment/frontier/mnist_example.sbatch
+sbatch -A lrnxxx src/deployment/frontier/mnist_example.sbatch
 ```
