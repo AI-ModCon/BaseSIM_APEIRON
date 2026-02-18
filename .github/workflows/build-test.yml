@@ -1,10 +1,56 @@
 name: CI
 
-on: [push]
+on: [push, workflow_dispatch]
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: src
+      WANDB_MODE: disabled
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.13'
+
+    # We're doing this craziness beecause of limitations on the github CI runners. They're quite small
+    # some of our dependencies like torch are kind large. Poetry install takes up a bit more space than
+    # delegating to pip.
+    - name: Install dependencies
+      run: |
+        pip install --no-cache-dir poetry poetry-plugin-export
+        poetry config virtualenvs.create false
+        poetry export -f requirements.txt -o requirements.txt --without-hashes --with dev
+        pip install --no-cache-dir -r requirements.txt && rm requirements.txt
+
+    - name: Run ruff
+      run: poetry run ruff check
+
+    - name: Run ruff
+      run: poetry run ruff format --check
+
+    - name: Run mypy
+      run: poetry run mypy .
+
+    - name: Run tests with coverage
+      run: poetry run pytest --cov=src --cov-report=term --cov-report=xml
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        files: ./coverage.xml
+        fail_ci_if_error: false
+
+  examples:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    env:
+      PYTHONPATH: src
+      WANDB_MODE: disabled
 
     steps:
     - uses: actions/checkout@v4
@@ -17,14 +63,12 @@ jobs:
     - name: Install dependencies
       run: |
         pip install --no-cache-dir poetry poetry-plugin-export
+        poetry config virtualenvs.create false
         poetry export -f requirements.txt -o requirements.txt --without-hashes --with dev
         pip install --no-cache-dir -r requirements.txt && rm requirements.txt
 
-    - name: Run ruff
-      run: poetry run ruff check
+    - name: Run mnist
+      run: poetry run python -m src.main --config examples/mnist/mnist.toml
 
-    - name: Run ruff
-      run: poetry run ruff format --check
-
-    - name: Run mypy
-      run: poetry run mypy .
+    - name: Run cifar
+      run: poetry run python -m src.main --config examples/cifar/cifar10_vit.toml

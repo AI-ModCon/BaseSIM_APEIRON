@@ -1,4 +1,7 @@
 # SIM: Self Improving Model framework
+[![Build Status](https://github.com/AI-ModCon/BaseSim_Framework/actions/workflows/build-test.yml/badge.svg)](https://github.com/AI-ModCon/BaseSim_Framework/actions/workflows/build-test.yml)
+[![Coverage Status](https://codecov.io/gh/AI-ModCon/BaseSim_Framework/badge.svg?branch=main)](https://codecov.io/gh/AI-ModCon/BaseSim_Framework?branch=main)
+
 A PyTorch framework for continuous learning that automatically detects concept drift in data streams and adapts models through JVP regularized retraining.
 
 ## Overview
@@ -29,6 +32,16 @@ poetry run python -m src.main --config examples/cifar10/cifar10_vit.toml
 poetry run python -m src.main --config examples/imagenet/imagenet_vit.toml
 ```
 The script uses CUDA automatically when it is available; otherwise it falls back to CPU.
+
+## Metrics Logging
+Currently, we support two metrics logging backends: Weights & Biases (WandB) and MLflow. You can configure the desired `backend` in the `config` file's `logging` section. To disable logging, you can set the `logging` section to `none` to disable logging. Alternatively, you can set the logging choice via command line arguments, for example:
+
+```bash
+poetry run python -m src.main --config examples/mnist/mnist.toml --set logging.backend=mlflow --set logging.experiment_name="My Experiment"
+# To view results for MLflow, run `mlflow ui` in another terminal and navigate to http://localhost:5000
+```
+
+Currently the mnist example sets the logging to wandb in the toml `config` file. The other examples do not set any metric for the logging backend, which defaults to wandb.
 
 ## Visualizing Performance
 To visualize the training and testing continous learning metrics, execute the following command from the project root:
