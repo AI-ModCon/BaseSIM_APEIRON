@@ -21,23 +21,23 @@ cd ./BaseSim_Framework
 source ./src/deployment/frontier/install_rocm.sh
 ```
 
-### Testing Setup
+Prior to running experiments, test ROCM support from the project root:
+> Pass project account via PROJECT_ACCOUNT
+```bash
+poetry run pytest tests/test_rocm.py
+```
 
-> Note: Testing model harness and jvp update requires MNIST dataset download on first run.
+
+### Submit Job
+
+> Note: Requires MNIST dataset download on first run.
 > Download the dataset before submitting the run using:
 
 ```bash
 poetry run python -c "from examples.mnist.utils import get_mnist_data; get_mnist_data()"
 ```
 
-Prior to running experiments, test ROCM support from the project root:
-> Pass project account via PROJECT_ACCOUNT
-```bash
-SLURM_ACCOUNT=lrnxxx sbatch src/deployment/frontier/test_rocm_install.sbatch
-```
-
-### Submit Job
-If test pass, its safe to submit run from project root:
+Submit run from project root:
 
 ```bash
 SLURM_ACCOUNT=lrnxxx sbatch src/deployment/frontier/mnist_example.sbatch

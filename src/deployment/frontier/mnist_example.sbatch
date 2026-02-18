@@ -14,9 +14,10 @@ module load gcc/12.2.0
 module load rocm/6.4.2
 
 # ROCm/MIOpen flags
-mkdir -p $MEMBERWORK/$SBATCH_ACCOUNT/miopen
-export MIOPEN_USER_DB_PATH=$MEMBERWORK/$SBATCH_ACCOUNT/miopen
-export MIOPEN_CUSTOM_CACHE_DIR=$MEMBERWORK/$SBATCH_ACCOUNT/miopen
+ACCOUNT=$(sacct -j $SLURM_JOB_ID --format=Account --noheader | head -1 | tr -d ' ')
+mkdir -p $MEMBERWORK/$ACCOUNT/miopen
+export MIOPEN_USER_DB_PATH=$MEMBERWORK/$ACCOUNT/miopen
+export MIOPEN_CUSTOM_CACHE_DIR=$MEMBERWORK/$ACCOUNT/miopen
 export WANDB_MODE=offline
 
 # Print environment info
