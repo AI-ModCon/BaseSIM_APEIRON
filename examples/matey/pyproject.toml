@@ -1,0 +1,35 @@
+[project]
+name = "basesim-matey-example"
+version = "0.1.0"
+description = "MATEY model harness example for the BaseSim framework"
+requires-python = ">=3.12"
+dependencies = [
+    "einops",
+    "h5py",
+    "timm",
+    "torchinfo",
+    "zarr",
+    "ruamel.yaml==0.17.32",
+    "scipy",
+    "scikit-learn",
+    "torch_geometric",
+    "adios2",
+]
+
+[project.optional-dependencies]
+# Heavy / system-dependent deps -- install manually if needed:
+#   pip install dadaptation==3.1
+#   pip install adan-pytorch==0.1.0
+#   MAX_JOBS=4 pip install flash-attn --no-build-isolation  # (requires CUDA toolkit)
+#   pip install mpi4py              # (requires MPI C library)
+#   pip install netCDF4             # (requires HDF5/netCDF C libs)
+#   pip install git+https://github.com/sandialabs/exodusii.git  # (not on PyPI)
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+# This package has no Python modules of its own to install;
+# it exists solely to declare MATEY's pip-installable dependencies.
+py-modules = []
