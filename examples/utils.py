@@ -13,6 +13,10 @@ def get_example(cfg: Config) -> BaseModelHarness:
         return CIFAR_VISION(cfg=cfg)
     elif cfg.data.name == "imagenet":
         return IMAGENET_VISION(cfg=cfg)
+    elif cfg.data.name == "matey":
+        from examples.matey.model import MATEYHarness
+
+        return MATEYHarness(cfg=cfg)
     else:
         raise NotImplementedError(
             f"Example for dataset {cfg.data.name} is not implemented."
