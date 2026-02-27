@@ -12,6 +12,8 @@ python -m venv my_env # Create a virtual environment
 source ./my_env/bin/activate
 pip install poetry
 git clone https://github.com/AI-ModCon/BaseSim_Framework.git
+cd ./BaseSim_Framework
+poetry install
 ```
 
 > Note: Testing model harness and jvp update requires MNIST dataset download on first run.
