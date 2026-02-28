@@ -109,14 +109,37 @@ class JVPRegUpdater(BaseUpdater):
             pred = functional_call(self.model, p, (x,))
             return self.criterion(pred, y) / self.cfg.train.grad_accumulation_steps
 
+        # - Importance-weighted loss for current task
+        if self.importance_weighting and self.theta_star:
+
+            def weighted_loss_fn(p, x, y):
+                pred = functional_call(self.model, p, (x,))
+                per_sample = self._unreduced_criterion(pred, y)
+                with torch.no_grad():
+                    anchor = {n: v.detach() for n, v in p.items()}
+                    anchor.update(self.theta_star)
+                    anchor_out = functional_call(self.model, anchor, (x,))
+                    anchor_loss = self._unreduced_criterion(anchor_out, y)
+                    delta = (per_sample.detach() - anchor_loss).clamp(min=1e-8)
+                    weights = (delta / self.importance_temperature).softmax(
+                        dim=0
+                    ) * len(delta)
+                weighted = (per_sample * weights.detach()).mean()
+                return weighted / self.cfg.train.grad_accumulation_steps
+
+            curr_loss_fn = weighted_loss_fn
+        else:
+            curr_loss_fn = loss_fn
+
         # - Compute gradients
-        grad_fn = grad(loss_fn, argnums=0)
+        grad_fn_curr = grad(curr_loss_fn, argnums=0)
+        grad_fn_mem = grad(loss_fn, argnums=0)
 
         # - Current task gradient
-        grad_curr = grad_fn(params, x_curr, y_curr)
+        grad_curr = grad_fn_curr(params, x_curr, y_curr)
 
         # - Memory task gradient
-        grad_mem = grad_fn(params, x_mem, y_mem)
+        grad_mem = grad_fn_mem(params, x_mem, y_mem)
 
         # - JVP computation
         def f(p, x):

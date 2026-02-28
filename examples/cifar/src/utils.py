@@ -1,9 +1,9 @@
 # examples/cifar10_vit/utils.py
 from __future__ import annotations
-from typing import Dict, Any
+from typing import Any, Dict
 import torch
 from torch import nn
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, Sampler
 from torchvision import datasets, transforms
 import torchvision.transforms.functional as TF
 from config.configuration import Config
@@ -159,6 +159,7 @@ def make_loader(
     pin_memory: bool = True,
     persistent_workers: bool = True,
     prefetch_factor: int = 2,
+    sampler: Sampler | None = None,
 ) -> DataLoader:
     """
     Builds a DataLoader from a given Dataset.
@@ -179,13 +180,19 @@ def make_loader(
         If True, the DataLoader will use persistent workers. Defaults to True.
     prefetch_factor : int, optional
         Number of samples to prefetch for the DataLoader. Defaults to 2.
+    sampler : Sampler or None, optional
+        If provided, overrides shuffle and uses this sampler instead.
 
     Returns
     -------
     DataLoader
         The built DataLoader.
     """
-    kwargs = dict(batch_size=batch_size, shuffle=shuffle, drop_last=False)
+    kwargs: dict[str, Any] = dict(batch_size=batch_size, drop_last=False)
+    if sampler is not None:
+        kwargs["sampler"] = sampler
+    else:
+        kwargs["shuffle"] = shuffle
     if num_workers > 0:
         kwargs.update(
             dict(

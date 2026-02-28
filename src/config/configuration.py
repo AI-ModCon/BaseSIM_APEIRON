@@ -121,6 +121,10 @@ class ContinualLearningCfg:
     kfac_lambda: float = 0.01
     kfac_ema_decay: float = 0.95
 
+    # Per-sample importance weighting (Raghavan & Papadimitriou, FGCS 2025)
+    importance_weighting: bool = False
+    importance_temperature: float = 1.0
+
 
 @dataclass(frozen=True)
 class DriftDetectionCfg:

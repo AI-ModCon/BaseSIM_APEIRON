@@ -26,12 +26,9 @@ class OnlineEWCUpdater(BaseUpdater):
         self.lambda_ewc = float(cfg.continual_learning.ewc_lambda)
         self.fisher_decay = float(cfg.continual_learning.ewc_ema_decay)
 
-        # Running anchor θ* (prior mean)
-        self.theta_star: dict[str, torch.Tensor] = {
-            n: p.detach().clone().to(self.device)
-            for n, p in self.model.named_parameters()
-            if p.requires_grad
-        }
+        # theta_star is inherited from BaseUpdater; ensure tensors are on device
+        for n in self.theta_star:
+            self.theta_star[n] = self.theta_star[n].to(self.device)
 
         # Running diagonal Fisher F* (prior precision)
         self.fisher: dict[str, torch.Tensor] = {
