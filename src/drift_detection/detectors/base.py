@@ -5,9 +5,13 @@ This module provides abstract interfaces for drift detectors that can signal
 when to switch between different learning regimes (continual learning, fine-tuning, retraining).
 """
 
+import logging
+import math
 from enum import Enum
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
+
+_log = logging.getLogger(__name__)
 
 
 class LearningRegime(Enum):
@@ -87,6 +91,30 @@ class BaseDriftDetector(ABC):
             DriftSignal indicating whether drift occurred and recommended regime
         """
         raise NotImplementedError(f"Method not implemented for {self.name}")
+
+    def _check_nan(self, value: float) -> DriftSignal | None:
+        """Return a safe ``DriftSignal`` if *value* is NaN, else ``None``.
+
+        Subclasses should call this at the top of their ``update()``
+        implementation and return immediately if a signal is returned::
+
+            nan_signal = self._check_nan(value)
+            if nan_signal is not None:
+                return nan_signal
+        """
+        if math.isnan(value):
+            _log.warning(
+                "%s: received NaN metric value — skipping detector update. "
+                "This usually means upstream data contains NaN.",
+                self.name,
+            )
+            return DriftSignal(
+                regime=LearningRegime.STABLE,
+                drift_detected=False,
+                drift_score=0.0,
+                metadata={"nan_skipped": True},
+            )
+        return None
 
     @abstractmethod
     def reset(self) -> None:
