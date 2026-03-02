@@ -25,7 +25,7 @@ update_mode = "base"
 detector_name = "ADWINDetector"
 detection_interval = 5
 aggregation = "last"
-metric_index = 0  # Monitor loss (0=accuracy, 1=loss)
+metric_index = 0  # MATEY metrics: 0=nrmse, 1=rmse, 2=loss
 reset_after_learning = false
 max_stream_updates = 10
 

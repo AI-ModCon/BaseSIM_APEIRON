@@ -45,7 +45,7 @@ class MATEYHarness(BaseModelHarness):
         modules = self._load_matey_modules()
         params = self._build_matey_params(cfg, modules["YParams"])
         self._configure_data_split(params)
-        matey_model = self._build_matey_model(params, modules)
+        matey_model = self._build_matey_model(cfg, params, modules)
 
         self._adapter_model = _MateyModelAdapter(
             matey_model=matey_model,
@@ -355,7 +355,9 @@ class MATEYHarness(BaseModelHarness):
         return loader_params
 
     @staticmethod
-    def _build_matey_model(params: Any, modules: dict[str, Any]) -> nn.Module:
+    def _build_matey_model(
+        cfg: Config, params: Any, modules: dict[str, Any]
+    ) -> nn.Module:
         model_type = str(getattr(params, "model_type", "vit_all2all"))
         if model_type == "avit":
             model = modules["build_avit"](params)
@@ -366,10 +368,118 @@ class MATEYHarness(BaseModelHarness):
         else:
             model = modules["build_vit"](params)
 
+        MATEYHarness._load_pretrained_weights_if_available(
+            model=model,
+            pretrained_path=cfg.model.pretrained_path,
+        )
+
         if bool(getattr(params, "compile", False)):
             model = torch.compile(model)
 
         return model
+
+    @staticmethod
+    def _load_pretrained_weights_if_available(
+        model: nn.Module, pretrained_path: str
+    ) -> None:
+        raw_path = str(pretrained_path).strip()
+        if not raw_path:
+            return
+
+        checkpoint_path = Path(raw_path).expanduser()
+        if not checkpoint_path.is_absolute():
+            checkpoint_path = Path.cwd() / checkpoint_path
+        checkpoint_path = checkpoint_path.resolve()
+
+        if not checkpoint_path.exists():
+            raise FileNotFoundError(
+                f"MATEY pretrained checkpoint not found: {checkpoint_path}"
+            )
+        if checkpoint_path.is_dir():
+            raise ValueError(
+                "MATEY pretrained checkpoint path must be a file, not a directory: "
+                f"{checkpoint_path}"
+            )
+
+        checkpoint = torch.load(
+            checkpoint_path,
+            map_location="cpu",
+            weights_only=False,
+        )
+        state_dict = MATEYHarness._extract_model_state_dict(checkpoint)
+
+        attempts = [
+            ("raw", state_dict),
+            ("strip_module_prefix", MATEYHarness._strip_prefix(state_dict, "module.")),
+            (
+                "strip_orig_mod_prefix",
+                MATEYHarness._strip_prefix(state_dict, "_orig_mod."),
+            ),
+            (
+                "strip_module_then_orig_mod",
+                MATEYHarness._strip_prefix(
+                    MATEYHarness._strip_prefix(state_dict, "module."),
+                    "_orig_mod.",
+                ),
+            ),
+            (
+                "strip_orig_mod_then_module",
+                MATEYHarness._strip_prefix(
+                    MATEYHarness._strip_prefix(state_dict, "_orig_mod."),
+                    "module.",
+                ),
+            ),
+        ]
+
+        logger = get_logger()
+        last_error: RuntimeError | None = None
+        for transform_name, candidate in attempts:
+            try:
+                model.load_state_dict(candidate)
+                logger.info(
+                    f"Loaded MATEY pretrained weights: {checkpoint_path}",
+                    level=0,
+                )
+                if transform_name != "raw":
+                    logger.info(
+                        f"\tApplied checkpoint key transform: {transform_name}",
+                        level=1,
+                    )
+                return
+            except RuntimeError as exc:
+                last_error = exc
+
+        raise RuntimeError(
+            "Failed to load MATEY pretrained weights from "
+            f"{checkpoint_path}. Last error: {last_error}"
+        )
+
+    @staticmethod
+    def _extract_model_state_dict(checkpoint: Any) -> dict[str, Tensor]:
+        if isinstance(checkpoint, dict):
+            for key in ("model_state", "state_dict", "model_state_dict", "model"):
+                value = checkpoint.get(key)
+                if isinstance(value, dict):
+                    return cast(dict[str, Tensor], value)
+
+            # Raw state_dict case (all tensor-ish values)
+            if checkpoint and all(hasattr(v, "shape") for v in checkpoint.values()):
+                return cast(dict[str, Tensor], checkpoint)
+
+        raise ValueError(
+            "Unsupported MATEY checkpoint format. Expected a state_dict or a dict "
+            "containing one of: model_state, state_dict, model_state_dict, model."
+        )
+
+    @staticmethod
+    def _strip_prefix(state_dict: dict[str, Tensor], prefix: str) -> dict[str, Tensor]:
+        if not prefix:
+            return state_dict
+        plen = len(prefix)
+        return {
+            (key[plen:] if key.startswith(prefix) else key): value
+            for key, value in state_dict.items()
+        }
 
     def _dispose_current_loaders(self) -> None:
         if self._cur_train_loader is not None:

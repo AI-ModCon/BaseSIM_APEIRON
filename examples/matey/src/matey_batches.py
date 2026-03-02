@@ -90,6 +90,8 @@ class MateyLoaderAdapter:
         self, raw_batch: dict[str, Any]
     ) -> tuple[MateyInputBatch, MateyTargetBatch]:
         dset_idx_obj = raw_batch.get("dset_idx")
+        if dset_idx_obj is None:
+            raise RuntimeError("Raw batch is missing dset_idx.")
         if isinstance(dset_idx_obj, torch.Tensor):
             dset_idx = int(dset_idx_obj.flatten()[0].item())
         else:
@@ -201,7 +203,10 @@ class MateyModelAdapter(nn.Module):
             and batch.tkhead_name is not None
             and batch.input is not None
         ):
-            tk_size = self.matey_model.tokenizer_heads_params[batch.tkhead_name][-1]
+            tokenizer_heads_params = cast(
+                dict[str, Any], getattr(self.matey_model, "tokenizer_heads_params")
+            )
+            tk_size = tokenizer_heads_params[batch.tkhead_name][-1]
             imod_bottom = int(
                 self._determine_turt_levels(tk_size, batch.input.shape[-3:], imod)
             )
