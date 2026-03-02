@@ -7,16 +7,19 @@ verbosity = "INFO"
 [model]
 name = "fel"
 # Set to "" to train from scratch, or point to a saved state_dict .pt file
-pretrained_path = ""
+pretrained_path = "examples/slac_fel/model/final_lcls_fel_model.pt"
+# Directory containing: input_scaler.pt, output_scaler.pt, feature_config.yml
+config_path = "examples/slac_fel/model"
 
 [data]
 name = "slac-fel"
-# Directory containing: data.pkl, input_scaler.pt, output_scaler.pt, feature_config.yml
 path = "examples/slac_fel/data"
+# Number of samples per time window (smaller = more windows = finer drift granularity)
+# window_size = 500
 
 [train]
 batch_size = 512
-num_workers = 4
+num_workers = 0
 init_lr = 1e-5
 max_iter = 600
 grad_accumulation_steps = 1
@@ -36,22 +39,33 @@ ewc_ema_decay = 0.95
 kfac_lambda = 1e-2
 kfac_ema_decay = 0.95
 
-[drift_detection] # copied from MNIST TOML
+[drift_detection]
 detector_name = "ADWINDetector"
-detection_interval = 10
+# Check for drift every N batches.  With batch_size=512 and ~5000 samples
+# per window (20% val → ~1000 val samples → 2 val batches), interval=6
+# averages MSE over ~3 windows (~3072 samples), giving stable estimates
+# while remaining responsive to real operating-point changes.
+detection_interval = 4
 aggregation = "mean"
-metric_index = 0
-reset_after_learning = false
-max_stream_updates = 20
+reset_after_learning = true
+max_stream_updates = 1181
 
 # ADWIN hyperparameters
-adwin_delta = 0.002
-adwin_minor_threshold = 0.3
-adwin_moderate_threshold = 0.6
+# delta = confidence parameter.  Lower = more conservative (fewer detections).
+#   0.002 = 99.8% confidence
+#   0.05  = 95% confidence
+adwin_delta = 0.05
+# Regime thresholds on recent drift frequency (0–1 scale):
+#   <minor  → CONTINUAL_LEARNING  (lightweight update)
+#   <moderate → FINE_TUNING        (larger update)
+#   ≥moderate → RETRAIN            (full retrain)
+adwin_minor_threshold = 0.1
+adwin_moderate_threshold = 0.4
 
 [logging]
-backend = "wandb"
+backend = "mlflow"
 experiment_name = "slac-fel-continual-learning"
+mlflow_tracking_uri = "https://ard-mlflow.slac.stanford.edu/"
 
 [visualization]
 baseline = 0.01        # MSE baseline threshold, need to determine

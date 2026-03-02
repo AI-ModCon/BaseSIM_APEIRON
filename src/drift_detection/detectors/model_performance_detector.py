@@ -278,6 +278,10 @@ class ModelPerformanceDetector(BaseDriftDetector):
 
     def _simple_value_detection(self, value: float) -> DriftSignal:
         """Fallback simple value-based detection."""
+        nan_signal = self._check_nan(value)
+        if nan_signal is not None:
+            return nan_signal
+
         self._drift_history.append(value)
         recent_window = min(10, len(self._drift_history))
         drift_score = np.mean(self._drift_history[-recent_window:])
@@ -339,6 +343,10 @@ class EnsembleDetector(BaseDriftDetector):
         Returns:
             Combined DriftSignal
         """
+        nan_signal = self._check_nan(value)
+        if nan_signal is not None:
+            return nan_signal
+
         # Update all detectors
         signals = []
         detector_names = []
