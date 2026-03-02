@@ -1,0 +1,52 @@
+# aeris.toml  —  AERIS continuous-learning
+seed = 42
+device = "auto"
+multi_gpu = false
+verbosity = "INFO"
+
+[model]
+name = "aeris_model.pt"
+pretrained_path = "examples/aeris/model"
+
+[data]
+name = "aeris_dataset.csv"
+path = "examples/aeris/data"
+
+[train]
+batch_size = 500
+num_workers = 4
+init_lr = 1e-6
+max_iter = 4000
+grad_accumulation_steps = 1
+
+[continual_learning]
+update_mode = "base"
+
+# JVP regularization (used when update_mode = "jvp_reg")
+jvp_lambda = 10
+jvp_deltax_norm = 1
+
+# EWC (used when update_mode = "ewc_online")
+ewc_lambda = 1000.0
+ewc_ema_decay = 0.95
+
+# KFAC (used when update_mode = "kfac_online")
+kfac_lambda = 1e-2
+kfac_ema_decay = 0.95
+
+[drift_detection]
+detector_name = "ADWINDetector"
+detection_interval = 10
+aggregation = "mean"
+metric_index = 0
+reset_after_learning = false
+max_stream_updates = 20
+
+# ADWIN hyperparameters
+adwin_delta = 0.002
+adwin_minor_threshold = 0.3
+adwin_moderate_threshold = 0.6
+
+[logging]
+backend = "wandb"
+experiment_name = "aeris-cl"
