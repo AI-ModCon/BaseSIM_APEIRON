@@ -3,23 +3,32 @@
 
 The data pipeline assumes that all heavy cleaning (archive pull, filtering,
 exclusion windows, invalid-PV removal, column selection) has already been done
-and the result saved as a single ``data.pkl`` file.  This module loads that
-file, applies the saved min-max scalers, and slices the chronologically-ordered
-data into non-overlapping time windows that ``SLAC_FEL.update_data_stream()``
-will serve one at a time.
+and the results saved as individual pickle files (``data_1.pkl``,
+``data_2.pkl``, …).  Each pickle is a chronologically-sorted DataFrame that
+becomes one time window served by ``SLAC_FEL.update_data_stream()``.
+
+If only a single ``data.pkl`` is present (legacy layout), it is loaded in its
+entirety and optionally split into fixed-size windows via ``window_size``.
 
 Expected directory layout (pointed to by ``cfg.data.path``)::
 
     <data_dir>/
-        data.pkl               # pandas DataFrame, datetime-indexed, sorted
-        input_scaler.pt        # botorch AffineInputTransform for inputs
-        output_scaler.pt       # botorch AffineInputTransform for output
-        feature_config.yml     # YAML listing input_variables / output_variables
+        data_1.pkl                     # pandas DataFrame, datetime-indexed, sorted
+        data_2.pkl                     # ...
+        ...
+        input_scaler.pt                # botorch AffineInputTransform for inputs
+        output_scaler.pt               # botorch AffineInputTransform for output
+        feature_config.yml             # YAML listing input_variables / output_variables
 """
 
 from __future__ import annotations
 
+import glob
+import logging
+import math
 import os
+import re
+import warnings
 from typing import List, Tuple
 
 import pandas as pd
@@ -27,6 +36,8 @@ import torch
 import yaml
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
+
+_log = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -120,10 +131,13 @@ def load_scalers(
 ) -> Tuple[torch.nn.Module, torch.nn.Module]:
     """Load the saved BoTorch ``AffineInputTransform`` scalers.
 
+    Tries the new naming convention (``input_scaler.pt``) first, then
+    falls back to the legacy names (``lcls_fel_input_scaler.pt``).
+
     Parameters
     ----------
     data_path:
-        Directory containing ``input_scaler.pt`` and ``output_scaler.pt``.
+        Directory containing the scaler ``.pt`` files.
     device:
         Device to map the scalers to.
 
@@ -131,16 +145,21 @@ def load_scalers(
     -------
     (input_scaler, output_scaler)
     """
-    input_scaler = torch.load(
-        os.path.join(data_path, "input_scaler.pt"),
-        map_location=device,
-        weights_only=False,
-    )
-    output_scaler = torch.load(
-        os.path.join(data_path, "output_scaler.pt"),
-        map_location=device,
-        weights_only=False,
-    )
+    # New names (train_fel_model.py v2) → legacy names (fallback)
+    input_candidates = ["input_scaler.pt", "lcls_fel_input_scaler.pt"]
+    output_candidates = ["output_scaler.pt", "lcls_fel_output_scaler.pt"]
+
+    def _load_first(candidates: list[str]) -> torch.nn.Module:
+        for name in candidates:
+            path = os.path.join(data_path, name)
+            if os.path.exists(path):
+                return torch.load(path, map_location=device, weights_only=False)
+        raise FileNotFoundError(
+            f"No scaler found in {data_path}; tried {candidates}"
+        )
+
+    input_scaler = _load_first(input_candidates)
+    output_scaler = _load_first(output_candidates)
     return input_scaler, output_scaler
 
 
@@ -150,11 +169,11 @@ def load_scalers(
 def load_fel_data(
     data_path: str, device: str = "cpu"
 ) -> Tuple[Tensor, Tensor, pd.Index]:
-    """Load ``data.pkl``, apply scalers, and return scaled tensors + timestamps.
+    """Load a single ``data.pkl``, apply scalers, and return scaled tensors.
 
-    The pickle is expected to be a ``pandas.DataFrame`` with:
-    * a datetime index (already sorted chronologically),
-    * columns matching those listed in ``feature_config.yml``.
+    .. deprecated::
+        Prefer :func:`discover_window_files` + :func:`load_window_file` for
+        per-file lazy loading.
 
     Parameters
     ----------
@@ -166,9 +185,6 @@ def load_fel_data(
     Returns
     -------
     (X_scaled, y_scaled, timestamps)
-        * ``X_scaled`` — ``[N, n_inputs]`` float32
-        * ``y_scaled`` — ``[N, n_outputs]`` float32
-        * ``timestamps`` — ``pd.Index`` (DatetimeIndex) of length N
     """
     df: pd.DataFrame = pd.read_pickle(os.path.join(data_path, "data.pkl"))
 
@@ -177,6 +193,20 @@ def load_fel_data(
 
     input_cols, output_cols = load_feature_config(data_path)
     input_scaler, output_scaler = load_scalers(data_path, device=device)
+
+    # Drop rows with NaN in any input or output column
+    all_cols = input_cols + output_cols
+    n_before = len(df)
+    df = df.dropna(subset=all_cols)
+    n_dropped = n_before - len(df)
+    if n_dropped > 0:
+        pct = 100.0 * n_dropped / n_before
+        msg = (
+            f"[load_fel_data] Dropped {n_dropped}/{n_before} rows "
+            f"({pct:.1f}%) containing NaN values"
+        )
+        warnings.warn(msg, stacklevel=2)
+        _log.warning(msg)
 
     X_raw = torch.tensor(df[input_cols].values, dtype=torch.float32)
     y_raw = torch.tensor(df[output_cols].values, dtype=torch.float32)
@@ -188,7 +218,101 @@ def load_fel_data(
 
 
 # ---------------------------------------------------------------------------
-# Windowing
+# Per-file window discovery & lazy loading
+# ---------------------------------------------------------------------------
+
+def _natural_sort_key(path: str) -> Tuple[str, int]:
+    """Sort key that orders ``data_1.pkl`` < ``data_2.pkl`` < ``data_10.pkl``.
+
+    Falls back to lexicographic order if no numeric suffix is found.
+    """
+    basename = os.path.basename(path)
+    m = re.search(r"(\d+)", basename)
+    if m:
+        return (basename[: m.start()], int(m.group(1)))
+    return (basename, 0)
+
+
+def discover_window_files(data_path: str) -> List[str]:
+    """Return sorted paths to ``data_*.pkl`` files in *data_path*.
+
+    Files are sorted by the numeric suffix so that ``data_1.pkl`` comes
+    before ``data_2.pkl`` and ``data_10.pkl``.
+
+    Parameters
+    ----------
+    data_path:
+        Directory to search.
+
+    Returns
+    -------
+    List of absolute paths, one per window file.
+    """
+    pattern = os.path.join(data_path, "data_*.pkl")
+    paths = glob.glob(pattern)
+    # Exclude data_raw.pkl which is an unprocessed file
+    paths = [p for p in paths if os.path.basename(p) != "data_raw.pkl"]
+    paths.sort(key=_natural_sort_key)
+    return paths
+
+
+def load_window_file(
+    pkl_path: str,
+    input_cols: List[str],
+    output_cols: List[str],
+    input_scaler: torch.nn.Module,
+    output_scaler: torch.nn.Module,
+) -> Tuple[Tensor, Tensor]:
+    """Load a single window pickle, scale, and return ``(X, y)`` tensors.
+
+    Parameters
+    ----------
+    pkl_path:
+        Path to a single ``data_<N>.pkl`` file.
+    input_cols:
+        Column names for input features (from ``feature_config.yml``).
+    output_cols:
+        Column names for output targets.
+    input_scaler:
+        Pre-fitted scaler for inputs.
+    output_scaler:
+        Pre-fitted scaler for outputs.
+
+    Returns
+    -------
+    (X_scaled, y_scaled)
+        * ``X_scaled`` — ``[N, n_inputs]`` float32
+        * ``y_scaled`` — ``[N, n_outputs]`` float32
+    """
+    df: pd.DataFrame = pd.read_pickle(pkl_path)
+    df = df.sort_index()
+
+    # Drop rows with NaN in any input or output column
+    all_cols = input_cols + output_cols
+    n_before = len(df)
+    df = df.dropna(subset=all_cols)
+    n_dropped = n_before - len(df)
+    if n_dropped > 0:
+        pct = 100.0 * n_dropped / n_before
+        basename = os.path.basename(pkl_path)
+        msg = (
+            f"[load_window_file] {basename}: Dropped {n_dropped}/{n_before} rows "
+            f"({pct:.1f}%) containing NaN values"
+        )
+        warnings.warn(msg, stacklevel=2)
+        _log.warning(msg)
+
+    X_raw = torch.tensor(df[input_cols].values, dtype=torch.float32)
+    y_raw = torch.tensor(df[output_cols].values, dtype=torch.float32)
+
+    X_scaled: Tensor = input_scaler.transform(X_raw)
+    y_scaled: Tensor = output_scaler.transform(y_raw)
+
+    return X_scaled, y_scaled
+
+
+# ---------------------------------------------------------------------------
+# Windowing (legacy – used when a single data.pkl is present)
 # ---------------------------------------------------------------------------
 
 # Default number of samples per time window.  Can be overridden by the caller.
