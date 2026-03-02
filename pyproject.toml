@@ -43,6 +43,7 @@ packages = [
 ]
 
 [tool.ruff]
+extend-exclude = ["examples/matey/MATEY"]
 
 [tool.ruff.lint]
 # Add the codes you want to ignore to the 'ignore' list.

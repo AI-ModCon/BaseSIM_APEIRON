@@ -26,6 +26,8 @@ class TestContinuousMonitorInit:
         mon = ContinuousMonitor(cfg=default_cfg, modelHarness=dummy_harness)
         assert mon.stream_update_count == 0
         assert mon.batch_count == 0
+        assert mon.drift_check_count == 0
+        assert mon.drift_detect_count == 0
         assert mon.drift_event_count == 0
         assert mon.metric_buffer == []
         assert mon.detection_interval == default_cfg.drift_detection.detection_interval
@@ -78,6 +80,11 @@ class TestCheckDrift:
         agg_value = mock_update.call_args[0][0]
         assert agg_value == pytest.approx(73.33, abs=0.01)
         assert mon.metric_buffer == []
+        assert mon.drift_check_count == 1
+        assert mon.drift_detect_count == 0
+        assert any(
+            "Drift check #1" in call.args[0] for call in mon.logger.info.call_args_list
+        )
         assert signal is mock_signal
 
     def test_last_aggregation(self, default_cfg, dummy_harness):
@@ -99,6 +106,8 @@ class TestCheckDrift:
         agg_value = mock_update.call_args[0][0]
         assert agg_value == 60.0
         assert mon.metric_buffer == []
+        assert mon.drift_check_count == 1
+        assert mon.drift_detect_count == 0
         assert signal is mock_signal
 
     def test_median_aggregation(self, default_cfg, dummy_harness):
@@ -120,7 +129,33 @@ class TestCheckDrift:
         agg_value = mock_update.call_args[0][0]
         assert agg_value == 70.0
         assert mon.metric_buffer == []
+        assert mon.drift_check_count == 1
+        assert mon.drift_detect_count == 0
         assert signal is mock_signal
+
+    def test_drift_detection_counter_increments(self, default_cfg, dummy_harness):
+        mon = ContinuousMonitor(cfg=default_cfg, modelHarness=dummy_harness)
+        mon.metric_buffer = [[0.1], [0.2]]
+        mock_signal = DriftSignal(
+            regime=LearningRegime.CONTINUAL_LEARNING,
+            drift_detected=True,
+            drift_score=0.5,
+        )
+        with patch.object(mon.detector, "update", return_value=mock_signal):
+            _ = mon._check_drift()
+        assert mon.drift_check_count == 1
+        assert mon.drift_detect_count == 1
+
+
+class TestRunSummary:
+    def test_logs_no_drift_summary_message(self, default_cfg, dummy_harness):
+        mon = ContinuousMonitor(cfg=default_cfg, modelHarness=dummy_harness)
+        with patch.object(mon, "_should_stop", side_effect=[True]):
+            mon.run()
+        mon.logger.info.assert_any_call(
+            "CL dispatch did not run because no drift was detected.",
+            level=0,
+        )
 
 
 class TestHandleDrift:

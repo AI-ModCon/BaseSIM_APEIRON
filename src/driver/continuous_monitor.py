@@ -84,6 +84,8 @@ class ContinuousMonitor:
         # State tracking
         self.stream_update_count = 0
         self.batch_count = 0
+        self.drift_check_count = 0
+        self.drift_detect_count = 0
         self.drift_event_count = 0
 
         # Metrics accumulation
@@ -121,6 +123,16 @@ class ContinuousMonitor:
         self.logger.info("==== Continuous Monitoring Complete ====", level=0)
         self.logger.info(f"\tTotal batches processed: {self.batch_count}", level=1)
         self.logger.info(f"\tTotal stream updates: {self.stream_update_count}", level=1)
+        self.logger.info(f"\tTotal drift checks: {self.drift_check_count}", level=1)
+        self.logger.info(
+            f"\tTotal drift detections: {self.drift_detect_count}", level=1
+        )
+        self.logger.info(f"\tTotal CL dispatches: {self.drift_event_count}", level=1)
+        if self.drift_event_count == 0:
+            self.logger.info(
+                "CL dispatch did not run because no drift was detected.",
+                level=0,
+            )
 
     def _process_stream(self) -> None:
         """Process batches from current data stream.
@@ -246,6 +258,19 @@ class ContinuousMonitor:
                 drift_signal = self.detector.update(agg_metric)
         else:
             drift_signal = self.detector.update(agg_metric)
+
+        self.drift_check_count += 1
+        if drift_signal.drift_detected:
+            self.drift_detect_count += 1
+        self.logger.info(
+            (
+                f"\tDrift check #{self.drift_check_count}: "
+                f"metric_{self.metric_idx}={agg_metric:.6f}, "
+                f"detected={drift_signal.drift_detected}, "
+                f"score={drift_signal.drift_score:.4f}"
+            ),
+            level=1,
+        )
 
         # Log drift metrics
         self._log_metrics(drift_signal, agg_metric)

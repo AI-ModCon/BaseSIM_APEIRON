@@ -23,18 +23,20 @@ update_mode = "base"
 
 [drift_detection]
 detector_name = "ADWINDetector"
-detection_interval = 10
-aggregation = "mean"
-metric_index = 0
+detection_interval = 5
+aggregation = "last"
+metric_index = 0  # Monitor loss (0=accuracy, 1=loss)
 reset_after_learning = false
-max_stream_updates = 5
+max_stream_updates = 10
 
-adwin_delta = 0.002
+# ADWIN hyperparameters
+adwin_delta = 0.05
 adwin_minor_threshold = 0.3
 adwin_moderate_threshold = 0.6
 
 [logging]
-backend = "none"
+backend = "wandb" 
+experiment_name = "matey-continual-learning"  # Optional: project/experiment name
 
 [visualization]
 baseline = 0.0

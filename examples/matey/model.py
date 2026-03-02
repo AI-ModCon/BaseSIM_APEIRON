@@ -1,266 +1,42 @@
 from __future__ import annotations
+# mypy: ignore-errors
 
 import copy
 import gc
 import random
 import sys
-from dataclasses import dataclass
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Callable, Optional, cast
+from typing import Any, Callable, cast
 
 import torch
 from torch import Tensor, nn
 from torch.optim import Optimizer
 
 from config.configuration import Config
+from examples.matey.src.matey_batches import (
+    MateyInputBatch,
+    MateyLoaderAdapter as _MateyLoaderAdapter,
+    MateyModelAdapter as _MateyModelAdapter,
+    MateyTargetBatch,
+)
+from examples.matey.src.solps_split import SolpsStagedSplit, stage_solps_split
+from logger import get_logger
 from model.torch_model_harness import BaseModelHarness
 
 DEFAULT_MATEY_YAML = Path("examples/matey/Demo_SOLPS_vit.yaml")
 DEFAULT_MATEY_PROFILE = "basic_config"
+DEFAULT_MATEY_TRAIN_VAL_TEST = (0.7, 0.15, 0.15)
+DEFAULT_SOLPS_CACHE_ROOT = Path("examples/matey/data/output/matey_split_cache")
 SUPPORTED_UPDATE_MODES = {"base", "none"}
-
-
-def _move_to_device(x: Any, device: str | torch.device) -> Any:
-    if x is None:
-        return None
-    if hasattr(x, "to"):
-        return x.to(device)
-    return x
-
-
-@dataclass(frozen=True)
-class MateyInputBatch:
-    input: Tensor | None = None
-    graph: Any = None
-    field_labels: Tensor | None = None
-    bcs: Tensor | None = None
-    leadtime: Tensor | None = None
-    cond_field_labels: Tensor | None = None
-    cond_fields: Tensor | None = None
-    cond_input: Tensor | None = None
-    field_labels_out: Tensor | None = None
-    tkhead_name: str | None = None
-    blockdict: dict[str, Any] | None = None
-    is_graph: bool = False
-
-    def to(self, device: str | torch.device) -> MateyInputBatch:
-        return MateyInputBatch(
-            input=cast(Optional[Tensor], _move_to_device(self.input, device)),
-            graph=_move_to_device(self.graph, device),
-            field_labels=cast(
-                Optional[Tensor], _move_to_device(self.field_labels, device)
-            ),
-            bcs=cast(Optional[Tensor], _move_to_device(self.bcs, device)),
-            leadtime=cast(Optional[Tensor], _move_to_device(self.leadtime, device)),
-            cond_field_labels=cast(
-                Optional[Tensor], _move_to_device(self.cond_field_labels, device)
-            ),
-            cond_fields=cast(
-                Optional[Tensor], _move_to_device(self.cond_fields, device)
-            ),
-            cond_input=cast(Optional[Tensor], _move_to_device(self.cond_input, device)),
-            field_labels_out=cast(
-                Optional[Tensor], _move_to_device(self.field_labels_out, device)
-            ),
-            tkhead_name=self.tkhead_name,
-            blockdict=copy.deepcopy(self.blockdict),
-            is_graph=self.is_graph,
-        )
-
-
-@dataclass(frozen=True)
-class MateyTargetBatch:
-    target: Tensor
-    leadtime: Tensor | None = None
-    is_graph: bool = False
-
-    def to(self, device: str | torch.device) -> MateyTargetBatch:
-        return MateyTargetBatch(
-            target=cast(Tensor, _move_to_device(self.target, device)),
-            leadtime=cast(Optional[Tensor], _move_to_device(self.leadtime, device)),
-            is_graph=self.is_graph,
-        )
-
-    @property
-    def shape(self) -> torch.Size:
-        return self.target.shape
-
-
-class _MateyLoaderAdapter:
-    def __init__(self, raw_loader: Any, mixed_dataset: Any):
-        self._raw_loader = raw_loader
-        self._mixed_dataset = mixed_dataset
-
-    def __len__(self) -> int:
-        return len(self._raw_loader)
-
-    def __iter__(self):
-        for raw_batch in self._raw_loader:
-            yield self._convert_batch(raw_batch)
-
-    def _convert_batch(
-        self, raw_batch: dict[str, Any]
-    ) -> tuple[MateyInputBatch, MateyTargetBatch]:
-        dset_idx_obj = raw_batch.get("dset_idx")
-        if isinstance(dset_idx_obj, torch.Tensor):
-            dset_idx = int(dset_idx_obj.flatten()[0].item())
-        else:
-            dset_idx = int(dset_idx_obj)
-
-        sub_dset = self._mixed_dataset.sub_dsets[dset_idx]
-        tkhead_name = cast(str | None, getattr(sub_dset, "tkhead_name", None))
-        blockdict = copy.deepcopy(getattr(sub_dset, "blockdict", None))
-
-        field_labels = cast(Tensor, raw_batch["field_labels"])
-        bcs = cast(Tensor, raw_batch["bcs"])
-        leadtime = cast(Optional[Tensor], raw_batch.get("leadtime"))
-        cond_field_labels = cast(Optional[Tensor], raw_batch.get("cond_field_labels"))
-        cond_fields = cast(Optional[Tensor], raw_batch.get("cond_fields"))
-        cond_input = cast(Optional[Tensor], raw_batch.get("cond_input"))
-
-        if "graph" in raw_batch:
-            graph = raw_batch["graph"]
-            graph_leadtime = getattr(graph, "leadtime", leadtime)
-            input_batch = MateyInputBatch(
-                graph=graph,
-                field_labels=field_labels,
-                field_labels_out=cast(
-                    Optional[Tensor], raw_batch.get("field_labels_out")
-                ),
-                bcs=bcs,
-                leadtime=graph_leadtime,
-                cond_field_labels=cond_field_labels,
-                cond_fields=cond_fields,
-                cond_input=cond_input,
-                tkhead_name=tkhead_name,
-                blockdict=blockdict,
-                is_graph=True,
-            )
-            target_batch = MateyTargetBatch(
-                target=cast(Tensor, graph.y),
-                leadtime=cast(Optional[Tensor], graph_leadtime),
-                is_graph=True,
-            )
-            return input_batch, target_batch
-
-        input_batch = MateyInputBatch(
-            input=cast(Tensor, raw_batch["input"]),
-            field_labels=field_labels,
-            field_labels_out=field_labels,
-            bcs=bcs,
-            leadtime=leadtime,
-            cond_field_labels=cond_field_labels,
-            cond_fields=cond_fields,
-            cond_input=cond_input,
-            tkhead_name=tkhead_name,
-            blockdict=blockdict,
-            is_graph=False,
-        )
-        target_batch = MateyTargetBatch(
-            target=cast(Tensor, raw_batch["label"]),
-            leadtime=leadtime,
-            is_graph=False,
-        )
-        return input_batch, target_batch
-
-
-class _MateyModelAdapter(nn.Module):
-    def __init__(
-        self,
-        matey_model: nn.Module,
-        params: Any,
-        forward_options_cls: type[Any],
-        rearrange_fn: Callable[..., Any],
-        autoregressive_rollout_fn: Callable[..., Any],
-        determine_turt_levels_fn: Callable[..., Any] | None = None,
-    ):
-        super().__init__()
-        self.matey_model = matey_model
-        self.params = params
-        self._forward_options_cls = forward_options_cls
-        self._rearrange = rearrange_fn
-        self._autoregressive_rollout = autoregressive_rollout_fn
-        self._determine_turt_levels = determine_turt_levels_fn
-        self.last_rollout_steps: int | None = None
-
-    def forward(self, batch: MateyInputBatch) -> Tensor:
-        if batch.field_labels is None or batch.bcs is None:
-            raise RuntimeError("Matey input batch is missing required fields.")
-
-        cond_dict: dict[str, Tensor] = {}
-        if batch.cond_field_labels is not None and batch.cond_fields is not None:
-            cond_dict["labels"] = batch.cond_field_labels
-            cond_dict["fields"] = self._rearrange(
-                batch.cond_fields, "b t c d h w -> t b c d h w"
-            )
-
-        leadtime = batch.leadtime
-        if leadtime is None:
-            leadtime = torch.ones(
-                (1, 1), dtype=torch.long, device=batch.field_labels.device
-            )
-
-        imod = 0
-        hierarchical = getattr(self.params, "hierarchical", None)
-        if isinstance(hierarchical, dict):
-            imod = int(hierarchical.get("nlevels", 1) - 1)
-
-        imod_bottom = 0
-        if (
-            not batch.is_graph
-            and imod > 0
-            and self._determine_turt_levels is not None
-            and batch.tkhead_name is not None
-            and batch.input is not None
-        ):
-            tk_size = self.matey_model.tokenizer_heads_params[batch.tkhead_name][-1]
-            imod_bottom = int(
-                self._determine_turt_levels(tk_size, batch.input.shape[-3:], imod)
-            )
-
-        opts = self._forward_options_cls(
-            imod=imod,
-            imod_bottom=imod_bottom,
-            tkhead_name=batch.tkhead_name,
-            sequence_parallel_group=None,
-            leadtime=leadtime,
-            blockdict=copy.deepcopy(batch.blockdict),
-            cond_dict=copy.deepcopy(cond_dict),
-            cond_input=batch.cond_input,
-            isgraph=batch.is_graph,
-            field_labels_out=(
-                batch.field_labels_out
-                if batch.field_labels_out is not None
-                else batch.field_labels
-            ),
-        )
-
-        if batch.is_graph:
-            inp = batch.graph
-        else:
-            if batch.input is None:
-                raise RuntimeError("Matey tensor input is missing.")
-            inp = self._rearrange(batch.input, "b t c d h w -> t b c d h w")
-
-        if bool(getattr(self.params, "autoregressive", False)):
-            output, rollout_steps = self._autoregressive_rollout(
-                self.matey_model,
-                inp,
-                batch.field_labels,
-                batch.bcs,
-                opts,
-                pushforward=True,
-            )
-            self.last_rollout_steps = int(rollout_steps)
-            return output
-
-        self.last_rollout_steps = None
-        return self.matey_model(inp, batch.field_labels, batch.bcs, opts)
 
 
 class MATEYHarness(BaseModelHarness):
     def __init__(self, cfg: Config):
         self._assert_supported_update_mode(cfg)
+        self._solps_split: SolpsStagedSplit | None = None
+        self._solps_split_logged = False
+        self._split_seed = int(cfg.seed)
 
         self._matey_root = self._resolve_matey_root(cfg)
         self._validate_matey_root(self._matey_root)
@@ -268,6 +44,7 @@ class MATEYHarness(BaseModelHarness):
 
         modules = self._load_matey_modules()
         params = self._build_matey_params(cfg, modules["YParams"])
+        self._configure_data_split(params)
         matey_model = self._build_matey_model(params, modules)
 
         self._adapter_model = _MateyModelAdapter(
@@ -293,6 +70,72 @@ class MATEYHarness(BaseModelHarness):
             "loss": self.get_criterion(),
         }
         self.higher_is_better = {"nrmse": False, "rmse": False, "loss": False}
+
+    def get_optmizer(self) -> Optimizer:
+        optimizer_name = str(getattr(self._params, "optimizer", "AdamW")).lower()
+        lr = float(getattr(self._params, "learning_rate", self.cfg.train.init_lr))
+        weight_decay = float(getattr(self._params, "weight_decay", 0.0))
+
+        add_weight_decay = self._modules["add_weight_decay"]
+        param_groups = add_weight_decay(self._adapter_model.matey_model, weight_decay)
+
+        if optimizer_name == "dadaptadam":
+            dadapt_cls = self._modules.get("DAdaptAdam")
+            if dadapt_cls is None:
+                raise RuntimeError(
+                    "MATEY optimizer is configured as DAdaptAdam but "
+                    "`dadaptation` is not installed in this environment."
+                )
+            return cast(
+                Optimizer,
+                dadapt_cls(
+                    param_groups, lr=1.0, growth_rate=1.05, log_every=100, decouple=True
+                ),
+            )
+
+        if optimizer_name == "sgd":
+            return torch.optim.SGD(self.model.parameters(), lr=lr, momentum=0.9)
+
+        return torch.optim.AdamW(param_groups, lr=lr, weight_decay=weight_decay)
+
+    def update_data_stream(self) -> None:
+        self._dispose_current_loaders()
+        self._set_stream_seed(self.cfg.seed + self.task_counter)
+        self._log_solps_split_details()
+
+        train_params = self._params_for_loader_split("train")
+        val_params = self._params_for_loader_split("val")
+        train_loader, train_dataset, _ = self._build_loader(train_params, split="train")
+        val_loader, val_dataset, _ = self._build_loader(val_params, split="val")
+
+        self._cur_train_loader = _MateyLoaderAdapter(train_loader, train_dataset)
+        self._cur_val_loader = _MateyLoaderAdapter(val_loader, val_dataset)
+
+        self.task_counter += 1
+
+    def get_cur_data_loaders(self) -> tuple[Any, Any]:
+        if self._cur_train_loader is None or self._cur_val_loader is None:
+            raise RuntimeError(
+                "Matey stream has not been initialized. Call update_data_stream() first."
+            )
+        return self._cur_train_loader, self._cur_val_loader
+
+    def get_hist_data_loaders(self) -> tuple[None, None]:
+        return None, None
+
+    def get_criterion(self):
+        def criterion(y_hat: Tensor, y: MateyTargetBatch) -> Tensor:
+            target = self._select_target_tensor(
+                y, self._adapter_model.last_rollout_steps
+            )
+            return self._compute_nrmse(y_hat, target)
+
+        return criterion
+
+    def _unpack(
+        self, batch: tuple[MateyInputBatch, MateyTargetBatch]
+    ) -> tuple[MateyInputBatch, MateyTargetBatch]:
+        return batch
 
     @staticmethod
     def _assert_supported_update_mode(cfg: Config) -> None:
@@ -390,7 +233,7 @@ class MATEYHarness(BaseModelHarness):
         params.profiling = False
 
         params.batch_size = max(1, int(cfg.train.batch_size))
-        params.num_data_workers = max(1, int(cfg.train.num_workers))
+        params.num_data_workers = max(0, int(cfg.train.num_workers))
         params.learning_rate = float(cfg.train.init_lr)
 
         if not hasattr(params, "weight_decay"):
@@ -401,6 +244,115 @@ class MATEYHarness(BaseModelHarness):
             params.embedding_offset = 0
 
         return params
+
+    @staticmethod
+    def _normalize_path_entry(entry: Any) -> list[Any]:
+        if not isinstance(entry, (list, tuple)) or len(entry) < 2:
+            raise ValueError(
+                "MATEY data path entries must be list/tuple values with at least "
+                "[path, dataset_type, ...]."
+            )
+        return list(entry)
+
+    @staticmethod
+    def _to_abs_path(path_str: str) -> Path:
+        path = Path(path_str)
+        if not path.is_absolute():
+            path = Path.cwd() / path
+        return path.resolve()
+
+    @staticmethod
+    def _as_config_path(path: Path) -> str:
+        try:
+            return str(path.resolve().relative_to(Path.cwd()))
+        except ValueError:
+            return str(path.resolve())
+
+    def _configure_solps_staged_pool(self, params: Any) -> None:
+        train_paths = [
+            self._normalize_path_entry(entry)
+            for entry in getattr(params, "train_data_paths", [])
+        ]
+        val_paths = [
+            self._normalize_path_entry(entry)
+            for entry in getattr(params, "valid_data_paths", [])
+        ]
+
+        if not train_paths or not val_paths:
+            raise ValueError(
+                "MATEY SOLPS split requires non-empty train_data_paths and "
+                "valid_data_paths."
+            )
+
+        train_solps = [entry for entry in train_paths if str(entry[1]) == "SOLPS2D"]
+        val_solps = [entry for entry in val_paths if str(entry[1]) == "SOLPS2D"]
+
+        if not train_solps and not val_solps:
+            return
+
+        if len(train_solps) != len(train_paths) or len(val_solps) != len(val_paths):
+            raise ValueError(
+                "MATEY SOLPS split mode does not support mixing SOLPS2D with "
+                "non-SOLPS datasets in train/valid data paths."
+            )
+
+        signatures = {tuple(entry[1:]) for entry in (train_solps + val_solps)}
+        if len(signatures) != 1:
+            raise ValueError(
+                "MATEY SOLPS split requires matching dataset metadata across "
+                "train_data_paths and valid_data_paths (dataset/include/tk-head)."
+            )
+
+        src_paths = [
+            self._to_abs_path(str(entry[0])) for entry in train_solps + val_solps
+        ]
+        split_view = stage_solps_split(
+            source_roots=src_paths,
+            ratios=DEFAULT_MATEY_TRAIN_VAL_TEST,
+            seed=self._split_seed,
+            cache_root=DEFAULT_SOLPS_CACHE_ROOT,
+        )
+        self._solps_split = split_view
+        signature = list(next(iter(signatures)))
+        train_entry = [self._as_config_path(split_view.train_dir), *signature]
+        val_entry = [self._as_config_path(split_view.val_dir), *signature]
+        params.train_data_paths = [copy.deepcopy(train_entry)]
+        params.valid_data_paths = [copy.deepcopy(val_entry)]
+
+    def _configure_data_split(self, params: Any) -> None:
+        params.train_val_test = list(DEFAULT_MATEY_TRAIN_VAL_TEST)
+        self._configure_solps_staged_pool(params)
+
+    def _log_solps_split_details(self) -> None:
+        if self._solps_split is None or self._solps_split_logged:
+            return
+
+        logger = get_logger()
+        counts = self._solps_split.counts
+        logger.info("==== MATEY SOLPS staged split ready ====", level=0)
+        logger.info(f"\tCache dir: {self._solps_split.cache_dir}", level=1)
+        logger.info(
+            f"\tSplit counts train/val/test: {counts['train']}/{counts['val']}/{counts['test']}",
+            level=1,
+        )
+        logger.info(
+            f"\tSplit cache reused: {self._solps_split.reused_cache}",
+            level=1,
+        )
+        self._solps_split_logged = True
+
+    def _params_for_loader_split(self, split: str) -> Any:
+        loader_params = copy.deepcopy(self._params)
+        if self._solps_split is None:
+            return loader_params
+
+        if split == "train":
+            loader_params.train_val_test = [1.0, 0.0, 0.0]
+        elif split == "val":
+            loader_params.train_val_test = [0.0, 1.0, 0.0]
+        else:
+            loader_params.train_val_test = [0.0, 0.0, 1.0]
+        return loader_params
 
     @staticmethod
     def _build_matey_model(params: Any, modules: dict[str, Any]) -> nn.Module:
@@ -435,73 +387,46 @@ class MATEYHarness(BaseModelHarness):
         if torch.cuda.is_available():
             torch.cuda.manual_seed_all(seed)
 
-    def get_optmizer(self) -> Optimizer:
-        optimizer_name = str(getattr(self._params, "optimizer", "AdamW")).lower()
-        lr = float(getattr(self._params, "learning_rate", self.cfg.train.init_lr))
-        weight_decay = float(getattr(self._params, "weight_decay", 0.0))
+    @contextmanager
+    def _matey_single_worker_loader_patch(self, get_data_loader: Callable[..., Any]):
+        """Patch MATEY's DataLoader symbol to support num_workers=0 safely."""
+        module = sys.modules.get(get_data_loader.__module__)
+        if module is None:
+            yield
+            return
 
-        add_weight_decay = self._modules["add_weight_decay"]
-        param_groups = add_weight_decay(self._adapter_model.matey_model, weight_decay)
+        original_loader = getattr(module, "DataLoader", None)
+        if original_loader is None:
+            yield
+            return
 
-        if optimizer_name == "dadaptadam":
-            dadapt_cls = self._modules.get("DAdaptAdam")
-            if dadapt_cls is None:
-                raise RuntimeError(
-                    "MATEY optimizer is configured as DAdaptAdam but "
-                    "`dadaptation` is not installed in this environment."
-                )
-            return cast(
-                Optimizer,
-                dadapt_cls(
-                    param_groups, lr=1.0, growth_rate=1.05, log_every=100, decouple=True
-                ),
-            )
+        def _patched_loader(*args: Any, **kwargs: Any):
+            if int(kwargs.get("num_workers", 0)) == 0:
+                kwargs["prefetch_factor"] = None
+                kwargs["persistent_workers"] = False
+            return original_loader(*args, **kwargs)
 
-        if optimizer_name == "sgd":
-            return torch.optim.SGD(self.model.parameters(), lr=lr, momentum=0.9)
+        setattr(module, "DataLoader", _patched_loader)
+        try:
+            yield
+        finally:
+            setattr(module, "DataLoader", original_loader)
 
-        return torch.optim.AdamW(param_groups, lr=lr, weight_decay=weight_decay)
-
-    def update_data_stream(self) -> None:
-        self._dispose_current_loaders()
-        self._set_stream_seed(self.cfg.seed + self.task_counter)
-
+    def _build_loader(self, params: Any, split: str) -> tuple[Any, Any, Any]:
         get_data_loader = self._modules["get_data_loader"]
-        train_loader, train_dataset, _ = get_data_loader(
-            self._params,
-            self._params.train_data_paths,
-            False,
-            split="train",
-            train_offset=getattr(self._params, "embedding_offset", 0),
-            global_rank=0,
-            num_sp_groups=1,
-            group_size=1,
-        )
-        val_loader, val_dataset, _ = get_data_loader(
-            self._params,
-            self._params.valid_data_paths,
-            False,
-            split="val",
-            train_offset=getattr(self._params, "embedding_offset", 0),
-            global_rank=0,
-            num_sp_groups=1,
-            group_size=1,
-        )
-
-        self._cur_train_loader = _MateyLoaderAdapter(train_loader, train_dataset)
-        self._cur_val_loader = _MateyLoaderAdapter(val_loader, val_dataset)
-
-        self.task_counter += 1
-
-    def get_cur_data_loaders(self) -> tuple[Any, Any]:
-        if self._cur_train_loader is None or self._cur_val_loader is None:
-            raise RuntimeError(
-                "Matey stream has not been initialized. Call update_data_stream() first."
+        with self._matey_single_worker_loader_patch(get_data_loader):
+            return get_data_loader(
+                params,
+                params.train_data_paths
+                if split == "train"
+                else params.valid_data_paths,
+                False,
+                split=split,
+                train_offset=getattr(params, "embedding_offset", 0),
+                global_rank=0,
+                num_sp_groups=1,
+                group_size=1,
             )
-        return self._cur_train_loader, self._cur_val_loader
-
-    def get_hist_data_loaders(self) -> tuple[None, None]:
-        return None, None
 
     def _select_target_tensor(
         self, target: MateyTargetBatch | Tensor, rollout_steps: int | None
@@ -546,17 +471,3 @@ class MATEYHarness(BaseModelHarness):
     def _rmse_metric(self, y_hat: Tensor, y: MateyTargetBatch) -> Tensor:
         target = self._select_target_tensor(y, self._adapter_model.last_rollout_steps)
         return self._compute_rmse(y_hat, target)
-
-    def get_criterion(self):
-        def criterion(y_hat: Tensor, y: MateyTargetBatch) -> Tensor:
-            target = self._select_target_tensor(
-                y, self._adapter_model.last_rollout_steps
-            )
-            return self._compute_nrmse(y_hat, target)
-
-        return criterion
-
-    def _unpack(
-        self, batch: tuple[MateyInputBatch, MateyTargetBatch]
-    ) -> tuple[MateyInputBatch, MateyTargetBatch]:
-        return batch
