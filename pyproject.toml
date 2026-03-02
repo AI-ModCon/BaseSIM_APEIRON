@@ -25,7 +25,7 @@ dependencies = [
 
 [project.optional-dependencies]
 matey = [
-    "matey @ git+https://github.com/FusionFM/MATEY.git@4e615bb5c86024632e386153bfbed028b38a8262",
+    "matey @ git+ssh://git@github.com/FusionFM/MATEY.git@4e615bb5c86024632e386153bfbed028b38a8262",
 ]
 
 [dependency-groups]

@@ -13,12 +13,15 @@ BaseSim harness for the [MATEY](https://github.com/FusionFM/MATEY) multiscale tr
    ```bash
    poetry install --extras matey
    ```
+   This uses GitHub SSH auth for the private MATEY repo, so your SSH key must
+   have access to `FusionFM/MATEY`.
+
    This extra is pinned to:
    `4e615bb5c86024632e386153bfbed028b38a8262`
 
    Equivalent pip command:
    ```bash
-   pip install "matey @ git+https://github.com/FusionFM/MATEY.git@4e615bb5c86024632e386153bfbed028b38a8262"
+   pip install "matey @ git+ssh://git@github.com/FusionFM/MATEY.git@4e615bb5c86024632e386153bfbed028b38a8262"
    ```
 
 3. (Optional) Install heavy/system-dependent packages as needed for your environment:

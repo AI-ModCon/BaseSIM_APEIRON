@@ -29,7 +29,7 @@ DEFAULT_MATEY_PROFILE = "basic_config"
 DEFAULT_MATEY_TRAIN_VAL_TEST = (0.7, 0.15, 0.15)
 DEFAULT_SOLPS_CACHE_ROOT = Path("output/matey_split_cache")
 MATEY_GIT_COMMIT = "4e615bb5c86024632e386153bfbed028b38a8262"
-MATEY_GIT_URL = f"git+https://github.com/FusionFM/MATEY.git@{MATEY_GIT_COMMIT}"
+MATEY_GIT_URL = f"git+ssh://git@github.com/FusionFM/MATEY.git@{MATEY_GIT_COMMIT}"
 SUPPORTED_UPDATE_MODES = {"base", "none"}
 
 
