@@ -45,7 +45,7 @@ detector_name = "ADWINDetector"
 # per window (20% val → ~1000 val samples → 2 val batches), interval=6
 # averages MSE over ~3 windows (~3072 samples), giving stable estimates
 # while remaining responsive to real operating-point changes.
-detection_interval = 4
+detection_interval = 1
 aggregation = "mean"
 reset_after_learning = true
 max_stream_updates = 1181
