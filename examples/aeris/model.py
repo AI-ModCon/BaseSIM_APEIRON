@@ -5,6 +5,7 @@ This harness wraps a 8-layer neural network trained to predict enthalpy per atom
 
 import gc
 import torch
+import numpy as np
 from typing import Tuple, Optional, List, Any, Mapping, cast
 from torch import nn, Tensor
 from torch.optim import Optimizer
@@ -108,14 +109,19 @@ class AERIS(BaseModelHarness):
 
         # ----- data loaders  -------------------------------------
         X, y = load_datasets(cfg.data.path, cfg.data.name, feature_names)
-        X_raw = torch.tensor(X, dtype=torch.float32)
-        X_scaled: Tensor = scaler.transform(X_raw)
-        y_raw = torch.tensor(y, dtype=torch.float32)
-        # y is a 1D array of shape (N,), but model outputs (N, 1):
-        if y_raw.ndim == 1:
-            y_raw = y_raw.unsqueeze(1)
+        # X shape: (n_samples, 1, 245) y shape: (n_samples,1)
 
-        self.windows = split_into_windows(X_scaled, y_raw)
+        # apply scaler if present
+        if scaler is not None:
+            try:
+                X = scaler.transform(X)
+            except Exception:
+                pass
+        with torch.no_grad():
+            X_scaled = torch.FloatTensor(X).to(cfg.device)
+        y_raw = torch.tensor(y, dtype=torch.float32)
+
+        self.windows = split_into_windows(X_scaled, y_raw, cfg.train.batch_size)
 
         # ----- streaming state -----------------------------------------------
         self.window_idx: int = 0

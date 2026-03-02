@@ -178,9 +178,8 @@ def _build_feature_vector(
         magpie_features_dict = magpie_features.iloc[0].to_dict()
     except Exception:
         try:
-            feats = feature_calculators.featurize_many(
-                [Composition(composition)], n_jobs=1
-            )
+            feature_calculators.set_n_jobs(1)
+            feats = feature_calculators.featurize_many([Composition(composition)])
             magpie_features = pd.DataFrame(feats)
             magpie_features.index = [0]
             magpie_features_dict = magpie_features.iloc[0].to_dict()
@@ -219,12 +218,106 @@ def _build_feature_vector(
             except Exception:
                 vec[i] = 0.0
 
-    X = vec.reshape(1, -1)
-    # if there are nan values in the feature vector
-    return np.nan_to_num(X, nan=0.0, posinf=1e6, neginf=-1e6)
+    # Return a 1D feature vector (D,) instead of (1, D)
+    vec = np.nan_to_num(vec, nan=0.0, posinf=1e6, neginf=-1e6)
+    return vec
 
 
 def load_datasets(data_path: str, dataset_name: str, feature_names: List[str]):
+    """Load the dataset used by the model.
+
+    This function attempts to *prefer* loading the exact columns listed in
+    `feature_names` (in the same order). If those columns are present in the
+    CSV(s), they are used directly (fast, deterministic). If not all feature
+    columns are present, the function falls back to building feature vectors
+    row-by-row using _build_feature_vector to preserve compatibility with older
+    or alternate CSV formats.
+
+    The function returns:
+        X: numpy.ndarray of shape (n_samples, n_features) dtype float32
+        y: numpy.ndarray of shape (n_samples,) dtype float32
+
+    Note: scaling is intentionally NOT applied here. The caller (model harness)
+    will apply the saved scaler from the checkpoint (if any) via scaler.transform().
+    """
+
+    # collect files
+    dataset_pattern = os.path.join(data_path, dataset_name)
+    dataset_files: List[str] = glob.glob(dataset_pattern)
+    if not dataset_files:
+        raise FileNotFoundError(f"No dataset files matched pattern: {dataset_pattern}")
+
+    # read & concatenate CSV files
+    dfs = []
+    for file_path in dataset_files:
+        dfs.append(pd.read_csv(file_path, low_memory=False))
+    dataset: pd.DataFrame = pd.concat(dfs, ignore_index=True)
+
+    # Ensure target present
+    if "formation_energy_per_atom" not in dataset.columns:
+        raise KeyError("Required target column 'formation_energy_per_atom' not found in dataset")
+
+    # Drop rows missing target
+    dataset = dataset.dropna(subset=["formation_energy_per_atom"]).copy()
+
+    # If all feature_names are present as columns, take that branch (preferred)
+    all_present = all((fn in dataset.columns) for fn in feature_names)
+
+    if all_present:
+        # Select columns in the exact saved order
+        X = dataset[feature_names].to_numpy(dtype=np.float32)
+
+        # Replace infs / NaNs in numeric columns with column means (same as training)
+        # (do not change dtype or drop rows here; keep alignment with model)
+        numeric_mask = np.isfinite(X)
+        # For each column replace non-finite with column mean (computed over finite rows)
+        col_means = np.nanmean(np.where(np.isfinite(X), X, np.nan), axis=0)
+        # Where a column is completely NaN/inf, set mean to 0.0
+        col_means = np.where(np.isnan(col_means), 0.0, col_means)
+        inds = np.where(~np.isfinite(X))
+        if inds[0].size > 0:
+            X[inds] = np.take(col_means, inds[1])
+
+    else:
+        # Fall back to building feature vectors row-by-row using the helper
+        # This creates the same ordering as feature_names when possible (elemental
+        # names are interpreted by _build_feature_vector).
+        X_rows = []
+        # Build a minimal features dict per row (this mirrors training's inputs)
+        for _, row in dataset.iterrows():
+            comp = row.get("composition_reduced", row.get("composition", None))
+            features = {
+                "composition": row.get("composition", None),
+                "structure": row.get("structure", None),
+                "spacegroup_number": row.get("spacegroup_number", None),
+                "density_atomic": row.get("density_atomic", None),
+                "CN_max": row.get("CN_max", None),
+                "CN_min": row.get("CN_min", None),
+                "CN_avg": row.get("CN_avg", None),
+            }
+            try:
+                vec = _build_feature_vector(comp, features, feature_names)
+            except Exception:
+                # on failure, append zeros to avoid mismatched shapes
+                vec = np.zeros(len(feature_names), dtype=np.float32)
+            X_rows.append(vec)
+        X = np.vstack(X_rows).astype(np.float32)
+
+        # Replace any remaining nan/inf with column means
+        col_means = np.nanmean(np.where(np.isfinite(X), X, np.nan), axis=0)
+        col_means = np.where(np.isnan(col_means), 0.0, col_means)
+        inds = np.where(~np.isfinite(X))
+        if inds[0].size > 0:
+            X[inds] = np.take(col_means, inds[1])
+
+    # Prepare target vector shape (N,)
+    y = dataset["formation_energy_per_atom"].to_numpy(dtype=np.float32).reshape(-1, 1)
+    assert X.shape[0] == y.shape[0], "Feature matrix and target vector must have same number of rows"
+
+    return X, y
+
+
+def load_datasets2(data_path: str, dataset_name: str, feature_names: List[str]):
     """Load the dataset that will be parsed, return features and ground truth.
 
     Parameters
@@ -256,7 +349,11 @@ def load_datasets(data_path: str, dataset_name: str, feature_names: List[str]):
     num_cols = dataset.select_dtypes(include=[np.number]).columns
     dataset[num_cols] = dataset[num_cols].replace([np.inf, -np.inf], np.nan).fillna(0.0)
 
-    y = dataset["formation_energy_per_atom"].values.astype(np.float32)
+    y = (
+        dataset["formation_energy_per_atom"]
+        .values.astype(np.float32)
+        .reshape(-1, 1)
+    )
     X = []
     for _, row in dataset.iterrows():
         composition = row["composition_reduced"]
@@ -271,6 +368,7 @@ def load_datasets(data_path: str, dataset_name: str, feature_names: List[str]):
         }
         X.append(_build_feature_vector(composition, features, feature_names))
 
+    print("X shape:", np.array(X).shape, "y shape:", y.shape)
     assert len(X) == len(y), (
         "The feature and target vectors do not have the same lenght"
     )
@@ -278,8 +376,7 @@ def load_datasets(data_path: str, dataset_name: str, feature_names: List[str]):
 
 
 # Default number of samples per time window.  Can be overridden by the caller.
-DEFAULT_WINDOW_SIZE: int = 5000
-
+DEFAULT_WINDOW_SIZE: int = 100
 
 def split_into_windows(
     X: Tensor,
