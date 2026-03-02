@@ -9,7 +9,9 @@ pretrained_path = ""
 
 [data]
 name = "matey"
-path = "examples/matey/MATEY"
+# User-provided SOLPS dataset root containing train/ and valid/ folders.
+# This path is local-only and should not be tracked in git.
+path = "/path/to/fusionMT-data/solps"
 
 [train]
 batch_size = 16

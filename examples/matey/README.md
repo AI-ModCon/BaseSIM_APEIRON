@@ -1,6 +1,6 @@
 # MATEY Example Harness
 
-BaseSim harness for the [MATEY](https://code.ornl.gov/matey/matey) multiscale transformer codebase.
+BaseSim harness for the [MATEY](https://github.com/FusionFM/MATEY) multiscale transformer codebase.
 
 ## Setup
 
@@ -9,12 +9,19 @@ BaseSim harness for the [MATEY](https://code.ornl.gov/matey/matey) multiscale tr
    poetry install
    ```
 
-2. Install MATEY dependencies:
+2. Install the optional MATEY example dependency (pinned commit):
    ```bash
-   pip install -e examples/matey/
+   poetry install --extras matey
+   ```
+   This extra is pinned to:
+   `4e615bb5c86024632e386153bfbed028b38a8262`
+
+   Equivalent pip command:
+   ```bash
+   pip install "matey @ git+https://github.com/FusionFM/MATEY.git@4e615bb5c86024632e386153bfbed028b38a8262"
    ```
 
-3. (Optional) Install heavy/system-dependent packages as needed:
+3. (Optional) Install heavy/system-dependent packages as needed for your environment:
    ```bash
    MAX_JOBS=4 NINJA_STATUS="[%f/%t] " pip install -vv --progress-bar on --no-build-isolation flash-attn
    pip install dadaptation==3.1                             # for DAdaptAdam optimizer
@@ -38,12 +45,12 @@ poetry run python -m src.main --config examples/matey/matey.toml
 
 Edit [matey.toml](matey.toml) to adjust training parameters, drift detection, and data paths.
 
-The `[data].path` should point to your local MATEY checkout (default: `examples/matey/MATEY`).
+The `[data].path` should point to your local SOLPS dataset root
+(must contain `train/` and `valid/` directories).
+This data is expected to be user-provided and is not tracked in git.
 
-For the SOLPS example, BaseSim treats `MATEY/` as a read-only third-party checkout.
-The harness collects SOLPS files from configured `train_data_paths` and
-`valid_data_paths`, applies a deterministic file-level split of `[0.7, 0.15, 0.15]`,
-and materializes staged views under:
+For the SOLPS example, the harness builds a deterministic file-level split of
+`[0.7, 0.15, 0.15]` and materializes staged views under:
 
 ```text
 output/matey_split_cache/<fingerprint>/{train,val,test}
@@ -61,5 +68,4 @@ learning dispatch easier to observe (`detection_interval=5`, `aggregation="last"
 |---|---|
 | `model.py` | `MATEYHarness` -- adapts MATEY models/data to BaseSim's `BaseModelHarness` interface |
 | `matey.toml` | Experiment config |
-| `pyproject.toml` | Dependency manifest (decoupled from BaseSim core) |
-| `MATEY/` | MATEY source checkout |
+| `pyproject.toml` | Optional example dependency manifest |

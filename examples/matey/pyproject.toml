@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "MATEY model harness example for the BaseSim framework"
 requires-python = ">=3.12"
 dependencies = [
+    "matey @ git+https://github.com/FusionFM/MATEY.git@4e615bb5c86024632e386153bfbed028b38a8262",
     "einops",
     "h5py",
     "timm",

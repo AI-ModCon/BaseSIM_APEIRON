@@ -206,7 +206,24 @@ def test_unsupported_updater_mode_raises_before_loading() -> None:
 def test_missing_matey_root_path_raises(tmp_path: Path) -> None:
     MATEYHarness, _, _ = _import_matey_symbols()
     cfg = _make_cfg(data_path=str(tmp_path / "missing_matey_root"))
-    with pytest.raises(FileNotFoundError, match="Matey root path does not exist"):
+    with pytest.raises(FileNotFoundError, match="Matey data root path does not exist"):
+        MATEYHarness(cfg)
+
+
+def test_data_root_requires_train_and_valid_when_one_exists(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    MATEYHarness, _, _ = _import_matey_symbols()
+    data_root = tmp_path / "solps"
+    (data_root / "train").mkdir(parents=True)
+
+    fake_modules = _make_fake_modules()
+    monkeypatch.setattr(
+        MATEYHarness, "_load_matey_modules", lambda self: fake_modules
+    )
+
+    cfg = _make_cfg(data_path=str(data_root))
+    with pytest.raises(FileNotFoundError, match="must contain both 'train/' and 'valid/'"):
         MATEYHarness(cfg)
 
 
@@ -297,6 +314,33 @@ def test_default_split_applied_for_matey(
     assert val_files
     staged_names = {path.name for path in (train_files + val_files)}
     assert {"sample-a.nc", "sample-b.nc", "sample-c.nc"} <= staged_names
+
+
+def test_cfg_data_path_overrides_yaml_paths(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    MATEYHarness, _, _ = _import_matey_symbols()
+    monkeypatch.setattr(
+        "examples.matey.model.DEFAULT_SOLPS_CACHE_ROOT", tmp_path / "cache"
+    )
+    solps_root = tmp_path / "user-solps"
+    _write_solps_samples(solps_root)
+
+    fake_modules = _make_fake_modules()
+    monkeypatch.setattr(
+        MATEYHarness,
+        "_load_matey_modules",
+        lambda self: fake_modules,
+    )
+
+    cfg = _make_cfg(data_path=str(solps_root))
+    harness = MATEYHarness(cfg)
+
+    train_root = Path(harness._params.train_data_paths[0][0]).resolve()
+    val_root = Path(harness._params.valid_data_paths[0][0]).resolve()
+    assert train_root.name == "train"
+    assert val_root.name == "val"
+    assert train_root.parent == val_root.parent
 
 
 def test_train_and_val_loaders_use_staged_paths(

@@ -27,7 +27,9 @@ from model.torch_model_harness import BaseModelHarness
 DEFAULT_MATEY_YAML = Path("examples/matey/Demo_SOLPS_vit.yaml")
 DEFAULT_MATEY_PROFILE = "basic_config"
 DEFAULT_MATEY_TRAIN_VAL_TEST = (0.7, 0.15, 0.15)
-DEFAULT_SOLPS_CACHE_ROOT = Path("examples/matey/data/output/matey_split_cache")
+DEFAULT_SOLPS_CACHE_ROOT = Path("output/matey_split_cache")
+MATEY_GIT_COMMIT = "4e615bb5c86024632e386153bfbed028b38a8262"
+MATEY_GIT_URL = f"git+https://github.com/FusionFM/MATEY.git@{MATEY_GIT_COMMIT}"
 SUPPORTED_UPDATE_MODES = {"base", "none"}
 
 
@@ -38,9 +40,8 @@ class MATEYHarness(BaseModelHarness):
         self._solps_split_logged = False
         self._split_seed = int(cfg.seed)
 
-        self._matey_root = self._resolve_matey_root(cfg)
-        self._validate_matey_root(self._matey_root)
-        self._ensure_matey_on_pythonpath(self._matey_root)
+        self._data_root = self._resolve_data_root(cfg)
+        self._validate_data_root(self._data_root)
 
         modules = self._load_matey_modules()
         params = self._build_matey_params(cfg, modules["YParams"])
@@ -147,25 +148,28 @@ class MATEYHarness(BaseModelHarness):
             )
 
     @staticmethod
-    def _resolve_matey_root(cfg: Config) -> Path:
-        raw = cfg.data.path.strip() if cfg.data.path.strip() else "MATEY"
+    def _resolve_data_root(cfg: Config) -> Path:
+        raw = cfg.data.path.strip()
+        if not raw:
+            raise ValueError(
+                "Matey data path is empty. Set [data].path to your local SOLPS "
+                "dataset root containing 'train/' and 'valid/' directories."
+            )
         path = Path(raw)
         if not path.is_absolute():
             path = Path.cwd() / path
         return path.resolve()
 
     @staticmethod
-    def _ensure_matey_on_pythonpath(matey_root: Path) -> None:
-        root_str = str(matey_root)
-        if root_str not in sys.path:
-            sys.path.insert(0, root_str)
-
-    @staticmethod
-    def _validate_matey_root(matey_root: Path) -> None:
-        if not matey_root.exists():
+    def _validate_data_root(data_root: Path) -> None:
+        if not data_root.exists():
             raise FileNotFoundError(
-                f"Matey root path does not exist: {matey_root}. "
-                "Set [data].path to the local MATEY checkout path."
+                f"Matey data root path does not exist: {data_root}. "
+                "Set [data].path to your local SOLPS dataset root path."
+            )
+        if not data_root.is_dir():
+            raise NotADirectoryError(
+                f"Matey data root path is not a directory: {data_root}"
             )
 
         if not DEFAULT_MATEY_YAML.exists():
@@ -194,8 +198,8 @@ class MATEYHarness(BaseModelHarness):
             raise RuntimeError(
                 "Matey dependency import failed. Ensure MATEY requirements are "
                 "installed in the active environment (for example: "
-                "`pip install -r MATEY/requirements.txt`) and that "
-                "`[data].path` points to the MATEY repo root."
+                f"`poetry install --extras matey` or `pip install \"matey @ {MATEY_GIT_URL}\"`) "
+                "and that `[data].path` points to your local SOLPS dataset root."
             ) from exc
 
         dadapt = None
@@ -319,7 +323,25 @@ class MATEYHarness(BaseModelHarness):
         params.train_data_paths = [copy.deepcopy(train_entry)]
         params.valid_data_paths = [copy.deepcopy(val_entry)]
 
+    def _configure_user_data_paths(self, params: Any) -> None:
+        train_dir = self._data_root / "train"
+        val_dir = self._data_root / "valid"
+
+        # Keep compatibility with non-SOLPS test fixtures that mock custom paths.
+        if not train_dir.exists() and not val_dir.exists():
+            return
+
+        if not train_dir.exists() or not val_dir.exists():
+            raise FileNotFoundError(
+                "Matey data root must contain both 'train/' and 'valid/' directories. "
+                f"Missing paths: train={train_dir.exists()}, valid={val_dir.exists()}."
+            )
+
+        params.train_data_paths = [[self._as_config_path(train_dir), "SOLPS2D", "", "tk-2D"]]
+        params.valid_data_paths = [[self._as_config_path(val_dir), "SOLPS2D", "", "tk-2D"]]
+
     def _configure_data_split(self, params: Any) -> None:
+        self._configure_user_data_paths(params)
         params.train_val_test = list(DEFAULT_MATEY_TRAIN_VAL_TEST)
         self._configure_solps_staged_pool(params)
 
