@@ -9,6 +9,7 @@ This module implements a continuous monitoring architecture that:
 """
 
 from __future__ import annotations
+import math
 from typing import TYPE_CHECKING
 
 import torch
@@ -141,8 +142,18 @@ class ContinuousMonitor:
         ):
             # Evaluate batch and compute all metrics
             metrics = self._evaluate_batch(batch)
-            self.metric_buffer.append(metrics)
             self.batch_count += 1
+
+            # Guard: skip batches whose metrics contain NaN
+            if any(math.isnan(v) for v in metrics):
+                self.logger.warning(
+                    f"Batch {self.batch_count}: metrics contain NaN — "
+                    f"skipping (values: {metrics}). "
+                    "Check upstream data for missing values.",
+                )
+                continue
+
+            self.metric_buffer.append(metrics)
 
             # Check drift at specified interval
             if (
