@@ -41,24 +41,14 @@ kfac_ema_decay = 0.95
 
 [drift_detection]
 detector_name = "ADWINDetector"
-# Check for drift every N batches.  With batch_size=512 and ~5000 samples
-# per window (20% val → ~1000 val samples → 2 val batches), interval=6
-# averages MSE over ~3 windows (~3072 samples), giving stable estimates
-# while remaining responsive to real operating-point changes.
+# Check for drift every N batches.  With batch_size=512 and 5000 samples per window
 detection_interval = 1
 aggregation = "mean"
-reset_after_learning = true
+reset_after_learning = false
 max_stream_updates = 1181
 
 # ADWIN hyperparameters
-# delta = confidence parameter.  Lower = more conservative (fewer detections).
-#   0.002 = 99.8% confidence
-#   0.05  = 95% confidence
 adwin_delta = 0.05
-# Regime thresholds on recent drift frequency (0–1 scale):
-#   <minor  → CONTINUAL_LEARNING  (lightweight update)
-#   <moderate → FINE_TUNING        (larger update)
-#   ≥moderate → RETRAIN            (full retrain)
 adwin_minor_threshold = 0.1
 adwin_moderate_threshold = 0.4
 
