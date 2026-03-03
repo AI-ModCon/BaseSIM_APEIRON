@@ -21,40 +21,21 @@ from examples.aeris.utils import (
     split_into_windows,
 )
 
-
 # Aeris model architecture used for prediction
 class AerisFullStructure(nn.Module):
     def __init__(self, input_dim, dropout=0.3):
         super().__init__()
         first_layer = min(1024, max(512, input_dim * 2))
         self.layers = nn.Sequential(
-            nn.Linear(input_dim, first_layer),
-            nn.ReLU(),
-            nn.BatchNorm1d(first_layer),
-            nn.Linear(first_layer, first_layer),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-            nn.Linear(first_layer, 512),
-            nn.ReLU(),
-            nn.BatchNorm1d(512),
-            nn.Linear(512, 512),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-            nn.Linear(512, 256),
-            nn.ReLU(),
-            nn.BatchNorm1d(256),
-            nn.Linear(256, 256),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-            nn.Linear(256, 128),
-            nn.ReLU(),
-            nn.BatchNorm1d(128),
-            nn.Linear(128, 64),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-            nn.Linear(64, 32),
-            nn.ReLU(),
-            nn.Linear(32, 1),
+            nn.Linear(input_dim, first_layer), nn.ReLU(), nn.BatchNorm1d(first_layer),
+            nn.Linear(first_layer, first_layer), nn.ReLU(), nn.Dropout(dropout),
+            nn.Linear(first_layer, 512), nn.ReLU(), nn.BatchNorm1d(512),
+            nn.Linear(512, 512), nn.ReLU(), nn.Dropout(dropout),
+            nn.Linear(512, 256), nn.ReLU(), nn.BatchNorm1d(256),
+            nn.Linear(256, 256), nn.ReLU(), nn.Dropout(dropout),
+            nn.Linear(256, 128), nn.ReLU(), nn.BatchNorm1d(128),
+            nn.Linear(128, 64), nn.ReLU(), nn.Dropout(dropout),
+            nn.Linear(64, 32), nn.ReLU(), nn.Linear(32, 1)
         )
 
     def forward(self, x):
@@ -75,31 +56,14 @@ class AERIS(BaseModelHarness):
         ckpt = load_pretrained_model(
             cfg.model.pretrained_path, cfg.model.name, device=cfg.device
         )
-
-        # Checkpoint is a dict saved via torch.save(model_info, ...)
-        input_dim_raw = ckpt.get("input_dim")
-        if input_dim_raw is None:
-            raise KeyError("Checkpoint missing required key: 'input_dim'")
-        input_dim = int(cast(int, input_dim_raw))
-
-        feature_names_raw = ckpt.get("feature_names")
-        if feature_names_raw is None:
-            raise KeyError("Checkpoint missing required key: 'feature_names'")
-        feature_names = cast(List[str], feature_names_raw)
-
-        scaler_raw = ckpt.get("scaler")
-        if scaler_raw is None:
-            raise KeyError("Checkpoint missing required key: 'scaler'")
-        scaler = cast(Any, scaler_raw)
-
-        state_raw = ckpt.get("model_state_dict")
-        if state_raw is None:
-            raise KeyError("Checkpoint missing required key: 'model_state_dict'")
-        state = cast(Mapping[str, Any], state_raw)
+        feature_names: List[str] = ckpt["feature_names"]
+        scaler = ckpt["scaler"]
+        input_dim = int(ckpt["input_dim"])
 
         model = AerisFullStructure(input_dim=input_dim)
-        model.load_state_dict(state)
+        model.load_state_dict(ckpt["model_state_dict"])
         model.to(cfg.device)
+        model.eval()
 
         super().__init__(cfg=cfg, model=model)
 
@@ -108,20 +72,16 @@ class AERIS(BaseModelHarness):
         self.higher_is_better = {"accuracy": False, "loss": False}
 
         # ----- data loaders  -------------------------------------
-        X, y = load_datasets(cfg.data.path, cfg.data.name, feature_names)
-        # X shape: (n_samples, 1, 245) y shape: (n_samples,1)
+        X, y = load_datasets(cfg.data.path, cfg.data.name, feature_names, input_dim)
+        # X shape: (n_samples, 245) y shape: (n_samples,1)
 
-        # apply scaler if present
-        if scaler is not None:
-            try:
-                X = scaler.transform(X)
-            except Exception:
-                pass
-        with torch.no_grad():
-            X_scaled = torch.FloatTensor(X).to(cfg.device)
-        y_raw = torch.tensor(y, dtype=torch.float32)
+        # scale (must match training)
+        X_scaled = scaler.transform(X).astype(np.float32)
+        X_tensor = torch.tensor(X_scaled, dtype=torch.float32)
+        y_tensor = torch.tensor(y, dtype=torch.float32)
 
-        self.windows = split_into_windows(X_scaled, y_raw, cfg.train.batch_size)
+        self.windows = split_into_windows(X_tensor, y_tensor, cfg.train.batch_size)
+        #print(f"Prepared {len(self.windows)} time windows for streaming. Each window has ~{self.windows[0][0].shape[0]} samples.")
 
         # ----- streaming state -----------------------------------------------
         self.window_idx: int = 0

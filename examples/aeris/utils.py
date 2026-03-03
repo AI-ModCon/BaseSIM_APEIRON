@@ -11,7 +11,7 @@ Expected directory layout (pointed to by ``cfg.data.path``)::
 import os
 import glob
 import re
-from typing import Dict, List, Tuple, Any
+from typing import Dict, List, Tuple, Any, Optional
 
 import numpy as np
 import pandas as pd
@@ -69,26 +69,6 @@ def _parse_formula(s: str) -> Dict[str, float]:
     return comp
 
 
-def _apply_df_parse_formula_num(val):
-    try:
-        if pd.isna(val):
-            return None
-        parsed = _parse_formula(str(val))
-        return int(sum(parsed.values()))
-    except Exception:
-        return None
-
-
-def _apply_df_parse_formula_str(val):
-    try:
-        if pd.isna(val):
-            return None
-        parsed = _parse_formula(str(val))
-        return "".join(f"{k}{v}" for k, v in sorted(parsed.items()))
-    except Exception:
-        return None
-
-
 def _parse_structure_string(struct_str: str) -> Dict[str, float]:
     # minimal lattice extractor (compatible with training utils)
     result = {
@@ -134,96 +114,144 @@ def _parse_structure_string(struct_str: str) -> Dict[str, float]:
     return result
 
 
-def _build_feature_vector(
-    composition: str, features: Dict, feature_names: List[str]
-) -> np.ndarray:
-    comp = _parse_formula(composition)
-    total_atoms = float(sum(comp.values()))
-    # prepare composition fractions
-    elem_frac = {k: v / total_atoms for k, v in comp.items()}
+# -----------------------------
+# Build X,y in *checkpoint feature order*
+# -----------------------------
+# optional numeric columns (if present in CSV) that we will include as features
+OPTIONAL_NUMERIC_COLS = [
+    'density_atomic', 'CN_max', 'CN_min', 'CN_avg',
+    # add more if you know they exist & are useful
+]
 
-    # parse structure if string/dict
-    struct_vals = {}
-    if features is not None:
-        for feature in features:
-            if feature not in feature_names:
-                continue
-            struct_vals[feature] = features[feature]
-        if "structure" in features:
-            parsed_struct = _parse_structure_string(features["structure"])
-            struct_vals.update(parsed_struct)
+def _make_magpie_featurizer() -> MultipleFeaturizer:
+    return MultipleFeaturizer([
+        cf.Stoichiometry(),
+        cf.ElementProperty.from_preset("magpie"),
+        cf.ValenceOrbital(props=['avg']),
+        cf.IonProperty(fast=True),
+    ])
 
-    # magpie
-    feature_calculators = MultipleFeaturizer(
-        [
-            cf.Stoichiometry(),
-            cf.ElementProperty.from_preset("magpie"),
-            cf.ValenceOrbital(props=["avg"]),
-            cf.IonProperty(fast=True),
-        ]
-    )
+def _compute_magpie_df(compositions: pd.Series) -> pd.DataFrame:
+    featurizer = _make_magpie_featurizer()
 
-    comp_obj = Composition(composition)
-    data = pd.DataFrame([{"comp_obj": comp_obj, "composition_reduced": composition}])
-
-    # Calculate Magpie features.
-    # IMPORTANT: when running under MPI, do NOT let matminer spawn multiprocessing pools
-    # inside each rank (oversubscription/hangs). Force single-process.
-    magpie_features_dict = {}
-    try:
-        # Some matminer versions support n_jobs; if yours does, keep it at 1.
-        magpie_features = feature_calculators.featurize_dataframe(
-            data, col_id="comp_obj", ignore_errors=True, pbar=False, n_jobs=1
-        )
-        magpie_features_dict = magpie_features.iloc[0].to_dict()
-    except Exception:
+    comp_objs = []
+    for s in compositions.astype(str).tolist():
         try:
-            feature_calculators.set_n_jobs(1)
-            feats = feature_calculators.featurize_many([Composition(composition)])
-            magpie_features = pd.DataFrame(feats)
-            magpie_features.index = [0]
-            magpie_features_dict = magpie_features.iloc[0].to_dict()
-        except Exception as e:
-            print("Magpie featurizer failed, falling back to empty features:", repr(e))
-            magpie_features_dict = {}
+            comp_objs.append(Composition(s))
+        except Exception:
+            comp_objs.append(None)
 
-    vec = np.zeros(len(feature_names), dtype=np.float32)
-    for i, name in enumerate(feature_names):
-        # elemental features (assume single element name)
-        if re.match(r"^[A-Z][a-z]?$", name) and name in elem_frac:
-            vec[i] = float(elem_frac.get(name, 0.0))
-            continue
+    base = pd.DataFrame({"comp_obj": comp_objs}, index=compositions.index)
 
-        # structural features
-        if name in struct_vals:
-            vec[i] = float(struct_vals[name])
-            continue
+    try:
+        feat_df = featurizer.featurize_dataframe(
+            base, col_id="comp_obj", ignore_errors=True, pbar=False, n_jobs=1
+        )
+    except TypeError:
+        try:
+            featurizer.set_n_jobs(1)
+        except Exception:
+            pass
+        feat_df = featurizer.featurize_dataframe(
+            base, col_id="comp_obj", ignore_errors=True, pbar=False
+        )
 
-        # magpie features
-        if name in magpie_features_dict:
-            vec[i] = float(magpie_features_dict[name])
-            continue
+    feat_df = feat_df.drop(columns=[c for c in feat_df.columns if c == "comp_obj"], errors="ignore")
+    return feat_df
 
-        # try numeric keys in struct_vals
-        val = struct_vals.get(name)
-        if val is None:
-            v = struct_vals.get(name, 0.0)
+def _build_X_y_in_ckpt_order(
+    df: pd.DataFrame,
+    feature_names: List[str],
+    target_col: Optional[str],
+) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+    required = ["composition", "structure"]
+    for c in required:
+        if c not in df.columns:
+            raise KeyError(f"Missing required column '{c}'")
+
+    if target_col is not None and target_col not in df.columns:
+        raise KeyError(f"Missing target column '{target_col}'")
+
+    magpie_df = _compute_magpie_df(df["composition"])
+    n = len(df)
+    X = np.zeros((n, len(feature_names)), dtype=np.float32)
+    y: Optional[np.ndarray] = None
+    if target_col is not None:
+        y = np.zeros((n, 1), dtype=np.float32)
+
+    df2 = df.reset_index(drop=True)
+
+    for i, row in df2.iterrows():
+        comp_str = str(row["composition"])
+
+        # 1) element fractions
+        try:
+            parsed = _parse_formula(comp_str)
+            total = float(sum(parsed.values())) if parsed else 0.0
+        except Exception:
+            parsed, total = {}, 0.0
+
+        elem_frac: Dict[str, float] = {}
+        if total > 0:
+            for el, cnt in parsed.items():
+                elem_frac[el] = float(cnt) / total
+
+        # 2) structure features
+        struct_vals = _parse_structure_string(row.get("structure"))
+
+        # 3) optional numeric cols
+        opt_vals: Dict[str, float] = {}
+        for c in OPTIONAL_NUMERIC_COLS:
+            if c in df2.columns:
+                v = row.get(c)
+                try:
+                    opt_vals[c] = float(v)
+                except Exception:
+                    opt_vals[c] = np.nan
+
+        # 4) magpie row
+        magpie_row = magpie_df.iloc[i].to_dict()
+
+        # single lookup dict, then assemble in EXACT feature_names order
+        value_by_name: Dict[str, float] = {}
+        for el, frac in elem_frac.items():
+            value_by_name[el] = float(frac)
+        for k, v in struct_vals.items():
             try:
-                vec[i] = float(v)
+                value_by_name[k] = float(v)
             except Exception:
-                vec[i] = 0.0
-        else:
+                pass
+        for k, v in opt_vals.items():
             try:
-                vec[i] = float(val)
+                value_by_name[k] = float(v)
             except Exception:
-                vec[i] = 0.0
+                pass
+        for k, v in magpie_row.items():
+            try:
+                value_by_name[k] = float(v)
+            except Exception:
+                pass
 
-    # Return a 1D feature vector (D,) instead of (1, D)
-    vec = np.nan_to_num(vec, nan=0.0, posinf=1e6, neginf=-1e6)
-    return vec
+        X[i, :] = np.array([value_by_name.get(name, 0.0) for name in feature_names], dtype=np.float32)
+
+        if y is not None:
+            try:
+                y[i, 0] = float(row[target_col])  # type: ignore[arg-type]
+            except Exception:
+                y[i, 0] = np.nan
+
+    X = np.nan_to_num(X, nan=0.0, posinf=1e6, neginf=-1e6).astype(np.float32)
+
+    if y is not None:
+        y = y.astype(np.float32)
+        # drop rows where y is nan
+        mask = ~np.isnan(y[:, 0])
+        X = X[mask]
+        y = y[mask]
+    return X, y
 
 
-def load_datasets(data_path: str, dataset_name: str, feature_names: List[str]):
+def load_datasets(data_path: str, dataset_name: str, feature_names: List[str], input_dim: int) -> Tuple[np.ndarray, Optional[np.ndarray]]:
     """Load the dataset used by the model.
 
     This function attempts to *prefer* loading the exact columns listed in
@@ -253,127 +281,14 @@ def load_datasets(data_path: str, dataset_name: str, feature_names: List[str]):
         dfs.append(pd.read_csv(file_path, low_memory=False))
     dataset: pd.DataFrame = pd.concat(dfs, ignore_index=True)
 
-    # Ensure target present
-    if "formation_energy_per_atom" not in dataset.columns:
-        raise KeyError("Required target column 'formation_energy_per_atom' not found in dataset")
+    target_col = 'formation_energy_per_atom'
+    X_raw, y = _build_X_y_in_ckpt_order(dataset, feature_names=feature_names, target_col=target_col)
+    #print("Prepared X:", X_raw.shape, "y:", None if y is None else y.shape, "num_features:", len(feature_names))
 
-    # Drop rows missing target
-    dataset = dataset.dropna(subset=["formation_energy_per_atom"]).copy()
+    if X_raw.shape[1] != input_dim:
+        raise ValueError(f"Checkpoint input_dim={input_dim} but built X has {X_raw.shape[1]} features.")
 
-    # If all feature_names are present as columns, take that branch (preferred)
-    all_present = all((fn in dataset.columns) for fn in feature_names)
-
-    if all_present:
-        # Select columns in the exact saved order
-        X = dataset[feature_names].to_numpy(dtype=np.float32)
-
-        # Replace infs / NaNs in numeric columns with column means (same as training)
-        # (do not change dtype or drop rows here; keep alignment with model)
-        numeric_mask = np.isfinite(X)
-        # For each column replace non-finite with column mean (computed over finite rows)
-        col_means = np.nanmean(np.where(np.isfinite(X), X, np.nan), axis=0)
-        # Where a column is completely NaN/inf, set mean to 0.0
-        col_means = np.where(np.isnan(col_means), 0.0, col_means)
-        inds = np.where(~np.isfinite(X))
-        if inds[0].size > 0:
-            X[inds] = np.take(col_means, inds[1])
-
-    else:
-        # Fall back to building feature vectors row-by-row using the helper
-        # This creates the same ordering as feature_names when possible (elemental
-        # names are interpreted by _build_feature_vector).
-        X_rows = []
-        # Build a minimal features dict per row (this mirrors training's inputs)
-        for _, row in dataset.iterrows():
-            comp = row.get("composition_reduced", row.get("composition", None))
-            features = {
-                "composition": row.get("composition", None),
-                "structure": row.get("structure", None),
-                "spacegroup_number": row.get("spacegroup_number", None),
-                "density_atomic": row.get("density_atomic", None),
-                "CN_max": row.get("CN_max", None),
-                "CN_min": row.get("CN_min", None),
-                "CN_avg": row.get("CN_avg", None),
-            }
-            try:
-                vec = _build_feature_vector(comp, features, feature_names)
-            except Exception:
-                # on failure, append zeros to avoid mismatched shapes
-                vec = np.zeros(len(feature_names), dtype=np.float32)
-            X_rows.append(vec)
-        X = np.vstack(X_rows).astype(np.float32)
-
-        # Replace any remaining nan/inf with column means
-        col_means = np.nanmean(np.where(np.isfinite(X), X, np.nan), axis=0)
-        col_means = np.where(np.isnan(col_means), 0.0, col_means)
-        inds = np.where(~np.isfinite(X))
-        if inds[0].size > 0:
-            X[inds] = np.take(col_means, inds[1])
-
-    # Prepare target vector shape (N,)
-    y = dataset["formation_energy_per_atom"].to_numpy(dtype=np.float32).reshape(-1, 1)
-    assert X.shape[0] == y.shape[0], "Feature matrix and target vector must have same number of rows"
-
-    return X, y
-
-
-def load_datasets2(data_path: str, dataset_name: str, feature_names: List[str]):
-    """Load the dataset that will be parsed, return features and ground truth.
-
-    Parameters
-    ----------
-    data_path:
-        Directory containing the datasets.
-    dataset_name:
-        The name or regular expression for the datasets
-    feature_names:
-        The features used by the model for prediction
-
-    Returns
-    -------
-    input festures, output target values
-    """
-    dfs = []
-    dataset_pattern = os.path.join(data_path, dataset_name)
-    dataset_files: List[str] = glob.glob(dataset_pattern)
-    if not dataset_files:
-        raise FileNotFoundError(f"No dataset files matched pattern: {dataset_pattern}")
-    for file_path in dataset_files:
-        dfs.append(pd.read_csv(file_path, low_memory=False))
-    dataset: pd.DataFrame = pd.concat(dfs, ignore_index=True)
-
-    # Filter all entries that do not have a target value
-    dataset = dataset.dropna(subset=["formation_energy_per_atom"]).copy()
-
-    # Replace NaN/+inf/-inf in numeric columns (keep DataFrame type)
-    num_cols = dataset.select_dtypes(include=[np.number]).columns
-    dataset[num_cols] = dataset[num_cols].replace([np.inf, -np.inf], np.nan).fillna(0.0)
-
-    y = (
-        dataset["formation_energy_per_atom"]
-        .values.astype(np.float32)
-        .reshape(-1, 1)
-    )
-    X = []
-    for _, row in dataset.iterrows():
-        composition = row["composition_reduced"]
-        features = {
-            "composition": row["composition"],
-            "structure": row["structure"],
-            "spacegroup_number": row["spacegroup_number"],
-            "density_atomic": row["density_atomic"],
-            "CN_max": row["CN_max"],
-            "CN_min": row["CN_min"],
-            "CN_avg": row["CN_avg"],
-        }
-        X.append(_build_feature_vector(composition, features, feature_names))
-
-    print("X shape:", np.array(X).shape, "y shape:", y.shape)
-    assert len(X) == len(y), (
-        "The feature and target vectors do not have the same lenght"
-    )
-    return X, y
-
+    return X_raw, y
 
 # Default number of samples per time window.  Can be overridden by the caller.
 DEFAULT_WINDOW_SIZE: int = 100
