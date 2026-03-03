@@ -310,9 +310,7 @@ def load_all_window_files(
     """
     window_files = discover_window_files(data_path)
     if not window_files:
-        raise FileNotFoundError(
-            f"No data_*.pkl files found in {data_path}"
-        )
+        raise FileNotFoundError(f"No data_*.pkl files found in {data_path}")
 
     X_parts: List[Tensor] = []
     y_parts: List[Tensor] = []
@@ -386,8 +384,10 @@ def split_into_windows(
     if len(windows) > 1 and windows[-1][0].shape[0] < min_window_size:
         prev_X, prev_y = windows[-2]
         tail_X, tail_y = windows[-1]
-        windows[-2] = (torch.cat([prev_X, tail_X], dim=0),
-                        torch.cat([prev_y, tail_y], dim=0))
+        windows[-2] = (
+            torch.cat([prev_X, tail_X], dim=0),
+            torch.cat([prev_y, tail_y], dim=0),
+        )
         windows.pop()
 
     return windows
@@ -423,4 +423,3 @@ def split_timestamps(
         chunks.pop()
 
     return chunks
-

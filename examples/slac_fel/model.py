@@ -13,7 +13,6 @@ import gc
 import logging
 from typing import Any, List, Optional, Tuple
 
-import pandas as pd
 import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
