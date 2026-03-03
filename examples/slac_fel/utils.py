@@ -153,9 +153,7 @@ def load_scalers(
             path = os.path.join(data_path, name)
             if os.path.exists(path):
                 return torch.load(path, map_location=device, weights_only=False)
-        raise FileNotFoundError(
-            f"No scaler found in {data_path}; tried {candidates}"
-        )
+        raise FileNotFoundError(f"No scaler found in {data_path}; tried {candidates}")
 
     input_scaler = _load_first(input_candidates)
     output_scaler = _load_first(output_candidates)
@@ -219,6 +217,7 @@ def load_fel_data(
 # ---------------------------------------------------------------------------
 # Per-file window discovery & lazy loading
 # ---------------------------------------------------------------------------
+
 
 def _natural_sort_key(path: str) -> Tuple[str, int]:
     """Sort key that orders ``data_1.pkl`` < ``data_2.pkl`` < ``data_10.pkl``.

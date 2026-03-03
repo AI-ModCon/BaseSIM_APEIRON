@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import gc
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 import torch
 import torch.nn.functional as F
@@ -21,8 +21,6 @@ from torch.utils.data import ConcatDataset, DataLoader
 
 from config.configuration import Config
 from model.torch_model_harness import BaseModelHarness
-
-_log = logging.getLogger(__name__)
 
 from examples.slac_fel.utils import (
     FELDataset,
@@ -36,12 +34,16 @@ from examples.slac_fel.utils import (
 )
 
 
+_log = logging.getLogger(__name__)
+
+
 # -------------------------------------------------------------------------------------------------
 # Neural-network architecture  (matches FELNeuralNetwork in train_fel_model.py from commit  4e1f676
 # -------------------------------------------------------------------------------------------------
 class FELNet(nn.Module):
     """7-layer fully-connected ELU regression network.
     Predicts FEL pulse intensity from scaled accelerator inputs."""
+
     def __init__(self, input_size=None, output_size=1):
         super(FELNet, self).__init__()
 
@@ -61,7 +63,7 @@ class FELNet(nn.Module):
             nn.Dropout(p=0.05),
             nn.Linear(16, 16),
             nn.ELU(),
-            nn.Linear(16, output_size)
+            nn.Linear(16, output_size),
         )
 
     def forward(self, x: Tensor) -> Tensor:
@@ -78,7 +80,7 @@ class FELNet(nn.Module):
         # Detect NaN outputs
         if not torch.isfinite(out).all():
             if torch.isnan(out).any():
-                logger.warning("Model produced NaN predictions. Replacing with 0.")
+                _log.warning("Model produced NaN predictions. Replacing with 0.")
             out = torch.nan_to_num(out, nan=0.0, posinf=1e6, neginf=-1e6)
 
         return out
@@ -91,8 +93,6 @@ class FELNet(nn.Module):
 def mse_metric(y_hat: Tensor, y: Tensor) -> Tensor:
     """Mean-squared error computed on the batch."""
     return F.mse_loss(y_hat, y)
-
-
 
 
 # ---------------------------------------------------------------------------
@@ -349,12 +349,10 @@ class SLAC_FEL(BaseModelHarness):
         if isinstance(state, nn.Sequential):
             # Format 1: checkpoint is the raw nn.Sequential
             # Infer input/output dims from the first and last Linear layers
-            first_linear = next(
-                m for m in state.modules() if isinstance(m, nn.Linear)
-            )
-            last_linear = list(
-                m for m in state.modules() if isinstance(m, nn.Linear)
-            )[-1]
+            first_linear = next(m for m in state.modules() if isinstance(m, nn.Linear))
+            last_linear = list(m for m in state.modules() if isinstance(m, nn.Linear))[
+                -1
+            ]
             ckpt_in = first_linear.in_features
             ckpt_out = last_linear.out_features
 
