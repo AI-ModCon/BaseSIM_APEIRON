@@ -191,7 +191,7 @@ class SLAC_FEL(BaseModelHarness):
         self._current_window: Optional[Tuple[Tensor, Tensor]] = None
 
         # Cap history to prevent unbounded memory growth
-        self.max_history_windows: int = 200
+        self.max_history_windows: int = 20
 
         self._cur_train_loader: Optional[DataLoader] = None
         self._cur_val_loader: Optional[DataLoader] = None
