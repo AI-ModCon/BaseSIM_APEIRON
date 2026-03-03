@@ -106,6 +106,7 @@ class TrainCfg:
 class DataCfg:
     name: str
     path: str
+    window_size: int = 500  # number of samples per time window (used by some harnesses)
 
 
 @dataclass(frozen=True)
