@@ -190,10 +190,8 @@ class SLAC_FEL(BaseModelHarness):
         self.history_windows: List[Tuple[Tensor, Tensor]] = []
         self._current_window: Optional[Tuple[Tensor, Tensor]] = None
 
-        # Cap history to prevent unbounded memory growth.
-        # With 5 000 samples × 115 features × 4 bytes ≈ 2.3 MB per window,
-        # 20 windows ≈ 46 MB — reasonable for CL replay.
-        self.max_history_windows: int = 20
+        # Cap history to prevent unbounded memory growth
+        self.max_history_windows: int = 200
 
         self._cur_train_loader: Optional[DataLoader] = None
         self._cur_val_loader: Optional[DataLoader] = None
