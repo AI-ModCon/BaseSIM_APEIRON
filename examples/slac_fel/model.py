@@ -10,6 +10,7 @@ each of which is served in order by ``update_data_stream()``.
 from __future__ import annotations
 
 import gc
+import logging
 from typing import Any, Dict, List, Optional, Tuple
 
 import torch
@@ -20,6 +21,8 @@ from torch.utils.data import ConcatDataset, DataLoader
 
 from config.configuration import Config
 from model.torch_model_harness import BaseModelHarness
+
+_log = logging.getLogger(__name__)
 
 from examples.slac_fel.utils import (
     FELDataset,
@@ -61,8 +64,24 @@ class FELNet(nn.Module):
             nn.Linear(16, output_size)
         )
 
-    def forward(self, x):
-        return self.net(x)
+    def forward(self, x: Tensor) -> Tensor:
+        if not torch.isfinite(x).all():
+            n_bad = (~torch.isfinite(x)).sum().item()
+            _log.warning(
+                "FELNet.forward: %d non-finite values in input. Replacing with 0",
+                n_bad,
+            )
+            x = torch.nan_to_num(x, nan=0.0, posinf=1e6, neginf=-1e6)
+
+        out = self.net(x)
+
+        # Detect NaN outputs
+        if not torch.isfinite(out).all():
+            if torch.isnan(out).any():
+                logger.warning("Model produced NaN predictions. Replacing with 0.")
+            out = torch.nan_to_num(out, nan=0.0, posinf=1e6, neginf=-1e6)
+
+        return out
 
 
 # ---------------------------------------------------------------------------
