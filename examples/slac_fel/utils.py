@@ -16,9 +16,6 @@ Expected directory layout (pointed to by ``cfg.data.path``)::
         data_1.pkl                     # pandas DataFrame, datetime-indexed, sorted
         data_2.pkl                     # ...
         ...
-        input_scaler.pt                # botorch AffineInputTransform for inputs
-        output_scaler.pt               # botorch AffineInputTransform for output
-        feature_config.yml             # YAML listing input_variables / output_variables
 """
 
 from __future__ import annotations
@@ -71,26 +68,17 @@ def make_loader(
 ) -> DataLoader:
     """Build a ``DataLoader`` from a ``Dataset``.
 
-    Parameters
-    ----------
-    ds:
-        The base dataset.
-    batch_size:
-        Batch size.
-    shuffle:
-        Whether to shuffle.
-    num_workers:
-        Number of data-loading workers.
-    pin_memory:
-        Pin CUDA memory for faster transfers.
-    persistent_workers:
-        Keep worker processes alive between iterations.
-    prefetch_factor:
-        Samples to prefetch per worker.
+    Args:
+        ds: The base dataset.
+        batch_size: Batch size.
+        shuffle: Whether to shuffle.
+        num_workers: Number of data-loading workers.
+        pin_memory: Pin CUDA memory for faster transfers.
+        persistent_workers: Keep worker processes alive between iterations.
+        prefetch_factor: Samples to prefetch per worker.
 
-    Returns
-    -------
-    DataLoader
+    Returns:
+        DataLoader built from *ds* with the given settings.
     """
     kwargs: dict = dict(batch_size=batch_size, shuffle=shuffle, drop_last=False)
     if num_workers > 0:
@@ -133,16 +121,12 @@ def load_scalers(
     Tries the new naming convention (``input_scaler.pt``) first, then
     falls back to the legacy names (``lcls_fel_input_scaler.pt``).
 
-    Parameters
-    ----------
-    data_path:
-        Directory containing the scaler ``.pt`` files.
-    device:
-        Device to map the scalers to.
+    Args:
+        data_path: Directory containing the scaler ``.pt`` files.
+        device: Device to map the scalers to.
 
-    Returns
-    -------
-    (input_scaler, output_scaler)
+    Returns:
+        Tuple of ``(input_scaler, output_scaler)``.
     """
     # New names (train_fel_model.py v2) → legacy names (fallback)
     input_candidates = ["input_scaler.pt", "lcls_fel_input_scaler.pt"]
@@ -168,20 +152,17 @@ def load_fel_data(
 ) -> Tuple[Tensor, Tensor, pd.Index]:
     """Load a single ``data.pkl``, apply scalers, and return scaled tensors.
 
-    .. deprecated::
-        Prefer :func:`discover_window_files` + :func:`load_window_file` for
-        per-file lazy loading.
+    Note that with the current workflow, prefer :func:`discover_window_files`
+    + :func:`load_window_file` for per-file lazy loading.
 
-    Parameters
-    ----------
-    data_path:
-        Directory containing ``data.pkl``, scalers, and ``feature_config.yml``.
-    device:
-        Device string (used for scaler loading only; tensors stay on CPU here).
+    Args:
+        data_path: Directory containing ``data.pkl``, scalers, and
+            ``feature_config.yml``.
+        device: Device string (used for scaler loading only; tensors stay on
+            CPU here).
 
-    Returns
-    -------
-    (X_scaled, y_scaled, timestamps)
+    Returns:
+        Tuple of ``(X_scaled, y_scaled, timestamps)``.
     """
     df: pd.DataFrame = pd.read_pickle(os.path.join(data_path, "data.pkl"))
 
@@ -238,19 +219,14 @@ def discover_window_files(data_path: str) -> List[str]:
     Files are sorted by the numeric suffix so that ``data_1.pkl`` comes
     before ``data_2.pkl`` and ``data_10.pkl``.
 
-    Parameters
-    ----------
-    data_path:
-        Directory to search.
+    Args:
+        data_path: Directory to search.
 
-    Returns
-    -------
-    List of absolute paths, one per window file.
+    Returns:
+        List of absolute paths, one per window file, sorted by numeric suffix.
     """
     pattern = os.path.join(data_path, "data_*.pkl")
     paths = glob.glob(pattern)
-    # Exclude data_raw.pkl which is an unprocessed file
-    paths = [p for p in paths if os.path.basename(p) != "data_raw.pkl"]
     paths.sort(key=_natural_sort_key)
     return paths
 
@@ -264,24 +240,16 @@ def load_window_file(
 ) -> Tuple[Tensor, Tensor]:
     """Load a single window pickle, scale, and return ``(X, y)`` tensors.
 
-    Parameters
-    ----------
-    pkl_path:
-        Path to a single ``data_<N>.pkl`` file.
-    input_cols:
-        Column names for input features (from ``feature_config.yml``).
-    output_cols:
-        Column names for output targets.
-    input_scaler:
-        Pre-fitted scaler for inputs.
-    output_scaler:
-        Pre-fitted scaler for outputs.
+    Args:
+        pkl_path: Path to a single ``data_<N>.pkl`` file.
+        input_cols: Column names for input features (from ``feature_config.yml``).
+        output_cols: Column names for output targets.
+        input_scaler: Pre-fitted scaler for inputs.
+        output_scaler: Pre-fitted scaler for outputs.
 
-    Returns
-    -------
-    (X_scaled, y_scaled)
-        * ``X_scaled`` — ``[N, n_inputs]`` float32
-        * ``y_scaled`` — ``[N, n_outputs]`` float32
+    Returns:
+        Tuple ``(X_scaled, y_scaled)`` where ``X_scaled`` is ``[N, n_inputs]``
+        float32 and ``y_scaled`` is ``[N, n_outputs]`` float32.
     """
     df: pd.DataFrame = pd.read_pickle(pkl_path)
     df = df.sort_index()
@@ -328,18 +296,13 @@ def split_into_windows(
     Any leftover samples that don't fill a complete window are appended as
     a final (smaller) window so no data is discarded.
 
-    Parameters
-    ----------
-    X:
-        Input features ``[N, D]``.
-    y:
-        Targets ``[N, T]``.
-    window_size:
-        Number of samples per window.
+    Args:
+        X: Input features ``[N, D]``.
+        y: Targets ``[N, T]``.
+        window_size: Number of samples per window.
 
-    Returns
-    -------
-    List of ``(X_chunk, y_chunk)`` tuples.
+    Returns:
+        List of ``(X_chunk, y_chunk)`` tuples.
     """
     n = X.shape[0]
     windows: List[Tuple[Tensor, Tensor]] = []
