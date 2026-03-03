@@ -38,7 +38,8 @@ _log = logging.getLogger(__name__)
 
 
 # -------------------------------------------------------------------------------------------------
-# Neural-network architecture  (matches FELNeuralNetwork in train_fel_model.py from commit  4e1f676
+# Neural-network architecture
+# Matches FELNeuralNetwork in train_fel_model.py from commit 4e1f676, from June 2025
 # -------------------------------------------------------------------------------------------------
 class FELNet(nn.Module):
     """7-layer fully-connected ELU regression network.
@@ -338,14 +339,11 @@ class SLAC_FEL(BaseModelHarness):
            is constructed to match exactly, then ``load_state_dict`` is called
            with ``strict=True``.
 
-        Raises
-        ------
-        FileNotFoundError
-            If *path* does not exist.
-        RuntimeError
-            If the checkpoint shapes are incompatible with the data (e.g. the
-            data has a different number of input features than the model
-            expects).
+        Raises:
+            FileNotFoundError: If *path* does not exist.
+            RuntimeError: If the checkpoint shapes are incompatible with the
+                data (e.g. the data has a different number of input features
+                than the model expects).
         """
         state = torch.load(path, map_location=device, weights_only=False)
 
