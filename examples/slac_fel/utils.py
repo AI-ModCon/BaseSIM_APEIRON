@@ -4,11 +4,12 @@
 The data pipeline assumes that all heavy cleaning (archive pull, filtering,
 exclusion windows, invalid-PV removal, column selection) has already been done
 and the results saved as individual pickle files (``data_1.pkl``,
-``data_2.pkl``, …).  Each pickle is a chronologically-sorted DataFrame that
-becomes one time window served by ``SLAC_FEL.update_data_stream()``.
+``data_2.pkl``, …).  All pickle files are loaded, concatenated into a single
+dataset in chronological order, and then split into fixed-size windows
+controlled by ``cfg.data.window_size``.
 
 If only a single ``data.pkl`` is present (legacy layout), it is loaded in its
-entirety and optionally split into fixed-size windows via ``window_size``.
+entirety and split into fixed-size windows via ``window_size``.
 
 Expected directory layout (pointed to by ``cfg.data.path``)::
 
@@ -237,8 +238,8 @@ def load_window_file(
     output_cols: List[str],
     input_scaler: torch.nn.Module,
     output_scaler: torch.nn.Module,
-) -> Tuple[Tensor, Tensor]:
-    """Load a single window pickle, scale, and return ``(X, y)`` tensors.
+) -> Tuple[Tensor, Tensor, pd.Index]:
+    """Load a single window pickle, scale, and return ``(X, y, index)`` tensors.
 
     Args:
         pkl_path: Path to a single ``data_<N>.pkl`` file.
@@ -248,8 +249,9 @@ def load_window_file(
         output_scaler: Pre-fitted scaler for outputs.
 
     Returns:
-        Tuple ``(X_scaled, y_scaled)`` where ``X_scaled`` is ``[N, n_inputs]``
-        float32 and ``y_scaled`` is ``[N, n_outputs]`` float32.
+        Tuple ``(X_scaled, y_scaled, index)`` where ``X_scaled`` is
+        ``[N, n_inputs]`` float32, ``y_scaled`` is ``[N, n_outputs]`` float32,
+        and ``index`` is the DataFrame index after NaN filtering.
     """
     df: pd.DataFrame = pd.read_pickle(pkl_path)
     df = df.sort_index()
@@ -275,11 +277,77 @@ def load_window_file(
     X_scaled: Tensor = input_scaler.transform(X_raw)  # type: ignore[operator]
     y_scaled: Tensor = output_scaler.transform(y_raw)  # type: ignore[operator]
 
-    return X_scaled, y_scaled
+    return X_scaled, y_scaled, df.index
+
+
+def load_all_window_files(
+    data_path: str,
+    input_cols: List[str],
+    output_cols: List[str],
+    input_scaler: torch.nn.Module,
+    output_scaler: torch.nn.Module,
+) -> Tuple[Tensor, Tensor, pd.Index]:
+    """Load all ``data_*.pkl`` files, concatenate, and return scaled tensors.
+
+    Each pickle is loaded and scaled individually via :func:`load_window_file`,
+    then the results are concatenated into a single pair of tensors in
+    chronological order (files are sorted by numeric suffix).
+
+    Args:
+        data_path: Directory containing ``data_*.pkl`` files.
+        input_cols: Column names for input features.
+        output_cols: Column names for output targets.
+        input_scaler: Pre-fitted scaler for inputs.
+        output_scaler: Pre-fitted scaler for outputs.
+
+    Returns:
+        Tuple ``(X_all, y_all, timestamps)`` with all windows concatenated
+        along dim 0.  ``timestamps`` is the combined DataFrame index
+        preserving the chronological order of every row.
+
+    Raises:
+        FileNotFoundError: If no ``data_*.pkl`` files are found in *data_path*.
+    """
+    window_files = discover_window_files(data_path)
+    if not window_files:
+        raise FileNotFoundError(
+            f"No data_*.pkl files found in {data_path}"
+        )
+
+    X_parts: List[Tensor] = []
+    y_parts: List[Tensor] = []
+    index_parts: List[pd.Index] = []
+    total_samples = 0
+
+    for pkl_path in window_files:
+        X_w, y_w, idx = load_window_file(
+            pkl_path, input_cols, output_cols, input_scaler, output_scaler
+        )
+        X_parts.append(X_w)
+        y_parts.append(y_w)
+        index_parts.append(idx)
+        total_samples += X_w.shape[0]
+        _log.info(
+            "[load_all_window_files] Loaded %s: %d samples",
+            os.path.basename(pkl_path),
+            X_w.shape[0],
+        )
+
+    X_all = torch.cat(X_parts, dim=0)
+    y_all = torch.cat(y_parts, dim=0)
+    timestamps = index_parts[0].append(index_parts[1:])
+
+    _log.info(
+        "[load_all_window_files] Combined %d files → %d total samples",
+        len(window_files),
+        total_samples,
+    )
+
+    return X_all, y_all, timestamps
 
 
 # ---------------------------------------------------------------------------
-# Windowing (legacy – used when a single data.pkl is present)
+# Windowing
 # ---------------------------------------------------------------------------
 
 # Default number of samples per time window.  Can be overridden by the caller.
@@ -290,16 +358,20 @@ def split_into_windows(
     X: Tensor,
     y: Tensor,
     window_size: int = DEFAULT_WINDOW_SIZE,
+    min_window_size: int = 2,
 ) -> List[Tuple[Tensor, Tensor]]:
     """Split chronologically-ordered tensors into non-overlapping windows.
 
-    Any leftover samples that don't fill a complete window are appended as
-    a final (smaller) window so no data is discarded.
+    If the final chunk has fewer than *min_window_size* samples it is merged
+    into the preceding window so that every window is large enough for a
+    meaningful train/val split.
 
     Args:
         X: Input features ``[N, D]``.
         y: Targets ``[N, T]``.
         window_size: Number of samples per window.
+        min_window_size: Minimum samples in a window.  A trailing chunk
+            smaller than this is merged into the previous window.
 
     Returns:
         List of ``(X_chunk, y_chunk)`` tuples.
@@ -309,4 +381,46 @@ def split_into_windows(
     for start in range(0, n, window_size):
         end = min(start + window_size, n)
         windows.append((X[start:end], y[start:end]))
+
+    # Merge a too-small trailing window into the previous one
+    if len(windows) > 1 and windows[-1][0].shape[0] < min_window_size:
+        prev_X, prev_y = windows[-2]
+        tail_X, tail_y = windows[-1]
+        windows[-2] = (torch.cat([prev_X, tail_X], dim=0),
+                        torch.cat([prev_y, tail_y], dim=0))
+        windows.pop()
+
     return windows
+
+
+def split_timestamps(
+    timestamps: pd.Index,
+    window_size: int = DEFAULT_WINDOW_SIZE,
+    min_window_size: int = 2,
+) -> List[pd.Index]:
+    """Split a timestamp index to match :func:`split_into_windows`.
+
+    Applies the same chunking and merging logic so that
+    ``split_timestamps(ts, ws)[i]`` aligns row-for-row with
+    ``split_into_windows(X, y, ws)[i]``.
+
+    Args:
+        timestamps: Row-aligned index (same length as the tensors).
+        window_size: Number of samples per window.
+        min_window_size: Merge trailing chunk if smaller than this.
+
+    Returns:
+        List of ``pd.Index`` slices, one per window.
+    """
+    n = len(timestamps)
+    chunks: List[pd.Index] = []
+    for start in range(0, n, window_size):
+        end = min(start + window_size, n)
+        chunks.append(timestamps[start:end])
+
+    if len(chunks) > 1 and len(chunks[-1]) < min_window_size:
+        chunks[-2] = chunks[-2].append(chunks[-1])
+        chunks.pop()
+
+    return chunks
+
