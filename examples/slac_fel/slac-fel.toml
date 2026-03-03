@@ -51,11 +51,11 @@ max_stream_updates = 1180
 
 # ADWIN hyperparameters
 adwin_delta = 0.05
-adwin_minor_threshold = 0.01
+adwin_minor_threshold = 0.005
 adwin_moderate_threshold = 0.05
 
 [logging]
-backend = "mlflow"
+backend = "wandb"
 experiment_name = "slac-fel-continual-learning"
 mlflow_tracking_uri = "https://ard-mlflow.slac.stanford.edu/"
 
