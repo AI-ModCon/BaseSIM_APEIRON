@@ -49,8 +49,8 @@ max_stream_updates = 1181
 
 # ADWIN hyperparameters
 adwin_delta = 0.05
-adwin_minor_threshold = 0.1
-adwin_moderate_threshold = 0.4
+adwin_minor_threshold = 0.01 # 0.1
+adwin_moderate_threshold = 0.05 # 0.4
 
 [logging]
 backend = "mlflow"
