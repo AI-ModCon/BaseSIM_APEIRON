@@ -205,11 +205,12 @@ def load_fel_data(
         warnings.warn(msg, stacklevel=2)
         _log.warning(msg)
 
-    X_raw = torch.tensor(df[input_cols].values, dtype=torch.float32)
-    y_raw = torch.tensor(df[output_cols].values, dtype=torch.float32)
+    X_raw = torch.as_tensor(df[input_cols].values, dtype=torch.float32)
+    y_raw = torch.as_tensor(df[output_cols].values, dtype=torch.float32)
 
-    X_scaled: Tensor = input_scaler.transform(X_raw)
-    y_scaled: Tensor = output_scaler.transform(y_raw)
+    # TODO: maybe import botorch scalers differently to avoid the type: ignore here
+    X_scaled: Tensor = input_scaler.transform(X_raw)  # type: ignore[operator]
+    y_scaled: Tensor = output_scaler.transform(y_raw)  # type: ignore[operator]
 
     return X_scaled, y_scaled, df.index
 
@@ -300,11 +301,11 @@ def load_window_file(
         warnings.warn(msg, stacklevel=2)
         _log.warning(msg)
 
-    X_raw = torch.tensor(df[input_cols].values, dtype=torch.float32)
-    y_raw = torch.tensor(df[output_cols].values, dtype=torch.float32)
+    X_raw = torch.as_tensor(df[input_cols].values, dtype=torch.float32)
+    y_raw = torch.as_tensor(df[output_cols].values, dtype=torch.float32)
 
-    X_scaled: Tensor = input_scaler.transform(X_raw)
-    y_scaled: Tensor = output_scaler.transform(y_raw)
+    X_scaled: Tensor = input_scaler.transform(X_raw)  # type: ignore[operator]
+    y_scaled: Tensor = output_scaler.transform(y_raw)  # type: ignore[operator]
 
     return X_scaled, y_scaled
 

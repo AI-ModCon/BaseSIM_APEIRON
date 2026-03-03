@@ -125,6 +125,9 @@ class SLAC_FEL(BaseModelHarness):
 
     def __init__(self, cfg: Config) -> None:
         # ----- scalers & feature config (always needed) ----------------------
+        assert cfg.model.config_path is not None, (
+            "model.config_path must be set for SLAC-FEL harness"
+        )
         self.input_scaler, self.output_scaler = load_scalers(
             cfg.model.config_path, device=cfg.device
         )

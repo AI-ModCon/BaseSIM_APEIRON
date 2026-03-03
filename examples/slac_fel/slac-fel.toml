@@ -14,7 +14,7 @@ config_path = "examples/slac_fel/model"
 [data]
 name = "slac-fel"
 path = "examples/slac_fel/data"
-# Number of samples per time window (smaller = more windows = finer drift granularity)
+# Number of samples per time window (smaller = finer drift granularity)
 # window_size = 500
 
 [train]
@@ -24,7 +24,9 @@ init_lr = 1e-5
 max_iter = 600
 grad_accumulation_steps = 1
 
-[continual_learning] # copied from MNIST TOML
+[continual_learning]
+# "base" will train on current window only, detects 4 drifts
+# "jvp_reg" will detect 2 drifts, only early one, one later (trains on 21 windows each time)
 update_mode = "base"
 
 # JVP regularization (used when update_mode = "jvp_reg")
@@ -45,12 +47,12 @@ detector_name = "ADWINDetector"
 detection_interval = 1
 aggregation = "mean"
 reset_after_learning = false
-max_stream_updates = 1181
+max_stream_updates = 1180
 
 # ADWIN hyperparameters
 adwin_delta = 0.05
-adwin_minor_threshold = 0.01 # 0.1
-adwin_moderate_threshold = 0.05 # 0.4
+adwin_minor_threshold = 0.01
+adwin_moderate_threshold = 0.05
 
 [logging]
 backend = "mlflow"
