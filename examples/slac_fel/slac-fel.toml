@@ -15,7 +15,7 @@ config_path = "examples/slac_fel/model"
 name = "slac-fel"
 path = "examples/slac_fel/data"
 # Number of samples per time window (smaller = finer drift granularity)
-# window_size = 500
+window_size = 5000
 
 [train]
 batch_size = 512
@@ -47,7 +47,7 @@ detector_name = "ADWINDetector"
 detection_interval = 1
 aggregation = "mean"
 reset_after_learning = false
-max_stream_updates = 1180
+max_stream_updates = 1180 # 856
 
 # ADWIN hyperparameters
 adwin_delta = 0.05
@@ -55,7 +55,7 @@ adwin_minor_threshold = 0.005
 adwin_moderate_threshold = 0.05
 
 [logging]
-backend = "wandb"
+backend = "mlflow"
 experiment_name = "slac-fel-continual-learning"
 mlflow_tracking_uri = "https://ard-mlflow.slac.stanford.edu/"
 

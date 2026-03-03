@@ -13,6 +13,7 @@ import gc
 import logging
 from typing import Any, List, Optional, Tuple
 
+import pandas as pd
 import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
@@ -25,12 +26,13 @@ from model.torch_model_harness import BaseModelHarness
 from examples.slac_fel.utils import (
     FELDataset,
     discover_window_files,
+    load_all_window_files,
     load_feature_config,
     load_fel_data,
     load_scalers,
-    load_window_file,
     make_loader,
     split_into_windows,
+    split_timestamps,
 )
 
 
@@ -110,8 +112,9 @@ class SLAC_FEL(BaseModelHarness):
     The data path (``cfg.data.path``) must point to a directory containing:
 
     * ``data_1.pkl``, ``data_2.pkl``, … – pre-filtered, chronologically-sorted
-      DataFrames, one per time window.  Each file is loaded on demand by
-      :meth:`update_data_stream` (preferred, memory-efficient layout).
+      DataFrames.  All files are loaded, concatenated into a single dataset in
+      chronological order, and then split into fixed-size windows controlled by
+      ``cfg.data.window_size``.
     * **OR** ``data.pkl`` – a single monolithic DataFrame that will be split
       into fixed-size windows via ``cfg.data.window_size`` (legacy fallback).
 
@@ -139,33 +142,40 @@ class SLAC_FEL(BaseModelHarness):
         self._lazy = len(self._window_files) > 0
 
         if self._lazy:
-            # Per-file mode: each pickle is one window, loaded on demand.
-            # Load the first file just to determine tensor dimensions.
-            X0, y0 = load_window_file(
-                self._window_files[0],
+            # Load all per-file pickles, concatenate, and split into
+            # fixed-size windows controlled by cfg.data.window_size.
+            X_all, y_all, timestamps = load_all_window_files(
+                cfg.data.path,
                 self.input_cols,
                 self.output_cols,
                 self.input_scaler,
                 self.output_scaler,
             )
-            input_size = X0.shape[1]
-            output_size = y0.shape[1]
-            self.num_windows = len(self._window_files)
-            # Pre-loaded windows list is not used in lazy mode;
-            # we keep a reference only for the first window so that the
-            # very first update_data_stream call is free.
-            self._prefetched_window: Optional[Tuple[Tensor, Tensor]] = (X0, y0)
-            self.windows: List[Tuple[Tensor, Tensor]] = []  # unused in lazy mode
+            input_size = X_all.shape[1]
+            output_size = y_all.shape[1]
+            self.windows = split_into_windows(
+                X_all, y_all, window_size=cfg.data.window_size
+            )
+            self.window_timestamps = split_timestamps(
+                timestamps, window_size=cfg.data.window_size
+            )
+            self.num_windows = len(self.windows)
+            self._prefetched_window = None
             print(
-                f"[SLAC-FEL] Lazy mode: {self.num_windows} window files found "
-                f"(input_dim={input_size}, output_dim={output_size})"
+                f"[SLAC-FEL] Loaded {len(self._window_files)} data files → "
+                f"{X_all.shape[0]} total samples → {self.num_windows} windows "
+                f"(window_size={cfg.data.window_size}, "
+                f"input_dim={input_size}, output_dim={output_size})"
             )
         else:
             # Legacy mode: single data.pkl split into fixed-size windows.
-            X, y, self.timestamps = load_fel_data(cfg.data.path, device=cfg.device)
+            X, y, timestamps = load_fel_data(cfg.data.path, device=cfg.device)
             input_size = X.shape[1]
             output_size = y.shape[1]
             self.windows = split_into_windows(X, y, window_size=cfg.data.window_size)
+            self.window_timestamps = split_timestamps(
+                timestamps, window_size=cfg.data.window_size
+            )
             self.num_windows = len(self.windows)
             self._prefetched_window = None
             print(
@@ -193,6 +203,7 @@ class SLAC_FEL(BaseModelHarness):
         self.window_idx: int = 0
         self.history_windows: List[Tuple[Tensor, Tensor]] = []
         self._current_window: Optional[Tuple[Tensor, Tensor]] = None
+        self.current_window_timerange: Optional[Tuple[str, str]] = None
 
         # Cap history to prevent unbounded memory growth
         self.max_history_windows: int = 20
@@ -252,8 +263,8 @@ class SLAC_FEL(BaseModelHarness):
     def update_data_stream(self) -> None:
         """Advance to the next chronological time window.
 
-        In lazy mode each call loads the next ``data_<N>.pkl`` file from disk.
-        In legacy mode the pre-split in-memory windows are used.
+        Each call serves the next pre-split in-memory window from
+        ``self.windows``.
         """
         self._dispose_current_loaders()
 
@@ -275,21 +286,11 @@ class SLAC_FEL(BaseModelHarness):
             self.window_idx = 0
 
         # ── Load the window tensors ──────────────────────────────────────
-        if self._lazy:
-            # Use the prefetched first window if available
-            if self._prefetched_window is not None and self.window_idx == 0:
-                X_w, y_w = self._prefetched_window
-                self._prefetched_window = None  # free after first use
-            else:
-                X_w, y_w = load_window_file(
-                    self._window_files[self.window_idx],
-                    self.input_cols,
-                    self.output_cols,
-                    self.input_scaler,
-                    self.output_scaler,
-                )
-        else:
-            X_w, y_w = self.windows[self.window_idx]
+        X_w, y_w = self.windows[self.window_idx]
+
+        # Record timestamp range for this window
+        ts = self.window_timestamps[self.window_idx]
+        self.current_window_timerange = (str(ts[0]), str(ts[-1]))
 
         # Keep a reference so the next call can archive it without reloading
         self._current_window = (X_w, y_w)
@@ -298,6 +299,10 @@ class SLAC_FEL(BaseModelHarness):
         n = X_w.shape[0]
         n_val = max(1, int(n * _VAL_FRACTION))
         n_train = n - n_val
+        # Safety: ensure both splits have at least 1 sample
+        if n_train < 1:
+            n_train = max(1, n - 1)
+            n_val = n - n_train
 
         ds_train = FELDataset(X_w[:n_train], y_w[:n_train])
         ds_val = FELDataset(X_w[n_train:], y_w[n_train:])
@@ -315,7 +320,8 @@ class SLAC_FEL(BaseModelHarness):
 
         print(
             f"[SLAC-FEL] Window {self.window_idx + 1}/{self.num_windows}: "
-            f"{n_train} train / {n_val} val samples"
+            f"{n_train} train / {n_val} val samples "
+            f"[{self.current_window_timerange[0]} → {self.current_window_timerange[1]}]"
         )
         self.window_idx += 1
 
