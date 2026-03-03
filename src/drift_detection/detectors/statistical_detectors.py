@@ -63,10 +63,6 @@ class ADWINDetector(BaseDriftDetector):
         Returns:
             DriftSignal with regime recommendation
         """
-        nan_signal = self._check_nan(value)
-        if nan_signal is not None:
-            return nan_signal
-
         self._value_history.append(value)
 
         # Update detector
@@ -165,10 +161,6 @@ class KSWINDetector(BaseDriftDetector):
         Returns:
             DriftSignal with regime recommendation
         """
-        nan_signal = self._check_nan(value)
-        if nan_signal is not None:
-            return nan_signal
-
         self.detector.update(value)
         drift_detected = self.detector.drift_detected
 
@@ -266,10 +258,6 @@ class PageHinkleyDetector(BaseDriftDetector):
         Returns:
             DriftSignal with regime recommendation
         """
-        nan_signal = self._check_nan(value)
-        if nan_signal is not None:
-            return nan_signal
-
         self.detector.update(value)
         drift_detected = self.detector.drift_detected
 
