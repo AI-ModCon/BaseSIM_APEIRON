@@ -44,6 +44,14 @@ BaseSim harness for the [MATEY](https://github.com/FusionFM/MATEY) multiscale tr
 poetry run python -m src.main --config examples/matey/matey.toml
 ```
 
+Outer-loop drift demo (L2 placeholder model + input-noise stream updates):
+
+```bash
+poetry run python -m src.main --config examples/matey/matey_outer_loop.toml
+# or
+./examples/matey/run_outer_loop.sh
+```
+
 ## Configuration
 
 Edit [matey.toml](matey.toml) to adjust training parameters, drift detection, and data paths.
@@ -65,10 +73,19 @@ The example TOML is tuned for short smoke runs to make drift-triggered continual
 learning dispatch easier to observe (`detection_interval=5`, `aggregation="last"`,
 `adwin_delta=0.05`, `max_stream_updates=10`).
 
+For the outer-loop harness, use [matey_outer_loop.toml](matey_outer_loop.toml):
+- `data.name = "matey_outer_loop"` selects `model_outer_loop.py`.
+- `data.path` points at `examples/matey/dump/SOLPS2DwION`.
+- `continual_learning.update_mode = "none"` disables parameter updates.
+- `drift_detection.metric_index = 0` monitors the `input_l2` metric.
+
 ## Files
 
 | File | Description |
 |---|---|
 | `model.py` | `MATEYHarness` -- adapts MATEY models/data to BaseSim's `BaseModelHarness` interface |
 | `matey.toml` | Experiment config |
+| `model_outer_loop.py` | Outer-loop drift harness with L2 placeholder model and noisy input stream |
+| `matey_outer_loop.toml` | Outer-loop experiment config |
+| `run_outer_loop.sh` | Convenience run script for `matey_outer_loop.toml` |
 | `pyproject.toml` | Optional example dependency manifest |

@@ -1,0 +1,44 @@
+seed = 1337
+device = "auto"
+multi_gpu = false
+verbosity = "DEBUG"
+
+[model]
+name = "matey_outer_loop_l2"
+pretrained_path = ""
+
+[data]
+name = "matey_outer_loop"
+path = "examples/matey/dump/SOLPS2DwION"
+
+[train]
+batch_size = 8
+num_workers = 0
+init_lr = 0.0
+max_iter = 50
+grad_accumulation_steps = 1
+
+[continual_learning]
+update_mode = "none"
+
+[drift_detection]
+detector_name = "ADWINDetector"
+detection_interval = 5
+aggregation = "last"
+metric_index = 0  # outer-loop metrics: 0=input_l2, 1=loss
+reset_after_learning = false
+max_stream_updates = 10
+
+# ADWIN hyperparameters
+adwin_delta = 0.05
+adwin_minor_threshold = 0.3
+adwin_moderate_threshold = 0.6
+
+[logging]
+backend = "wandb"
+experiment_name = "matey-outer-loop-drift"
+
+[visualization]
+baseline = 0.0
+input = "output/matey_outer_loop.csv"
+output = "output/matey_outer_loop_dashboard.png"
