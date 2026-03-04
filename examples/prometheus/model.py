@@ -75,8 +75,21 @@ class PrometheusHarness(BaseModelHarness):
     # ------------------------------------------------------------------ #
     # Domain constants – override in a subclass for different datasets    #
     # ------------------------------------------------------------------ #
-    FEATURE_VARIABLES: List[str] = ["CCR", "FCR", "Inverse Period"]
-    TARGET_VARIABLES: List[str] = ["Rho"]
+    FEATURE_VARIABLES: List[str] = [
+        "NRAD_RX_REG_POS",
+        "NRAD_RX_SHIM1_POS",
+        "NRAD_RX_SHIM2_POS",
+        "total_rod_position",
+        "NRAD_RX_PERIOD_Inverse",
+        "NRAD_RX_REG_POS_dt",
+        "NRAD_RX_REG_POS_dt2",
+        "NRAD_RX_SHIM1_POS_dt",
+        "NRAD_RX_SHIM1_POS_dt2",
+        "NRAD_RX_SHIM2_POS_dt",
+        "NRAD_RX_SHIM2_POS_dt2",
+        "NRAD_RX_NMP1_PWR_integral",
+    ]
+    TARGET_VARIABLES: List[str] = ["NRAD_RX_NMP1_PWR"]
     SEQUENCE_LENGTH: int = 30
     NUM_TASKS: int = 10      # how many iterative data chunks to create
     VAL_RATIO: float = 0.2   # fraction of each chunk held out for validation
