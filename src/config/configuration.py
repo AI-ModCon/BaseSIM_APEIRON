@@ -92,6 +92,8 @@ class ModelCfg:
     max_ckpts: int = 0
     ckpts_path: str = ""
 
+    config_path: str = ""
+
 
 @dataclass(frozen=True)
 class TrainCfg:
