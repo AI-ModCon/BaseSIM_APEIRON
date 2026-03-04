@@ -175,7 +175,6 @@ class BaseModelHarness(ABC):
 
         return [s / c for s, c in zip(sums, counts)]
 
-
     @property
     def ckpts_enabled(self) -> bool:
         return self.cfg.model.max_ckpts > 0 and bool(self.cfg.model.ckpts_path)
