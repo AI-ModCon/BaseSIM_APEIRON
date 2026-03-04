@@ -87,7 +87,10 @@ def _select_best_gpu() -> int | None:
 class ModelCfg:
     name: str
     pretrained_path: str
-    # ckpt: str | None = None # perhaps later support checkpointing files
+
+    # FIFO checkpointing: 0 disables, N keeps last N post-CL snapshots
+    max_ckpts: int = 0
+    ckpts_path: str = ""
 
 
 @dataclass(frozen=True)
