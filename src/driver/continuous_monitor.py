@@ -285,6 +285,10 @@ class ContinuousMonitor:
             drift_event_id=self.drift_event_count,
         )
 
+        if self.modelHarness.ckpts_enabled:
+            ckptpath = self.modelHarness.save_ckpt(event=self.drift_event_count)
+            self.logger.info(f"* Checkpoint saved to: {ckptpath}", level=0)
+
         self.logger.info("<- Continual learning complete.", level=0)
 
         # Optionally reset detector after learning

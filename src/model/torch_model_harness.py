@@ -1,5 +1,6 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Any, Optional, Callable, Tuple, List, Dict
 
 import torch
@@ -173,3 +174,24 @@ class BaseModelHarness(ABC):
             raise RuntimeError("Empty loader: nothing to evaluate.")
 
         return [s / c for s, c in zip(sums, counts)]
+
+
+    @property
+    def ckpts_enabled(self) -> bool:
+        return self.cfg.model.max_ckpts > 0 and bool(self.cfg.model.ckpts_path)
+
+    def save_ckpt(self, event: int) -> str:
+        """Persist model state, evict oldest when over budget."""
+        d = Path(self.cfg.model.ckpts_path)
+        d.mkdir(parents=True, exist_ok=True)
+
+        fname = f"drift_adaptation_{event}.pt"
+        torch.save(self.model.state_dict(), d / fname)
+        (d / "latest").write_text(fname)
+
+        # Guillotine the oldest survivors
+        alive = sorted(d.glob("drift_adaptation_*.pt"), key=lambda p: p.stat().st_mtime)
+        while len(alive) > self.cfg.model.max_ckpts:
+            alive.pop(0).unlink()
+
+        return str(d / fname)
