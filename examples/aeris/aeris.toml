@@ -2,7 +2,7 @@
 seed = 42
 device = "auto"
 multi_gpu = false
-verbosity = "INFO"
+verbosity = "INFO:2"
 
 [model]
 name = "aeris_model.pt"
@@ -11,12 +11,13 @@ pretrained_path = "examples/aeris/model"
 [data]
 name = "aeris_dataset.csv"
 path = "examples/aeris/data"
+batch_size = 1
 
 [train]
-batch_size = 500
+batch_size = 256
 num_workers = 4
-init_lr = 1e-6
-max_iter = 4000
+init_lr = 1e-3
+max_iter = 100
 grad_accumulation_steps = 1
 
 [continual_learning]
@@ -36,15 +37,15 @@ kfac_ema_decay = 0.95
 
 [drift_detection]
 detector_name = "ADWINDetector"
-detection_interval = 10
+detection_interval = 1
 aggregation = "mean"
 metric_index = 0
 reset_after_learning = false
-max_stream_updates = 20
+max_stream_updates = 250
 
 # ADWIN hyperparameters
-adwin_delta = 0.002
-adwin_minor_threshold = 0.3
+adwin_delta = 0.2
+adwin_minor_threshold = 0.1
 adwin_moderate_threshold = 0.6
 
 [logging]

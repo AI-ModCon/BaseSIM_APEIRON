@@ -80,8 +80,8 @@ class AERIS(BaseModelHarness):
         X_tensor = torch.tensor(X_scaled, dtype=torch.float32)
         y_tensor = torch.tensor(y, dtype=torch.float32)
 
-        self.windows = split_into_windows(X_tensor, y_tensor, cfg.train.batch_size)
-        #print(f"Prepared {len(self.windows)} time windows for streaming. Each window has ~{self.windows[0][0].shape[0]} samples.")
+        self.windows = split_into_windows(X_tensor, y_tensor)
+        print(f"Prepared {len(self.windows)} time windows for streaming. Each window has ~{self.windows[0][0].shape[0]} samples.")
 
         # ----- streaming state -----------------------------------------------
         self.window_idx: int = 0
@@ -167,6 +167,8 @@ class AERIS(BaseModelHarness):
 
         ds_train = TensorDataset(X_w[:n_train], y_w[:n_train])
         ds_val = TensorDataset(X_w[n_train:], y_w[n_train:])
+        #print(f"Window {self.window_idx}: {n_train} train samples, {n_val} val samples.")
+        #print(len(ds_train), len(ds_val))
 
         bs = self.cfg.train.batch_size
         nw = self.cfg.train.num_workers

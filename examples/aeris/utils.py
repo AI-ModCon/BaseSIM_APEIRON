@@ -291,7 +291,7 @@ def load_datasets(data_path: str, dataset_name: str, feature_names: List[str], i
     return X_raw, y
 
 # Default number of samples per time window.  Can be overridden by the caller.
-DEFAULT_WINDOW_SIZE: int = 100
+DEFAULT_WINDOW_SIZE: int = 10
 
 def split_into_windows(
     X: Tensor,
