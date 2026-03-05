@@ -76,7 +76,7 @@ class ContinuousTrainer:
                 cur_train_loader, self.cfg.device
             )
             sampler = WeightedRandomSampler(
-                weights=priorities,
+                weights=priorities.tolist(),
                 num_samples=len(priorities),
                 replacement=True,
             )
