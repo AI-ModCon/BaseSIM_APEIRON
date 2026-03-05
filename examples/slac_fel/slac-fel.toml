@@ -58,8 +58,8 @@ adwin_moderate_threshold = 0.05
 
 [logging]
 backend = "mlflow"
-experiment_name = "slac-fel-continual-learning"
-mlflow_tracking_uri = "https://ard-mlflow.slac.stanford.edu/"
+experiment_name = "slac-fel-cl"
+mlflow_tracking_uri = "http://127.0.0.1:5000"
 
 [visualization]
 baseline = 0.01        # MSE baseline threshold, need to determine
