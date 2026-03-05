@@ -46,7 +46,15 @@ class _InputL2MetricModel(nn.Module):
 
         # Keep autograd graph valid for `base` updater even without model params.
         inp = batch.input.float().detach().requires_grad_(True)
-        l2 = torch.linalg.vector_norm(inp.reshape(inp.shape[0], -1), ord=2, dim=1)
+        if inp.ndim == 6 and inp.shape[1] >= 1:
+            # Monitor only the first temporal slice t=0: CxDxHxW.
+            inp_t0 = inp[:, 0, ...]
+        else:
+            inp_t0 = inp
+
+        l2 = torch.linalg.vector_norm(
+            inp_t0.reshape(inp_t0.shape[0], -1), ord=2, dim=1
+        )
         return l2.unsqueeze(-1)
 
 
@@ -65,9 +73,9 @@ class _NoOpOptimizer:
 class _NoisyMateyLoader:
     """Wrap a Matey adapter and inject Gaussian noise into `input` tensors."""
 
-    def __init__(self, base_loader: _MateyLoaderAdapter, noise_std: float, seed: int):
+    def __init__(self, base_loader: _MateyLoaderAdapter, scale: float, seed: int):
         self._base_loader = base_loader
-        self._noise_std = float(max(0.0, noise_std))
+        self._scale = float(max(0.0, scale))
         self._rng = torch.Generator(device="cpu")
         self._rng.manual_seed(int(seed))
 
@@ -77,20 +85,33 @@ class _NoisyMateyLoader:
     def __iter__(self):
         for input_batch, target_batch in self._base_loader:
             if (
-                self._noise_std <= 0.0
+                self._scale <= 0.0
                 or input_batch.is_graph
                 or input_batch.input is None
             ):
                 yield input_batch, target_batch
                 continue
 
-            noise = torch.randn(
-                input_batch.input.shape,
-                dtype=input_batch.input.dtype,
-                device=input_batch.input.device,
-                generator=self._rng,
-            ) * self._noise_std
-            yield replace(input_batch, input=input_batch.input + noise), target_batch
+            noisy_input = input_batch.input.clone()
+            if noisy_input.ndim == 6 and noisy_input.shape[1] >= 1:
+                # Inject white noise only on the T=1 slice (index 0): CxDxHxW.
+                noise = torch.randn(
+                    noisy_input[:, 0, ...].shape,
+                    dtype=noisy_input.dtype,
+                    device=noisy_input.device,
+                    generator=self._rng,
+                ) * self._scale
+                noisy_input[:, 0, ...] = noisy_input[:, 0, ...] + noise
+            else:
+                noise = torch.randn(
+                    noisy_input.shape,
+                    dtype=noisy_input.dtype,
+                    device=noisy_input.device,
+                    generator=self._rng,
+                ) * self._scale
+                noisy_input = noisy_input + noise
+
+            yield replace(input_batch, input=noisy_input), target_batch
 
 
 class MATEYHarness(BaseModelHarness):
@@ -122,7 +143,7 @@ class MATEYHarness(BaseModelHarness):
         }
         self.higher_is_better = {"input_l2": False, "loss": False}
 
-        self._debug_input_tensor_shapes()
+        #self._debug_input_tensor_shapes()
 
     def get_optmizer(self) -> Optimizer:
         return _NoOpOptimizer()
@@ -135,16 +156,16 @@ class MATEYHarness(BaseModelHarness):
         train_loader, train_dataset, _ = self._build_loader(self._params, split="train")
         val_loader, val_dataset, _ = self._build_loader(self._params, split="val")
 
-        noise_std = self._noise_std_for_stream(self.task_counter)
+        scale = self._noise_std_for_stream(self.task_counter)
 
         self._cur_train_loader = _NoisyMateyLoader(
             _MateyLoaderAdapter(train_loader, train_dataset),
-            noise_std=noise_std,
+            scale=scale,
             seed=stream_seed,
         )
         self._cur_val_loader = _NoisyMateyLoader(
             _MateyLoaderAdapter(val_loader, val_dataset),
-            noise_std=noise_std,
+            scale=scale,
             seed=stream_seed + 10_000,
         )
 
@@ -161,16 +182,17 @@ class MATEYHarness(BaseModelHarness):
         return None, None
 
     def get_criterion(self):
-        def criterion(y_hat: Tensor, y: MateyTargetBatch) -> Tensor:
+        def criterion(y_hat: Tensor, y: MateyTargetBatch | Tensor) -> Tensor:
             target_l2 = self._target_l2(y)
             return torch.mean((y_hat - target_l2) ** 2)
 
         return criterion
 
     def _unpack(
-        self, batch: tuple[MateyInputBatch, MateyTargetBatch]
-    ) -> tuple[MateyInputBatch, MateyTargetBatch]:
-        return batch
+        self, batch: tuple[MateyInputBatch, MateyTargetBatch | Tensor]
+    ) -> tuple[MateyInputBatch, Tensor]:
+        x, y = batch
+        return x, self._as_target_tensor(y)
 
     @staticmethod
     def _assert_supported_update_mode(cfg: Config) -> None:
@@ -339,7 +361,7 @@ class MATEYHarness(BaseModelHarness):
 
     @staticmethod
     def _noise_std_for_stream(stream_idx: int) -> float:
-        return DEFAULT_NOISE_STD * float(stream_idx + 1)
+        return DEFAULT_NOISE_STD * float(stream_idx)
 
     @contextmanager
     def _matey_single_worker_loader_patch(self, get_data_loader: Callable[..., Any]):
@@ -381,11 +403,15 @@ class MATEYHarness(BaseModelHarness):
             )
 
     @staticmethod
-    def _target_l2(target: MateyTargetBatch) -> Tensor:
-        tar = target.target.float()
+    def _as_target_tensor(target: MateyTargetBatch | Tensor) -> Tensor:
+        return target.target if isinstance(target, MateyTargetBatch) else target
+
+    @staticmethod
+    def _target_l2(target: MateyTargetBatch | Tensor) -> Tensor:
+        tar = MATEYHarness._as_target_tensor(target).float()
         l2 = torch.linalg.vector_norm(tar.reshape(tar.shape[0], -1), ord=2, dim=1)
         return l2.unsqueeze(-1)
 
     @staticmethod
-    def _input_l2_metric(y_hat: Tensor, _y: MateyTargetBatch) -> Tensor:
+    def _input_l2_metric(y_hat: Tensor, _y: MateyTargetBatch | Tensor) -> Tensor:
         return y_hat.mean()

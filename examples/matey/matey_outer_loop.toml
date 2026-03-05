@@ -1,7 +1,7 @@
 seed = 1337
 device = "auto"
 multi_gpu = false
-verbosity = "DEBUG"
+verbosity = "INFO"
 
 [model]
 name = "matey_outer_loop_l2"
@@ -12,7 +12,7 @@ name = "matey_outer_loop"
 path = "examples/matey/dump/SOLPS2DwION"
 
 [train]
-batch_size = 8
+batch_size = 1
 num_workers = 0
 init_lr = 0.0
 max_iter = 50
@@ -27,7 +27,7 @@ detection_interval = 5
 aggregation = "last"
 metric_index = 0  # outer-loop metrics: 0=input_l2, 1=loss
 reset_after_learning = false
-max_stream_updates = 10
+max_stream_updates = 20
 
 # ADWIN hyperparameters
 adwin_delta = 0.05
