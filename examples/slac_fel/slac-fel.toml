@@ -10,6 +10,8 @@ name = "fel"
 pretrained_path = "examples/slac_fel/model/final_lcls_fel_model.pt"
 # Directory containing: input_scaler.pt, output_scaler.pt, feature_config.yml
 config_path = "examples/slac_fel/model"
+max_ckpts = 1
+ckpts_path = "output/slac-fel/"
 
 [data]
 name = "slac-fel"
