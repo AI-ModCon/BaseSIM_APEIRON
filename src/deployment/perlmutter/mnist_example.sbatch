@@ -8,6 +8,9 @@
 #SBATCH -o output/mnist_example.o%j
 #SBATCH -e output/mnist_example.e%j
 
+#
+source .venv/bin/activate
+
 # WANDB flag
 export WANDB_MODE=offline
 
@@ -20,4 +23,4 @@ echo "Hostname: $(hostname)"
 echo "=============================================="
 
 # Run example
-poetry run python -m src.main --config ./examples/mnist/mnist.toml
+python -m src.main --config ./examples/mnist/mnist.toml

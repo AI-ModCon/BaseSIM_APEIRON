@@ -3,17 +3,26 @@
 ## NERSC's Perlmutter
 
 ### Setup
-First, create a local virtual enviroment in scratch directory and clone repo:
+First, within your scratch directory, the clone the repo, and run install script.:
 
 ```bash
 cd $SCRATCH # User scratch space
-module load python/3.13-26.1.0 # Load stable python
-python -m venv my_env # Create a virtual environment
-source ./my_env/bin/activate
-pip install poetry
 git clone https://github.com/AI-ModCon/BaseSim_Framework.git
 cd ./BaseSim_Framework
-poetry install
+source ./src/deployment/perlmutter/install_venv.sh
+```
+
+`install_venv.sh` creates a virtual enviroment, installs poetry, then poetry installs
+the project dependencies. The virtual enviroment is saved under `.venv` in the root directory.
+
+The following commands are run in `install_venv.sh`:
+```bash
+module load python/3.13-26.1.0 # Load supported python version
+python -m venv .venv # Create a virtual environment
+source ./venv/bin/activate
+pip install poetry
+poetry lock
+poetry install --no_cache
 ```
 
 > Note: Testing model harness and jvp update requires MNIST dataset download on first run.
