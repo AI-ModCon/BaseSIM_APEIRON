@@ -105,6 +105,7 @@ class MLFlowLogger:
             for i, tag in enumerate(tags):
                 run_tags[f"user_tag_{i}"] = tag
 
+        mlflow.enable_system_metrics_logging()
         self.run = mlflow.start_run(run_name=name, tags=run_tags if run_tags else None)
 
         # Log config as params (flatten nested dataclass)
