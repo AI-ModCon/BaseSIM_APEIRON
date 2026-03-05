@@ -15,6 +15,14 @@ def get_example(cfg: Config) -> BaseModelHarness:
         from examples.imagenet.model import IMAGENET_VISION
 
         return IMAGENET_VISION(cfg=cfg)
+    elif cfg.data.name == "matey":
+        from examples.matey.model import MATEYHarness
+
+        return MATEYHarness(cfg=cfg)
+    elif cfg.data.name == "matey_outer_loop":
+        from examples.matey.model_outer_loop import MATEYHarness
+
+        return MATEYHarness(cfg=cfg)
     else:
         raise NotImplementedError(
             f"Example for dataset {cfg.data.name} is not implemented."

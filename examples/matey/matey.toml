@@ -1,0 +1,46 @@
+seed = 1337
+device = "auto"
+multi_gpu = false
+verbosity = "INFO"
+
+[model]
+name = "matey_vit"
+pretrained_path = ""
+
+[data]
+name = "matey"
+# User-provided SOLPS dataset root containing train/ and valid/ folders.
+# This path is local-only and should not be tracked in git.
+path = "/path/to/fusionMT-data/solps"
+
+[train]
+batch_size = 16
+num_workers = 2
+init_lr = 0.001
+max_iter = 200
+grad_accumulation_steps = 1
+
+[continual_learning]
+update_mode = "base"
+
+[drift_detection]
+detector_name = "ADWINDetector"
+detection_interval = 5
+aggregation = "last"
+metric_index = 0  # MATEY metrics: 0=nrmse, 1=rmse, 2=loss
+reset_after_learning = false
+max_stream_updates = 10
+
+# ADWIN hyperparameters
+adwin_delta = 0.05
+adwin_minor_threshold = 0.3
+adwin_moderate_threshold = 0.6
+
+[logging]
+backend = "wandb" 
+experiment_name = "matey-continual-learning"  # Optional: project/experiment name
+
+[visualization]
+baseline = 0.0
+input = "output/matey.csv"
+output = "output/matey_dashboard.png"

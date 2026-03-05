@@ -6,7 +6,7 @@ authors = [
     {name = "Your Name",email = "you@example.com"}
 ]
 readme = "README.md"
-requires-python = ">=3.13,<3.15"
+requires-python = ">=3.12,<3.15"
 dependencies = [
     "torch (>=2.0)",
     "numpy (>=2.3.4,<3.0.0)",
@@ -23,6 +23,11 @@ dependencies = [
     "river (>=0.21.0,<0.24.0)",
     "evidently (>=0.4.0,<0.8.0)",
     "matplotlib (>=3.10.7,<4.0.0)"
+]
+
+[project.optional-dependencies]
+matey = [
+    "matey @ git+ssh://git@github.com/FusionFM/MATEY.git@4e615bb5c86024632e386153bfbed028b38a8262",
 ]
 
 [dependency-groups]
@@ -45,6 +50,7 @@ packages = [
 ]
 
 [tool.ruff]
+extend-exclude = ["examples/matey/MATEY"]
 
 [tool.ruff.lint]
 # Add the codes you want to ignore to the 'ignore' list.

@@ -10,6 +10,9 @@ __pycache__/
 *.py[codz]
 *$py.class
 data/*
+# Optional third-party example assets
+examples/matey/MATEY/
+examples/matey/data/
 # C extensions
 *.so
 
