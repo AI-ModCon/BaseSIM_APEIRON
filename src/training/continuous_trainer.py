@@ -4,7 +4,7 @@ from collections.abc import Iterator
 from typing import Any, Optional
 
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, WeightedRandomSampler
 from tqdm import tqdm
 
 from config.configuration import Config
@@ -69,6 +69,24 @@ class ContinuousTrainer:
         logger = get_logger(__name__)
         cur_train_loader, cur_test_loader = self.modelHarness.get_cur_data_loaders()
         hist_train_loader, hist_test_loader = self.modelHarness.get_hist_data_loaders()
+
+        # Prioritized sampling: rebuild loader with importance-based sampler
+        if self.cl_updater.importance_weighting and self.cl_updater.theta_star:
+            priorities = self.cl_updater.compute_sample_priorities(
+                cur_train_loader, self.cfg.device
+            )
+            sampler = WeightedRandomSampler(
+                weights=priorities,
+                num_samples=len(priorities),
+                replacement=True,
+            )
+            cur_train_loader = DataLoader(
+                cur_train_loader.dataset,
+                batch_size=cur_train_loader.batch_size or self.cfg.train.batch_size,
+                sampler=sampler,
+                num_workers=cur_train_loader.num_workers,
+                drop_last=cur_train_loader.drop_last,
+            )
 
         train_iter = iter(cur_train_loader)
         if hist_train_loader is not None:

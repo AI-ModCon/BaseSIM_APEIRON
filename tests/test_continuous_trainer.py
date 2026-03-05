@@ -82,6 +82,7 @@ class TestInnerCLLoop:
         mock_updater = MagicMock()
         mock_updater.fwd_bwd.return_value = 0.5
         mock_updater.update_post_fwd_bwd.return_value = 0.1
+        mock_updater.importance_weighting = False
         trainer.cl_updater = mock_updater
 
         cur_train, _ = dummy_harness.get_cur_data_loaders()
@@ -111,6 +112,7 @@ class TestInnerCLLoop:
         mock_updater = MagicMock()
         mock_updater.fwd_bwd.return_value = 0.5
         mock_updater.update_post_fwd_bwd.return_value = 0.1
+        mock_updater.importance_weighting = False
         trainer.cl_updater = mock_updater
 
         cur_train, _ = dummy_harness.get_cur_data_loaders()
@@ -140,6 +142,7 @@ class TestInnerCLLoop:
         mock_updater = MagicMock()
         mock_updater.fwd_bwd.return_value = 0.5
         mock_updater.update_post_fwd_bwd.return_value = 0.1
+        mock_updater.importance_weighting = False
         trainer.cl_updater = mock_updater
 
         cur_train, _ = harness.get_cur_data_loaders()
@@ -214,6 +217,7 @@ class TestOuterCLLoop:
         mock_updater = MagicMock()
         mock_updater.fwd_bwd.return_value = 0.5
         mock_updater.update_post_fwd_bwd.return_value = 0.1
+        mock_updater.importance_weighting = False
         trainer.cl_updater = mock_updater
 
         trainer.outer_cl_training_loop(drift_event_id=1)
@@ -244,6 +248,7 @@ class TestOuterCLLoop:
         mock_updater = MagicMock()
         mock_updater.fwd_bwd.return_value = 0.5
         mock_updater.update_post_fwd_bwd.return_value = 0.1
+        mock_updater.importance_weighting = False
         trainer.cl_updater = mock_updater
 
         trainer.outer_cl_training_loop(drift_event_id=1)
@@ -319,6 +324,7 @@ class TestOuterCLLoop:
         mock_updater = MagicMock()
         mock_updater.fwd_bwd.return_value = 0.5
         mock_updater.update_post_fwd_bwd.return_value = 0.1
+        mock_updater.importance_weighting = False
         trainer.cl_updater = mock_updater
 
         trainer.outer_cl_training_loop(drift_event_id=1)

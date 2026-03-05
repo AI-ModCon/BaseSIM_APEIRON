@@ -49,5 +49,5 @@ def create_updater(cfg: Config, modelHarness: BaseModelHarness) -> BaseUpdater:
         )
 
     updater.importance_weighting = cfg.continual_learning.importance_weighting
-    updater.importance_temperature = cfg.continual_learning.importance_temperature
+    updater.importance_alpha = cfg.continual_learning.importance_alpha
     return updater

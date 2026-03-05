@@ -1,4 +1,4 @@
-"""Tests for per-sample loss derivative importance weighting in CL training."""
+"""Tests for prioritized sampling importance weighting in CL training."""
 
 from __future__ import annotations
 
@@ -6,7 +6,12 @@ from dataclasses import replace
 
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, RandomSampler, TensorDataset
+from torch.utils.data import (
+    DataLoader,
+    RandomSampler,
+    TensorDataset,
+    WeightedRandomSampler,
+)
 
 from config.configuration import ContinualLearningCfg
 from training.updater.base import BaseUpdater
@@ -42,71 +47,114 @@ class TestUnreducedCriterion:
 
 
 # ---------------------------------------------------------------------------
-# TestPerSampleWeighting
+# TestComputeSamplePriorities
 # ---------------------------------------------------------------------------
-class TestPerSampleWeighting:
-    def _make_weighted_updater(self, default_cfg, make_harness, temperature=1.0):
+class TestComputeSamplePriorities:
+    def test_priorities_shape(self, default_cfg, make_harness):
+        """compute_sample_priorities returns one priority per sample."""
         cfg = replace(
             default_cfg,
-            continual_learning=ContinualLearningCfg(
-                importance_weighting=True,
-                importance_temperature=temperature,
-            ),
+            continual_learning=ContinualLearningCfg(importance_weighting=True),
         )
         harness = make_harness(cfg)
         updater = create_updater(cfg, harness)
-        return updater, harness
 
-    def test_weights_sum_to_batch_size(self, default_cfg, make_harness):
-        """Importance weights after softmax * len should sum to batch_size."""
-        updater, harness = self._make_weighted_updater(default_cfg, make_harness)
-        x = torch.randn(8, 4)
-        y = torch.randint(0, 3, (8,))
+        ds = TensorDataset(torch.randn(20, 4), torch.randint(0, 3, (20,)))
+        loader = DataLoader(ds, batch_size=8)
+        priorities = updater.compute_sample_priorities(loader, "cpu")
+        assert priorities.shape == (20,)
 
-        outputs = harness.model(x)
-        per_sample_loss = updater._unreduced_criterion(outputs, y)
+    def test_priorities_positive(self, default_cfg, make_harness):
+        """All priorities should be positive (clamped at 1e-8)."""
+        cfg = replace(
+            default_cfg,
+            continual_learning=ContinualLearningCfg(importance_weighting=True),
+        )
+        harness = make_harness(cfg)
+        updater = create_updater(cfg, harness)
 
+        ds = TensorDataset(torch.randn(16, 4), torch.randint(0, 3, (16,)))
+        loader = DataLoader(ds, batch_size=8)
+        priorities = updater.compute_sample_priorities(loader, "cpu")
+        assert (priorities > 0).all()
+
+    def test_priorities_differ_after_param_change(self, default_cfg, make_harness):
+        """After modifying params, priorities should differ from uniform."""
+        cfg = replace(
+            default_cfg,
+            continual_learning=ContinualLearningCfg(importance_weighting=True),
+        )
+        harness = make_harness(cfg)
+        updater = create_updater(cfg, harness)
+
+        # Modify model away from anchor
         with torch.no_grad():
-            anchor = {n: p.detach() for n, p in harness.model.named_parameters()}
-            anchor.update(updater.theta_star)
-            from torch.func import functional_call
+            for p in harness.model.parameters():
+                p.add_(torch.randn_like(p) * 0.5)
 
-            anchor_out = functional_call(harness.model, anchor, (x,))
-            anchor_loss = updater._unreduced_criterion(anchor_out, y)
-            delta = (per_sample_loss.detach() - anchor_loss).clamp(min=1e-8)
-            weights = (delta / updater.importance_temperature).softmax(dim=0) * len(
-                delta
-            )
+        ds = TensorDataset(torch.randn(16, 4), torch.randint(0, 3, (16,)))
+        loader = DataLoader(ds, batch_size=8)
+        priorities = updater.compute_sample_priorities(loader, "cpu")
+        # Not all priorities should be identical
+        assert priorities.std() > 0
 
-        assert abs(weights.sum().item() - 8.0) < 1e-4
+    def test_alpha_controls_sharpness(self, default_cfg, make_harness):
+        """Higher alpha should produce more varied priorities."""
+        harness = make_harness(default_cfg)
 
-    def test_high_delta_gets_high_weight(self, default_cfg, make_harness):
-        """Samples with higher delta_L should get higher weights."""
-        updater, _ = self._make_weighted_updater(default_cfg, make_harness)
+        # Create updaters FIRST (anchors theta_star at current params)
+        updater_low = BaseUpdater(cfg=default_cfg, modelHarness=harness)
+        updater_low.importance_weighting = True
+        updater_low.importance_alpha = 0.5
 
-        delta = torch.tensor([0.1, 0.5, 2.0, 0.01])
-        weights = (delta / updater.importance_temperature).softmax(dim=0) * len(delta)
-        # The sample with delta=2.0 should have highest weight
-        assert weights[2] == weights.max()
-        # The sample with delta=0.01 should have lowest weight
-        assert weights[3] == weights.min()
+        updater_high = BaseUpdater(cfg=default_cfg, modelHarness=harness)
+        updater_high.importance_weighting = True
+        updater_high.importance_alpha = 2.0
 
-    def test_disabled_uses_standard_loss(self, default_cfg, make_harness):
-        """When importance_weighting=False, fwd_bwd uses standard criterion."""
+        # THEN modify model away from anchor
+        with torch.no_grad():
+            for p in harness.model.parameters():
+                p.add_(torch.randn_like(p) * 0.5)
+
+        ds = TensorDataset(torch.randn(32, 4), torch.randint(0, 3, (32,)))
+        loader = DataLoader(ds, batch_size=16)
+
+        p_low = updater_low.compute_sample_priorities(loader, "cpu")
+        p_high = updater_high.compute_sample_priorities(loader, "cpu")
+
+        # Higher alpha → more variance in priorities
+        assert p_high.std() > p_low.std()
+
+    def test_weighted_sampler_from_priorities(self, default_cfg, make_harness):
+        """Priorities can be used with WeightedRandomSampler."""
+        cfg = replace(
+            default_cfg,
+            continual_learning=ContinualLearningCfg(importance_weighting=True),
+        )
+        harness = make_harness(cfg)
+        updater = create_updater(cfg, harness)
+
+        ds = TensorDataset(torch.randn(20, 4), torch.randint(0, 3, (20,)))
+        loader = DataLoader(ds, batch_size=8)
+        priorities = updater.compute_sample_priorities(loader, "cpu")
+
+        sampler = WeightedRandomSampler(
+            priorities, num_samples=len(priorities), replacement=True
+        )
+        new_loader = DataLoader(ds, batch_size=8, sampler=sampler)
+        batch = next(iter(new_loader))
+        assert batch[0].shape[0] == 8
+
+
+# ---------------------------------------------------------------------------
+# TestStandardFwdBwd
+# ---------------------------------------------------------------------------
+class TestStandardFwdBwd:
+    def test_fwd_bwd_uses_standard_loss(self, default_cfg, make_harness):
+        """fwd_bwd always uses standard criterion (sampling handles importance)."""
         harness = make_harness(default_cfg)
         updater = BaseUpdater(cfg=default_cfg, modelHarness=harness)
-        assert updater.importance_weighting is False
 
-        x = torch.randn(4, 4)
-        y = torch.randint(0, 3, (4,))
-        harness.model.zero_grad()
-        loss = updater.fwd_bwd((x, y))
-        assert isinstance(loss, float)
-        assert loss >= 0.0
-
-    def test_weighted_fwd_bwd_runs(self, default_cfg, make_harness):
-        """fwd_bwd with importance weighting enabled completes without error."""
-        updater, harness = self._make_weighted_updater(default_cfg, make_harness)
         x = torch.randn(4, 4)
         y = torch.randint(0, 3, (4,))
         harness.model.zero_grad()
@@ -149,7 +197,6 @@ class TestThetaStar:
         harness = make_harness(cfg)
         updater = OnlineKFACUpdater(cfg=cfg, modelHarness=harness)
         # KFAC theta_star uses module names, not parameter names
-        # It should have entries for supported modules
         assert len(updater.theta_star) > 0
 
     def test_theta_star_updates_in_postprocessing(self, dummy_harness):
@@ -235,7 +282,6 @@ class TestBalancedSampling:
         """When sampler is provided, shuffle should not be passed (no error)."""
         ds = TensorDataset(torch.randn(100, 4), torch.randint(0, 3, (100,)))
         sampler = RandomSampler(ds, replacement=True, num_samples=50)
-        # This should not raise "mutually exclusive" error
         loader = DataLoader(ds, batch_size=8, sampler=sampler)
         batch = next(iter(loader))
         assert batch[0].shape[0] == 8
@@ -254,7 +300,6 @@ class TestBalancedSampling:
         n_samples = int(len(ds) * ratio)
         sampler = RandomSampler(ds, replacement=True, num_samples=n_samples)
 
-        # Count total samples yielded
         loader = DataLoader(ds, batch_size=16, sampler=sampler)
         total = sum(batch[0].shape[0] for batch in loader)
         assert total == n_samples
@@ -268,15 +313,13 @@ class TestConfigFields:
         """ContinualLearningCfg should have correct defaults for importance fields."""
         cfg = ContinualLearningCfg()
         assert cfg.importance_weighting is False
-        assert cfg.importance_temperature == 1.0
+        assert cfg.importance_alpha == 1.0
 
     def test_custom_values(self):
         """ContinualLearningCfg should accept custom importance values."""
-        cfg = ContinualLearningCfg(
-            importance_weighting=True, importance_temperature=0.5
-        )
+        cfg = ContinualLearningCfg(importance_weighting=True, importance_alpha=0.5)
         assert cfg.importance_weighting is True
-        assert cfg.importance_temperature == 0.5
+        assert cfg.importance_alpha == 0.5
 
     def test_create_updater_passes_config(self, default_cfg, make_harness):
         """create_updater should set importance fields on the updater."""
@@ -284,10 +327,10 @@ class TestConfigFields:
             default_cfg,
             continual_learning=ContinualLearningCfg(
                 importance_weighting=True,
-                importance_temperature=2.0,
+                importance_alpha=2.0,
             ),
         )
         harness = make_harness(cfg)
         updater = create_updater(cfg, harness)
         assert updater.importance_weighting is True
-        assert updater.importance_temperature == 2.0
+        assert updater.importance_alpha == 2.0

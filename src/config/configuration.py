@@ -121,9 +121,11 @@ class ContinualLearningCfg:
     kfac_lambda: float = 0.01
     kfac_ema_decay: float = 0.95
 
-    # Per-sample importance weighting (Raghavan & Papadimitriou, FGCS 2025)
+    # Prioritized sampling (Raghavan & Papadimitriou, FGCS 2025)
     importance_weighting: bool = False
-    importance_temperature: float = 1.0
+    importance_alpha: float = (
+        1.0  # priority exponent (1=linear, <1=flatter, >1=sharper)
+    )
 
 
 @dataclass(frozen=True)
