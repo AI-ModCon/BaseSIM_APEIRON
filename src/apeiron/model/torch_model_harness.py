@@ -55,6 +55,7 @@ class BaseModelHarness(ABC):
     def get_cur_data_loaders(self) -> Tuple[DataLoader, DataLoader]:
         """
         Returns a training and validation dataloader compatible with the model input
+        that will be used for continual learning
         """
         raise NotImplementedError
 
@@ -87,6 +88,14 @@ class BaseModelHarness(ABC):
         """
         x, y = batch
         return x, y
+
+    @torch.no_grad()
+    def get_cur_loop_loaders(self) -> Tuple[DataLoader, DataLoader]:
+        """
+        Returns a training and validation dataloader compatible with the model input
+        that will be used to loop over for inference
+        """
+        return self.get_cur_data_loaders()
 
     @staticmethod
     def _to_scalar(x: Tensor | float) -> float:

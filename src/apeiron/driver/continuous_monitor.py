@@ -132,7 +132,7 @@ class ContinuousMonitor:
         Raises:
             StopIteration: When the data loader is exhausted
         """
-        train_loader, val_loader = self.modelHarness.get_cur_data_loaders()
+        train_loader, val_loader = self.modelHarness.get_cur_loop_loaders()
 
         for batch_idx, batch in tqdm(
             enumerate(val_loader),

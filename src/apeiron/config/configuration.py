@@ -106,6 +106,7 @@ class TrainCfg:
 class DataCfg:
     name: str
     path: str
+    batch_size: int = 0
 
 
 @dataclass(frozen=True)
