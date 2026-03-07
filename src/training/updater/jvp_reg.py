@@ -101,12 +101,23 @@ class JVPRegUpdater(BaseUpdater):
         deltax: torch.Tensor,
     ) -> tuple[dict[str, torch.Tensor], torch.Tensor, torch.Tensor]:
         """Compute JVP-regularized gradients combining current, memory, and JVP terms."""
+        # NOTE: torch.func (grad/jvp/vjp) requires the function being transformed to be
+        # free of in-place mutations of captured tensors. BatchNorm layers mutate
+        # buffers (e.g., num_batches_tracked/running stats) in training mode.
+        # Force eval mode during the transformed computations.
+        was_training = self.model.training
+        self.model.eval()
+
+        # Cache buffers for stateless/functional execution (e.g., BatchNorm running stats).
+        buffers = OrderedDict(self.model.named_buffers())
+
         for p in params.values():
             p.requires_grad_(True)
 
         # - Define loss function for functional API
         def loss_fn(p, x, y):
-            pred = functional_call(self.model, p, (x,))
+            # Pass both params and buffers to avoid accidental stateful access.
+            pred = functional_call(self.model, (p, buffers), (x,))
             return self.criterion(pred, y) / self.cfg.train.grad_accumulation_steps
 
         # - Compute gradients
@@ -140,5 +151,9 @@ class JVPRegUpdater(BaseUpdater):
         with torch.no_grad():
             loss_curr = loss_fn(params, x_curr, y_curr)
             loss_mem = loss_fn(params, x_mem, y_mem)
+
+        # Restore original training mode
+        if was_training:
+            self.model.train()
 
         return combined_grads, loss_curr, loss_mem
