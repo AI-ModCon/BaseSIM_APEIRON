@@ -55,6 +55,12 @@ To run the project's tests, execute the following command from the project root:
 poetry run pytest
 ```
 
+## Deployment
+
+Platform-specific deployment guides:
+
+- [NERSC Perlmutter](./src/deployment/perlmutter/README.md)
+
 ## What `main.py` Does
 - Builds the `DummyCNN_MNIST` model defined in `src/model/DummyCNN_MNIST.py`, a cross-entropy loss, and an Adam optimizer.
 - Loads the MNIST training split, stacks the tensors, and iterates over 10 tasks (digits 0–9). Each task applies random rotation and translation to encourage continual adaptation.
