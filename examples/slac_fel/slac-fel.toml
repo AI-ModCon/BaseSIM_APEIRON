@@ -11,6 +11,10 @@ pretrained_path = "examples/slac_fel/model/final_lcls_fel_model.pt"
 # Directory containing: input_scaler.pt, output_scaler.pt, feature_config.yml
 config_path = "examples/slac_fel/model"
 
+# Checkpointing
+max_ckpts = 1
+ckpts_path = "output/slac_fel/"
+
 [data]
 name = "slac-fel"
 path = "examples/slac_fel/data"
@@ -55,7 +59,7 @@ adwin_minor_threshold = 0.005
 adwin_moderate_threshold = 0.05
 
 [logging]
-backend = "mlflow"
+backend = "wandb" #"mlflow"
 experiment_name = "slac-fel-continual-learning"
 mlflow_tracking_uri = "https://ard-mlflow.slac.stanford.edu/"
 
