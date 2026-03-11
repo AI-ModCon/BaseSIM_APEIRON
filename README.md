@@ -101,7 +101,24 @@ poetry run ruff check .
 poetry run mypy .
 ```
 
-## Current Integration Notes
+## Deployment
 
-- `EnsembleDetector` exists but is not wired in `load_drift_detector(...)`.
-- `ModelPerformanceDetector` and `EvalDetector` need additional runtime wiring for full monitor integration.
+Platform-specific deployment guides:
+
+- [NERSC Perlmutter](./src/deployment/perlmutter/README.md)
+
+## What `main.py` Does
+- Builds the `DummyCNN_MNIST` model defined in `src/model/DummyCNN_MNIST.py`, a cross-entropy loss, and an Adam optimizer.
+- Loads the MNIST training split, stacks the tensors, and iterates over 10 tasks (digits 0–9). Each task applies random rotation and translation to encourage continual adaptation.
+- Maintains replay buffers (`memory_image`, `memory_label`, etc.) so past samples remain available for rehearsal while training new tasks.
+- Calls `CL(...)` to assemble task-specific dataloaders and drive the `One_task_CL` loop. The loop trains for five epochs, records loss/accuracy metrics, and prints periodic progress reports.
+- Computes sensitivity scores with `src/validation/validation_utils/return_score` after each task; you can repurpose these values for analysis or adaptive triggers.
+
+## Tuning Tips
+- Change the number of epochs by editing `n_epoch` inside `CL`.
+- Adjust replay/adversarial update counts through the `params` dictionaries in `One_task_CL` and `util.update_CL_`.
+- Experiment with different transforms or task definitions by modifying `data.py`.
+- Update batch sizes by changing the `batch_size` parameter used when constructing the dataloaders.
+
+## Output
+Training logs report the task id, training/test accuracy, and replay-memory accuracy every five epochs. Accuracy is computed via `test(...)` on both the current task and the accumulated memory set.
