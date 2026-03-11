@@ -1,0 +1,70 @@
+# slac-fel.toml  —  LCLS FEL continuous-learning experiment
+seed = 42
+device = "auto"
+multi_gpu = false
+verbosity = "INFO"
+
+[model]
+name = "fel"
+# Set to "" to train from scratch, or point to a saved state_dict .pt file
+pretrained_path = "examples/slac_fel/model/final_lcls_fel_model.pt"
+# Directory containing: input_scaler.pt, output_scaler.pt, feature_config.yml
+config_path = "examples/slac_fel/model"
+
+# Checkpointing
+max_ckpts = 1
+ckpts_path = "output/slac_fel/"
+
+[data]
+name = "slac-fel"
+path = "examples/slac_fel/data"
+# Number of samples per time window (smaller = finer drift granularity)
+window_size = 5000
+
+[train]
+batch_size = 512
+num_workers = 0
+init_lr = 1e-5
+max_iter = 600
+grad_accumulation_steps = 1
+
+[continual_learning]
+# "base" will train on current window only, detects 4 drifts
+# "jvp_reg" will detect 2 drifts, only early one, one later (trains on 21 windows each time)
+update_mode = "base"
+
+# JVP regularization (used when update_mode = "jvp_reg")
+jvp_lambda = 10
+jvp_deltax_norm = 1
+
+# EWC (used when update_mode = "ewc_online")
+ewc_lambda = 1000.0
+ewc_ema_decay = 0.95
+
+# KFAC (used when update_mode = "kfac_online")
+kfac_lambda = 1e-2
+kfac_ema_decay = 0.95
+
+[drift_detection]
+detector_name = "ADWINDetector"
+# Check for drift every N batches.  With batch_size=512 and 5000 samples per window
+detection_interval = 1
+aggregation = "mean"
+reset_after_learning = false
+max_stream_updates = 1180 # 856
+
+# ADWIN hyperparameters
+adwin_delta = 0.05
+adwin_minor_threshold = 0.005
+adwin_moderate_threshold = 0.05
+
+[logging]
+backend = "wandb" #"mlflow"
+experiment_name = "slac-fel-continual-learning"
+mlflow_tracking_uri = "https://ard-mlflow.slac.stanford.edu/"
+
+[visualization]
+baseline = 0.01        # MSE baseline threshold, need to determine
+input = "output/slac-fel.csv"
+output = "output/slac-fel_dashboard.png"
+
