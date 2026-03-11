@@ -4,34 +4,42 @@
 
 A PyTorch framework for continuous learning that automatically detects concept drift in data streams and adapts models through JVP regularized retraining.
 
-## Overview
-This repo trains models on continuously changing data streams. The system monitors model performance in real-time, detects when the data distribution (concept drift) shifts, and automatically triggers adaptive learning to maintain performance without catastrophic forgetting.
+## What This Repository Does
 
-Concept drift occurs when the statistical relationship between inputs and outputs changes overtime, causing model performance to degrade. This framework detects drift by monitoring performance metrics (like accuracy or loss) and applies JVP-regularized learning only when needed.
+The pipeline runs on a changing data stream and loops through these stages:
 
-## Adaptive Learning 
-- Evaluates model performance on incoming batches, tracking metrics in real-time.
-- Monitors metrics and identifies when data distribution shift significantly.
-- When drift is detected, monitoring pauses, JVP regularization prevent catastrophic forgetting, and model updates balance new patterns and old knowledge.
-- Monitoring resumes with updated model weights.
+1. Evaluate the current model on stream batches.
+2. Aggregate monitored metrics at a configured interval.
+3. Run a drift detector on the aggregated metric.
+4. If drift is detected, pause monitoring and run a continual-learning update loop.
+5. Resume monitoring on the updated model and continue until stream limits are reached.
 
-## Prerequisites
-This project uses [Poetry](https://python-poetry.org/) for dependency management. You will need to have Poetry installed.
+Core modules:
 
-Install the project dependencies with:
+- `src/main.py`: entry point
+- `src/config/configuration.py`: TOML/env/CLI config assembly
+- `src/driver/continuous_monitor.py`: monitoring + drift loop
+- `src/training/continuous_trainer.py`: CL training loop
+- `src/training/updater/`: CL update strategies
+- `src/drift_detection/`: detectors and detector factory
+- `examples/`: concrete model harness implementations
+
+## Installation
+
+Requires Python `>=3.13,<3.15` and Poetry.
+
 ```bash
 poetry install
 ```
-`torchvision` downloads MNIST to `data/` the first time the experiment is run.
 
-## Running the Experiment
-To run the experiment, execute the following command from the project root:
+## Running Experiments
+
+From the project root:
+
 ```bash
 poetry run python -m src.main --config examples/mnist/mnist.toml
-poetry run python -m src.main --config examples/cifar10/cifar10_vit.toml
-poetry run python -m src.main --config examples/imagenet/imagenet_vit.toml
+poetry run python -m src.main --config examples/cifar/cifar10_vit.toml
 ```
-The script uses CUDA automatically when it is available; otherwise it falls back to CPU.
 
 ## Metrics Logging
 Currently, we support two metrics logging backends: Weights & Biases (WandB) and MLflow. You can configure the desired `backend` in the `config` file's `logging` section. To disable logging, you can set the `logging` section to `none` to disable logging. Alternatively, you can set the logging choice via command line arguments, for example:
@@ -43,16 +51,54 @@ poetry run python -m src.main --config examples/mnist/mnist.toml --set logging.b
 
 Currently the mnist example sets the logging to wandb in the toml `config` file. The other examples do not set any metric for the logging backend, which defaults to wandb.
 
-## Visualizing Performance
-To visualize the training and testing continous learning metrics, execute the following command from the project root:
+## Configuration Overview
+
+Primary sections in config TOML:
+
+- `[model]`
+- `[data]`
+- `[train]`
+- `[drift_detection]`
+- `[continual_learning]` (optional but recommended)
+- `[visualization]` (optional)
+
+Top-level fields commonly used:
+
+- `seed`
+- `device`
+- `multi_gpu`
+- `verbosity`
+
+Override precedence:
+
+1. Base TOML (`--config`)
+2. Environment overrides prefixed with `APP_`
+3. CLI overrides via repeated `--set key=value`
+
+Example override:
+
 ```bash
-poetry run python -m src.visualize --config examples/mnist/mnist.toml
+poetry run python -m src.main \
+  --config examples/mnist/mnist.toml \
+  --set drift_detection.detector_name=\"KSWINDetector\" \
+  --set train.max_iter=200
 ```
 
-## Running Tests
-To run the project's tests, execute the following command from the project root:
+## Documentation
+
+Detailed docs are in `docs/`:
+
+- `docs/README.md`
+- `docs/model_harness.md`
+- `docs/drift_detectors.md`
+- `docs/continuous_learning.md`
+
+## Development Commands
+
 ```bash
 poetry run pytest
+poetry run ruff check .
+poetry run mypy .
 ```
 
 ## Deployment

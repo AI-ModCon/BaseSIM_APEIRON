@@ -105,6 +105,7 @@ class MLFlowLogger:
             for i, tag in enumerate(tags):
                 run_tags[f"user_tag_{i}"] = tag
 
+        mlflow.enable_system_metrics_logging()
         self.run = mlflow.start_run(run_name=name, tags=run_tags if run_tags else None)
 
         # Log config as params (flatten nested dataclass)
@@ -174,7 +175,7 @@ class MLFlowLogger:
 
         # Add step metrics
         prefixed_metrics["step"] = current_step
-        if self._current_stage:
+        if self._current_stage and increment:
             prefixed_metrics[f"{self._current_stage}.step"] = self._stage_steps[
                 self._current_stage
             ]
@@ -187,13 +188,30 @@ class MLFlowLogger:
         if self.enabled and self.run:
             mlflow = self._get_mlflow()
             # Filter to only numeric values (MLflow only accepts numbers for metrics)
+            # Exclude bools: bool is a subclass of int in Python, but casting
+            # True/False to float(1.0/0.0) corrupts categorical semantics.
+            # Instead, booleans are converted to int (0/1) separately.
             numeric_metrics = {
                 k: float(v)
                 for k, v in prefixed_metrics.items()
-                if isinstance(v, (int, float)) and k != "step"
+                if isinstance(v, (int, float))
+                and not isinstance(v, bool)
+                and k != "step"
             }
+            # Convert booleans to int (0/1) so they remain discrete metrics
+            bool_metrics = {
+                k: int(v) for k, v in prefixed_metrics.items() if isinstance(v, bool)
+            }
+            numeric_metrics.update(bool_metrics)
             if numeric_metrics:
-                mlflow.log_metrics(numeric_metrics, step=current_step)
+                # WandB uses the global step as x-axis, however, MLflow uses the per-stage step so that
+                # sparse global-step values do not cause MLflow to downsample away the rare detected=1 events.
+                log_step = (
+                    self._stage_steps[self._current_stage]
+                    if self._current_stage
+                    else current_step
+                )
+                mlflow.log_metrics(numeric_metrics, step=log_step)
 
     def save(
         self,

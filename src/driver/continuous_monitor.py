@@ -265,6 +265,12 @@ class ContinuousMonitor:
         self.logger.info(
             f"==== DRIFT DETECTED (Event #{self.drift_event_count})! ====", level=0
         )
+        # Log data timestamp range if the harness tracks it
+        timerange = getattr(self.modelHarness, "current_window_timerange", None)
+        if timerange is not None:
+            self.logger.info(
+                f"\tData time range: {timerange[0]} → {timerange[1]}", level=1
+            )
         self.logger.info(
             f"\tRegime: {drift_signal.regime.value if drift_signal.regime else 'N/A'}",
             level=1,
@@ -284,6 +290,10 @@ class ContinuousMonitor:
         self.trainer.outer_cl_training_loop(
             drift_event_id=self.drift_event_count,
         )
+
+        if self.modelHarness.ckpts_enabled:
+            ckptpath = self.modelHarness.save_ckpt(event=self.drift_event_count)
+            self.logger.info(f"* Checkpoint saved to: {ckptpath}", level=0)
 
         self.logger.info("<- Continual learning complete.", level=0)
 
@@ -328,17 +338,31 @@ class ContinuousMonitor:
         """
         flops_perf = self.flops_profiler.get_performance()
 
-        # Log all drift metrics including performance in a single call
+        # Log all drift metrics in a single call.
+        # detected=0 is sampled at 10% to reduce log volume; detected=1 is
+        # always included so no true drift events are dropped.
+        log_detected = drift_signal.drift_detected or (np.random.random() <= 0.1)
         self.logger.stage("drift")
+        # Include data timestamp range if available from the harness
+        timerange = getattr(self.modelHarness, "current_window_timerange", None)
+        ts_fields = {}
+        if timerange is not None:
+            ts_fields["data_time_start"] = timerange[0]
+            ts_fields["data_time_end"] = timerange[1]
         self.logger.log(
             {
-                "detected": drift_signal.drift_detected,
+                **(
+                    {"detected": int(drift_signal.drift_detected)}
+                    if log_detected
+                    else {}
+                ),
                 "score": drift_signal.drift_score,
                 "regime": (drift_signal.regime.value if drift_signal.regime else "N/A"),
                 "confidence": (
                     drift_signal.confidence if drift_signal.confidence else "N/A"
                 ),
                 f"metric_{self.metric_idx}": metric_value,
+                **ts_fields,
                 **{f"cperf_{k}": v for k, v in flops_perf.items()},
             },
         )

@@ -8,6 +8,10 @@ verbosity = "INFO"  # DEBUG, INFO, INFO:0-9, WARNING, ERROR, CRITICAL
 name = "dummy"  
 pretrained_path = "examples/mnist/mnist.pth"
 
+# enables checkpointing
+max_ckpts = 0 # Increment to enable
+ckpts_path = "output/mnist/"
+
 [data]
 name = "mnist"
 path = ""  # folder or file later for custom dataset
