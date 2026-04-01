@@ -6,8 +6,8 @@ import logging
 
 import pytest
 
-from logger.console_logger import ConsoleLogger, ColoredFormatter, StepFilter
-from logger.wandb_logger import WandBLogger, VALID_STAGES
+from apeiron.logger.console_logger import ConsoleLogger, ColoredFormatter, StepFilter
+from apeiron.logger.wandb_logger import WandBLogger, VALID_STAGES
 
 
 # ---------------------------------------------------------------------------

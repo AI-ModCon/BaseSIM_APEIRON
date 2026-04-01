@@ -7,8 +7,8 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-from drift_detection.detectors.base import DriftSignal, LearningRegime
-from driver.continuous_monitor import ContinuousMonitor
+from apeiron.drift_detection.detectors.base import DriftSignal, LearningRegime
+from apeiron.driver.continuous_monitor import ContinuousMonitor
 
 
 # We patch get_logger globally for these tests since ContinuousMonitor calls it in __init__
@@ -16,8 +16,8 @@ from driver.continuous_monitor import ContinuousMonitor
 def _patch_logger():
     mock_logger = MagicMock()
     mock_logger.step = 0
-    with patch("driver.continuous_monitor.get_logger", return_value=mock_logger):
-        with patch("training.continuous_trainer.get_logger", return_value=mock_logger):
+    with patch("apeiron.driver.continuous_monitor.get_logger", return_value=mock_logger):
+        with patch("apeiron.training.continuous_trainer.get_logger", return_value=mock_logger):
             yield mock_logger
 
 

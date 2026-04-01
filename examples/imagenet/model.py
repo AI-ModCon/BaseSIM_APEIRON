@@ -5,8 +5,8 @@ from torch import nn, Tensor
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader, ConcatDataset
 
-from model.torch_model_harness import BaseModelHarness
-from config.configuration import Config
+from apeiron.model.torch_model_harness import BaseModelHarness
+from apeiron.config.configuration import Config
 from examples.imagenet.src.utils import (
     get_imagenet_train,
     get_imagenet_val,
@@ -16,7 +16,7 @@ from examples.imagenet.src.utils import (
     sample_aug,
 )
 from examples.imagenet.src.utils import load_model
-from evaluation.metrics import accuracy
+from apeiron.evaluation.metrics import accuracy
 
 
 class VisionModelImageNet(nn.Module):

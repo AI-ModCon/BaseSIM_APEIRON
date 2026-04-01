@@ -6,7 +6,7 @@ from torch import nn
 from torch.utils.data import Dataset, DataLoader
 from torchvision import datasets, transforms
 import torchvision.transforms.functional as TF
-from config.configuration import Config
+from apeiron.config.configuration import Config
 from examples.cifar.src import cnns, vision_transformers
 
 

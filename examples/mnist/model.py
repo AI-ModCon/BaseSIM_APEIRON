@@ -7,8 +7,8 @@ from torch import nn, Tensor
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader, ConcatDataset
 
-from model.torch_model_harness import BaseModelHarness
-from config.configuration import Config
+from apeiron.model.torch_model_harness import BaseModelHarness
+from apeiron.config.configuration import Config
 from examples.mnist.utils import (
     get_mnist_train,
     get_mnist_val,
@@ -17,7 +17,7 @@ from examples.mnist.utils import (
     make_loader,
     sample_aug,
 )
-from evaluation.metrics import accuracy
+from apeiron.evaluation.metrics import accuracy
 
 
 class Cnn(nn.Module):

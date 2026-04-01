@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 import torch
 
-from model.torch_model_harness import BaseModelHarness
+from apeiron.model.torch_model_harness import BaseModelHarness
 
 
 class TestUnpack:

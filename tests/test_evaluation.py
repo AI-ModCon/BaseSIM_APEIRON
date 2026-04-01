@@ -5,7 +5,7 @@ from __future__ import annotations
 import torch
 import pytest
 
-from evaluation.metrics import accuracy
+from apeiron.evaluation.metrics import accuracy
 
 
 class TestAccuracy:

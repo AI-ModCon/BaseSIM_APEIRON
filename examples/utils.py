@@ -1,5 +1,5 @@
-from config.configuration import Config
-from model.torch_model_harness import BaseModelHarness
+from apeiron.config.configuration import Config
+from apeiron.model.torch_model_harness import BaseModelHarness
 
 
 def get_example(cfg: Config) -> BaseModelHarness:

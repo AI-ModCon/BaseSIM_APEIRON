@@ -6,7 +6,7 @@ import pytest
 import torch
 import torch.nn as nn
 
-from profilers.count_flops import FLOPSProfiler
+from apeiron.profilers.count_flops import FLOPSProfiler
 
 
 # TODO: throughout this, mostly checking that the outputs are of a form that we expect. We should also verify results

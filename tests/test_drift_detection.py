@@ -5,22 +5,22 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from drift_detection.detectors.base import (
+from apeiron.drift_detection.detectors.base import (
     DriftSignal,
     LearningRegime,
 )
-from drift_detection.detectors.statistical_detectors import (
+from apeiron.drift_detection.detectors.statistical_detectors import (
     ADWINDetector,
     KSWINDetector,
     PageHinkleyDetector,
 )
-from drift_detection.detectors.model_performance_detector import (
+from apeiron.drift_detection.detectors.model_performance_detector import (
     EnsembleDetector,
     ModelEvalDetector,
     ModelPerformanceDetector,
 )
-from config.configuration import DriftDetectionCfg
-from drift_detection.load_drift_detector import load_drift_detector
+from apeiron.config.configuration import DriftDetectionCfg
+from apeiron.drift_detection.load_drift_detector import load_drift_detector
 
 
 # ---------------------------------------------------------------------------

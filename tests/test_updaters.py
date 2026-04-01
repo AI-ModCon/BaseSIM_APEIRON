@@ -8,13 +8,13 @@ import pytest
 import torch
 import torch.nn as nn
 
-from config.configuration import ContinualLearningCfg
-from training.updater.base import BaseUpdater
-from training.updater.no_updater import NoUpdater
-from training.updater.ewc import OnlineEWCUpdater
-from training.updater.kfac import OnlineKFACUpdater
-from training.updater.jvp_reg import JVPRegUpdater
-from training.updater.create_updater import create_updater
+from apeiron.config.configuration import ContinualLearningCfg
+from apeiron.training.updater.base import BaseUpdater
+from apeiron.training.updater.no_updater import NoUpdater
+from apeiron.training.updater.ewc import OnlineEWCUpdater
+from apeiron.training.updater.kfac import OnlineKFACUpdater
+from apeiron.training.updater.jvp_reg import JVPRegUpdater
+from apeiron.training.updater.create_updater import create_updater
 
 
 # ---------------------------------------------------------------------------
