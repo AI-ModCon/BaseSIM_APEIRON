@@ -71,10 +71,10 @@ class JVPRegUpdater(BaseUpdater):
         )  # fill the model gradients with the default grad info
 
         ### JVP gradients ###
-
-        self._compute_jvp_gradients(
-            self._params, batch, hist_batch
-        )  # adds jvp gradiens to existing gradients
+        if self._params is not None and hist_batch is not None:
+            self._compute_jvp_gradients(
+                self._params, batch, hist_batch
+            )  # adds jvp gradiens to existing gradients
 
         ### History gradients ####
         if hist_batch is None:
