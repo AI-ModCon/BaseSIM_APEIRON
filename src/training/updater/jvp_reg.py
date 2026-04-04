@@ -110,7 +110,10 @@ class JVPRegUpdater(BaseUpdater):
 
         # - Use current gradient as tangent direction
         tangents = OrderedDict(
-            (name, param.grad.detach().clone()) for name, param in params.items()
+            (name, param.grad.detach().clone())
+            for name, param in params.items()
+            if param.grad is not None
+            #(name, param.grad.detach().clone()) for name, param in params.items()
         )
 
         deltax = (
