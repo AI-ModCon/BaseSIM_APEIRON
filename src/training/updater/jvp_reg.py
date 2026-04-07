@@ -78,7 +78,7 @@ class JVPRegUpdater(BaseUpdater):
 
         ### History gradients ####
         if hist_batch is None:
-            raise ValueError("JVP regularizer expects history data, but there was none")
+            return super().fwd_bwd(batch)
         x_mem, y_mem = hist_batch
 
         outputs_mem = self.model(x_mem)
