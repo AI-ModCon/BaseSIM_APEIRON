@@ -203,7 +203,7 @@ class PrometheusHarness(BaseModelHarness):
 
     def get_cur_data_loaders(
         self,
-    ) -> Tuple[Optional[DataLoader], Optional[DataLoader]]:
+    ) -> Tuple[DataLoader, DataLoader]:
         return self._cur_train_loader, self._cur_val_loader
 
     def get_hist_data_loaders(
