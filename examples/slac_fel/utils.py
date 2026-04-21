@@ -149,7 +149,7 @@ def load_scalers(
 # Data loading
 # ---------------------------------------------------------------------------
 def load_fel_data(
-    data_path: str, device: str = "cpu"
+    data_path: str, config_path: str, device: str = "cpu"
 ) -> Tuple[Tensor, Tensor, pd.Index]:
     """Load a single ``data.pkl``, apply scalers, and return scaled tensors.
 
@@ -159,6 +159,7 @@ def load_fel_data(
     Args:
         data_path: Directory containing ``data.pkl``, scalers, and
             ``feature_config.yml``.
+        config_path: Directory containing ``feature_config.yml`` and scaler files.
         device: Device string (used for scaler loading only; tensors stay on
             CPU here).
 
@@ -170,8 +171,8 @@ def load_fel_data(
     # Ensure sorted by time
     df = df.sort_index()
 
-    input_cols, output_cols = load_feature_config(data_path)
-    input_scaler, output_scaler = load_scalers(data_path, device=device)
+    input_cols, output_cols = load_feature_config(config_path)
+    input_scaler, output_scaler = load_scalers(config_path, device=device)
 
     # Drop rows with NaN in any input or output column
     all_cols = input_cols + output_cols
@@ -186,6 +187,19 @@ def load_fel_data(
         )
         warnings.warn(msg, stacklevel=2)
         _log.warning(msg)
+
+    # TODO: check why there are duplicates
+    def remove_duplicate_columns(df):
+        df_T = df.T
+        duplicates = df_T.duplicated(keep='first') 
+        # print the duplicate columns
+        duplicate_cols = df_T[duplicates].index.tolist()
+        if duplicate_cols:
+            print(f"Found duplicate columns: {duplicate_cols}")
+        unique_columns = df_T[~duplicates].T
+        return unique_columns
+
+    df = remove_duplicate_columns(df)
 
     X_raw = torch.as_tensor(df[input_cols].values, dtype=torch.float32)
     y_raw = torch.as_tensor(df[output_cols].values, dtype=torch.float32)
@@ -226,7 +240,7 @@ def discover_window_files(data_path: str) -> List[str]:
     Returns:
         List of absolute paths, one per window file, sorted by numeric suffix.
     """
-    pattern = os.path.join(data_path, "data_*.pkl")
+    pattern = os.path.join(data_path, "hxr_*.pkl")
     paths = glob.glob(pattern)
     paths.sort(key=_natural_sort_key)
     return paths
@@ -270,6 +284,19 @@ def load_window_file(
         )
         warnings.warn(msg, stacklevel=2)
         _log.warning(msg)
+
+    # TODO: check why there are duplicates
+    def remove_duplicate_columns(df):
+        df_T = df.T
+        duplicates = df_T.duplicated(keep='first') 
+        # print the duplicate columns
+        duplicate_cols = df_T[duplicates].index.tolist()
+        if duplicate_cols:
+            print(f"Found duplicate columns: {duplicate_cols}")
+        unique_columns = df_T[~duplicates].T
+        return unique_columns
+
+    df = remove_duplicate_columns(df)
 
     X_raw = torch.as_tensor(df[input_cols].values, dtype=torch.float32)
     y_raw = torch.as_tensor(df[output_cols].values, dtype=torch.float32)

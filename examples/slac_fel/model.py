@@ -40,7 +40,7 @@ _log = logging.getLogger(__name__)
 
 # -------------------------------------------------------------------------------------------------
 # Neural-network architecture
-# Matches FELNeuralNetwork in train_fel_model.py from commit 4e1f676, from June 2025
+# Matches FELNeuralNetwork in train_fel_model.py from surrogate repo model arch on 4/20/2026
 # -------------------------------------------------------------------------------------------------
 class FELNet(nn.Module):
     """7-layer fully-connected ELU regression network.
@@ -50,7 +50,9 @@ class FELNet(nn.Module):
         super(FELNet, self).__init__()
 
         self.net = nn.Sequential(
-            nn.Linear(input_size, 512),
+            nn.Linear(input_size, 1024),
+            nn.ELU(),
+            nn.Linear(1024, 512),
             nn.ELU(),
             nn.Linear(512, 256),
             nn.ELU(),
@@ -60,12 +62,13 @@ class FELNet(nn.Module):
             nn.Linear(128, 64),
             nn.ELU(),
             nn.Dropout(p=0.05),
-            nn.Linear(64, 16),
+            nn.Linear(64, 32),
+            nn.ELU(),
+            nn.Linear(32, 16),
             nn.ELU(),
             nn.Dropout(p=0.05),
-            nn.Linear(16, 16),
-            nn.ELU(),
             nn.Linear(16, output_size),
+            nn.Softplus(beta=1.0, threshold=20.0),
         )
 
     def forward(self, x: Tensor) -> Tensor:
@@ -150,11 +153,14 @@ class SLAC_FEL(BaseModelHarness):
                 self.input_scaler,
                 self.output_scaler,
             )
+            print(f"[SLAC-FEL] Discovered {len(self._window_files)} window files in {cfg.data.path}")
             input_size = X_all.shape[1]
             output_size = y_all.shape[1]
             self.windows = split_into_windows(
                 X_all, y_all, window_size=cfg.data.window_size
             )
+            print(f"[SLAC-FEL] Concatenated all window files into {X_all.shape[0]} samples → "
+                  f"{len(self.windows)} windows (window_size={cfg.data.window_size})")
             self.window_timestamps = split_timestamps(
                 timestamps, window_size=cfg.data.window_size
             )
@@ -168,7 +174,8 @@ class SLAC_FEL(BaseModelHarness):
             )
         else:
             # Legacy mode: single data.pkl split into fixed-size windows.
-            X, y, timestamps = load_fel_data(cfg.data.path, device=cfg.device)
+            X, y, timestamps = load_fel_data(cfg.data.path, cfg.model.config_path, device=cfg.device)
+            print(f"[SLAC-FEL] Legacy mode: single data file {cfg.data.path} with {X.shape[0]} samples")
             input_size = X.shape[1]
             output_size = y.shape[1]
             self.windows = split_into_windows(X, y, window_size=cfg.data.window_size)

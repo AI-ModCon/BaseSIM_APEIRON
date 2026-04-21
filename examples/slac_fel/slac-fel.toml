@@ -2,7 +2,7 @@
 seed = 42
 device = "auto"
 multi_gpu = false
-verbosity = "INFO"
+verbosity = "DEBUG"
 
 [model]
 name = "fel"
@@ -27,8 +27,6 @@ max_iter = 600
 grad_accumulation_steps = 1
 
 [continual_learning]
-# "base" will train on current window only, detects 4 drifts
-# "jvp_reg" will detect 2 drifts, only early one, one later (trains on 21 windows each time)
 update_mode = "base"
 
 # JVP regularization (used when update_mode = "jvp_reg")
