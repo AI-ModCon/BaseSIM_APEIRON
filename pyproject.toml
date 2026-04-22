@@ -22,7 +22,9 @@ dependencies = [
     "transformers (>=4.57.1,<5.0.0)",
     "river (>=0.21.0,<0.24.0)",
     "evidently (>=0.4.0,<0.8.0)",
-    "matplotlib (>=3.10.7,<4.0.0)"
+    "matplotlib (>=3.10.7,<4.0.0)",
+    "types-pyyaml (>=6.0.12.20250915,<7.0.0.0)",
+    "botorch"
 ]
 
 [dependency-groups]
@@ -42,6 +44,7 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry]
 packages = [
     { include = "*", from = "src" },
+    { include = "examples" },
 ]
 
 [tool.ruff]

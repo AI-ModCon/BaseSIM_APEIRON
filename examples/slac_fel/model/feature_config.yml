@@ -1,0 +1,2743 @@
+device: cpu
+input_transformers:
+- resources/lcls_fel_input_scaler.pt
+input_variables:
+  QUAD:LI21:211:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 6.030075550079346
+    read_only: false
+    value_range:
+    - 3.2707419395446777
+    - 7.083395004272461
+    unit: kG
+  QUAD:LI21:221:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -0.22167986631393433
+    read_only: false
+    value_range:
+    - -0.7424343228340149
+    - 0.2432546466588974
+    unit: kG
+  QUAD:LI21:243:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -0.0006752711487933993
+    read_only: false
+    value_range:
+    - -0.0007149674347601831
+    - -0.0006156182498671114
+    unit: kG-m
+  QUAD:LI21:251:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -0.14767540991306305
+    read_only: false
+    value_range:
+    - -0.7296757698059082
+    - 0.25308719277381897
+    unit: kG
+  QUAD:LI21:271:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -6.2067694664001465
+    read_only: false
+    value_range:
+    - -7.801762104034424
+    - -4.287487983703613
+    unit: kG
+  QUAD:LI21:335:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -5.328253269195557
+    read_only: false
+    value_range:
+    - -5.428651332855225
+    - -5.321958065032959
+    unit: kG
+  QUAD:LI24:713:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 35.41676330566406
+    read_only: false
+    value_range:
+    - 23.610397338867188
+    - 35.42658615112305
+    unit: kG
+  QUAD:LI24:740:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -0.0005302699573803693
+    read_only: false
+    value_range:
+    - -0.9996497631072998
+    - 1.100592851638794
+    unit: kG
+  QUAD:LI24:860:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 0.4042496532201767
+    read_only: false
+    value_range:
+    - -1.2825469970703125
+    - 2.1002092361450195
+    unit: kG
+  QUAD:LI24:892:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -40.7828369140625
+    read_only: false
+    value_range:
+    - -40.78890609741211
+    - -27.187170028686523
+    unit: kG
+  QUAD:LI24:902:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 17.336612701416016
+    read_only: false
+    value_range:
+    - 11.556938171386719
+    - 17.337291717529297
+    unit: kG
+  QUAD:CLTH:140:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -21.54228973388672
+    read_only: false
+    value_range:
+    - -21.91339683532715
+    - -21.316192626953125
+    unit: kG
+  QUAD:CLTH:170:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 11.69263744354248
+    read_only: false
+    value_range:
+    - 11.570372581481934
+    - 11.913098335266113
+    unit: kG
+  QUAD:BSYH:445:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 39.05901336669922
+    read_only: false
+    value_range:
+    - 38.6727409362793
+    - 39.68069076538086
+    unit: kG
+  QUAD:LTUH:285:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -68.72994232177734
+    read_only: false
+    value_range:
+    - -69.82388305664062
+    - -58.627498626708984
+    unit: kG
+  QUAD:LTUH:295:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -68.79946899414062
+    read_only: false
+    value_range:
+    - -69.89398956298828
+    - -62.51885986328125
+    unit: kG
+  QUAD:LTUH:385:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -68.75484466552734
+    read_only: false
+    value_range:
+    - -69.84967803955078
+    - -58.85036849975586
+    unit: kG
+  QUAD:LTUH:395:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -68.72314453125
+    read_only: false
+    value_range:
+    - -69.81681823730469
+    - -58.62387466430664
+    unit: kG
+  QUAD:LTUH:440:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -2.281162738800049
+    read_only: false
+    value_range:
+    - -5.002049922943115
+    - 4.872499942779541
+    unit: kG
+  QUAD:LTUH:460:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -0.8954360485076904
+    read_only: false
+    value_range:
+    - -4.96889591217041
+    - 4.391031742095947
+    unit: kG
+  QUAD:LTUH:485:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -68.74945831298828
+    read_only: false
+    value_range:
+    - -69.84385681152344
+    - -58.85063934326172
+    unit: kG
+  QUAD:LTUH:495:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -68.73614501953125
+    read_only: false
+    value_range:
+    - -69.82984924316406
+    - -58.84379959106445
+    unit: kG
+  QUAD:LTUH:585:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -68.71878051757812
+    read_only: false
+    value_range:
+    - -69.81290435791016
+    - -58.6135139465332
+    unit: kG
+  QUAD:LTUH:595:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -68.78495025634766
+    read_only: false
+    value_range:
+    - -69.88025665283203
+    - -58.66910171508789
+    unit: kG
+  QUAD:DMPH:300:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 31.637060165405273
+    read_only: false
+    value_range:
+    - 27.602787017822266
+    - 32.03553771972656
+    unit: kG
+  QUAD:DMPH:380:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -25.045557022094727
+    read_only: false
+    value_range:
+    - -25.263795852661133
+    - -22.069438934326172
+    unit: kG
+  QUAD:DMPH:500:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -23.642780303955078
+    read_only: false
+    value_range:
+    - -24.01908302307129
+    - -23.397724151611328
+    unit: kG
+  QUAD:DMPH:600:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -23.648740768432617
+    read_only: false
+    value_range:
+    - -24.024883270263672
+    - -20.174333572387695
+    unit: kG
+  QUAD:BSYH:465:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -35.822792053222656
+    read_only: false
+    value_range:
+    - -36.393035888671875
+    - -31.709379196166992
+    unit: kG
+  QUAD:BSYH:640:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 27.010040283203125
+    read_only: false
+    value_range:
+    - 17.822553634643555
+    - 27.48724365234375
+    unit: kG
+  QUAD:BSYH:735:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -18.543298721313477
+    read_only: false
+    value_range:
+    - -18.838489532470703
+    - -17.74009132385254
+    unit: kG
+  QUAD:BSYH:910:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 17.757822036743164
+    read_only: false
+    value_range:
+    - 15.264426231384277
+    - 18.11552619934082
+    unit: kG
+  QUAD:LTUH:110:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -55.096763610839844
+    read_only: false
+    value_range:
+    - -55.97401428222656
+    - -47.1643180847168
+    unit: kG
+  QUAD:LTUH:120:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 38.62837219238281
+    read_only: false
+    value_range:
+    - 33.06697463989258
+    - 39.2436637878418
+    unit: kG
+  QUAD:LTUH:180:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 116.76960754394531
+    read_only: false
+    value_range:
+    - 99.60626220703125
+    - 118.62828826904297
+    unit: kG
+  QUAD:LTUH:190:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -111.29957580566406
+    read_only: false
+    value_range:
+    - -113.0712661743164
+    - -95.2757797241211
+    unit: kG
+  QUAD:LTUH:130:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -68.94131469726562
+    read_only: false
+    value_range:
+    - -70.038818359375
+    - -59.015647888183594
+    unit: kG
+  QUAD:LTUH:150:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 68.9623794555664
+    read_only: false
+    value_range:
+    - 58.82075119018555
+    - 70.06075286865234
+    unit: kG
+  QUAD:LTUH:170:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -69.00261688232422
+    read_only: false
+    value_range:
+    - -70.10100555419922
+    - -58.86089324951172
+    unit: kG
+  QUAD:LTUH:350:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 49.77518844604492
+    read_only: false
+    value_range:
+    - 42.46773910522461
+    - 50.56687545776367
+    unit: kG
+  QUAD:LTUH:450:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 49.589073181152344
+    read_only: false
+    value_range:
+    - 42.292335510253906
+    - 50.37962341308594
+    unit: kG
+  QUAD:LTUH:550:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 49.23419952392578
+    read_only: false
+    value_range:
+    - 41.99699020385742
+    - 50.01803970336914
+    unit: kG
+  QUAD:LTUH:290:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 137.0901641845703
+    read_only: false
+    value_range:
+    - 135.7318115234375
+    - 139.2747802734375
+    unit: kG
+  QUAD:LTUH:390:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 137.2481231689453
+    read_only: false
+    value_range:
+    - 117.06791687011719
+    - 139.43606567382812
+    unit: kG
+  QUAD:LTUH:490:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 136.9311065673828
+    read_only: false
+    value_range:
+    - 117.22069549560547
+    - 139.11268615722656
+    unit: kG
+  QUAD:LTUH:590:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 137.08688354492188
+    read_only: false
+    value_range:
+    - 117.35442352294922
+    - 139.27085876464844
+    unit: kG
+  QUAD:LTUH:250:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 49.557777404785156
+    read_only: false
+    value_range:
+    - 42.422725677490234
+    - 50.346900939941406
+    unit: kG
+  QUAD:LTUH:620:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -45.03540802001953
+    read_only: false
+    value_range:
+    - -54.6842155456543
+    - -36.9230842590332
+    unit: kG
+  QUAD:LTUH:640:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 49.21936798095703
+    read_only: false
+    value_range:
+    - 37.15061569213867
+    - 58.81219482421875
+    unit: kG
+  QUAD:LTUH:660:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -69.18975067138672
+    read_only: false
+    value_range:
+    - -77.35741424560547
+    - -57.796470642089844
+    unit: kG
+  QUAD:LTUH:680:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 47.888877868652344
+    read_only: false
+    value_range:
+    - 34.01578903198242
+    - 62.26810073852539
+    unit: kG
+  QUAD:LTUH:720:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 15.408587455749512
+    read_only: false
+    value_range:
+    - 13.143723487854004
+    - 15.75007438659668
+    unit: kG-m
+  QUAD:LTUH:730:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -15.387463569641113
+    read_only: false
+    value_range:
+    - -15.728804588317871
+    - -13.961954116821289
+    unit: kG
+  QUAD:LTUH:740:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 15.418059349060059
+    read_only: false
+    value_range:
+    - 13.198366165161133
+    - 15.759831428527832
+    unit: kG
+  QUAD:LTUH:750:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -15.42436695098877
+    read_only: false
+    value_range:
+    - -15.765908241271973
+    - -13.997550010681152
+    unit: kG
+  QUAD:LTUH:760:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 15.395170211791992
+    read_only: false
+    value_range:
+    - 13.13112735748291
+    - 15.736696243286133
+    unit: kG
+  QUAD:LTUH:770:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -15.381906509399414
+    read_only: false
+    value_range:
+    - -15.722893714904785
+    - -13.120884895324707
+    unit: kG
+  QUAD:LTUH:820:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 29.859907150268555
+    read_only: false
+    value_range:
+    - 21.836652755737305
+    - 31.44784164428711
+    unit: kG
+  QUAD:LTUH:840:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -26.527732849121094
+    read_only: false
+    value_range:
+    - -28.012258529663086
+    - -24.921369552612305
+    unit: kG
+  QUAD:LTUH:860:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 18.940080642700195
+    read_only: false
+    value_range:
+    - 17.5400333404541
+    - 22.54979133605957
+    unit: kG
+  QUAD:LTUH:880:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -19.915769577026367
+    read_only: false
+    value_range:
+    - -20.96946907043457
+    - -19.381351470947266
+    unit: kG
+  QUAD:UNDH:1380:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 30.00006675720215
+    read_only: false
+    value_range:
+    - 29.987991333007812
+    - 30.014312744140625
+    unit: kG
+  QUAD:UNDH:1480:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -29.999717712402344
+    read_only: false
+    value_range:
+    - -30.0033016204834
+    - -29.99729347229004
+    unit: kG
+  QUAD:UNDH:1580:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 30.00047492980957
+    read_only: false
+    value_range:
+    - 29.99797248840332
+    - 30.002107620239258
+    unit: kG
+  QUAD:UNDH:1680:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -30.000215530395508
+    read_only: false
+    value_range:
+    - -30.003171920776367
+    - -29.9971866607666
+    unit: kG
+  QUAD:UNDH:1780:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 30.000083923339844
+    read_only: false
+    value_range:
+    - 29.997570037841797
+    - 30.00188636779785
+    unit: kG
+  QUAD:UNDH:1880:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -29.999813079833984
+    read_only: false
+    value_range:
+    - -30.001985549926758
+    - -29.997087478637695
+    unit: kG
+  QUAD:UNDH:1980:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 29.999773025512695
+    read_only: false
+    value_range:
+    - 29.994216918945312
+    - 30.006370544433594
+    unit: kG
+  QUAD:UNDH:2080:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -29.999937057495117
+    read_only: false
+    value_range:
+    - -30.00302505493164
+    - -29.997581481933594
+    unit: kG
+  QUAD:UNDH:2180:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 30.000242233276367
+    read_only: false
+    value_range:
+    - 29.997495651245117
+    - 30.0020809173584
+    unit: kG
+  QUAD:UNDH:2280:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -29.999507904052734
+    read_only: false
+    value_range:
+    - -30.002283096313477
+    - -29.997661590576172
+    unit: kG
+  QUAD:UNDH:2380:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 30.000028610229492
+    read_only: false
+    value_range:
+    - 29.99715232849121
+    - 30.00275421142578
+    unit: kG
+  QUAD:UNDH:2480:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -29.99951934814453
+    read_only: false
+    value_range:
+    - -30.002347946166992
+    - -29.99751853942871
+    unit: kG
+  QUAD:UNDH:2580:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 29.9998779296875
+    read_only: false
+    value_range:
+    - 29.997821807861328
+    - 30.002620697021484
+    unit: kG
+  QUAD:UNDH:2680:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -29.99985694885254
+    read_only: false
+    value_range:
+    - -30.001996994018555
+    - -29.997228622436523
+    unit: kG
+  QUAD:UNDH:2780:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 30.000137329101562
+    read_only: false
+    value_range:
+    - 29.99728012084961
+    - 30.001819610595703
+    unit: kG
+  QUAD:UNDH:2880:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -29.999929428100586
+    read_only: false
+    value_range:
+    - -30.013427734375
+    - -29.995588302612305
+    unit: kG
+  QUAD:UNDH:2980:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 29.999967575073242
+    read_only: false
+    value_range:
+    - 29.99782371520996
+    - 30.003271102905273
+    unit: kG
+  QUAD:UNDH:3080:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -30.000049591064453
+    read_only: false
+    value_range:
+    - -30.00230598449707
+    - -29.997459411621094
+    unit: kG
+  QUAD:UNDH:3180:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 30.000024795532227
+    read_only: false
+    value_range:
+    - 29.996400833129883
+    - 30.003795623779297
+    unit: kG
+  QUAD:UNDH:3280:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -29.999662399291992
+    read_only: false
+    value_range:
+    - -30.002262115478516
+    - -29.99651336669922
+    unit: kG
+  QUAD:UNDH:3380:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 30.000160217285156
+    read_only: false
+    value_range:
+    - 29.997285842895508
+    - 30.003522872924805
+    unit: kG
+  QUAD:UNDH:3480:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -29.999841690063477
+    read_only: false
+    value_range:
+    - -30.002470016479492
+    - -29.99711036682129
+    unit: kG
+  QUAD:UNDH:3580:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 30.000520706176758
+    read_only: false
+    value_range:
+    - 29.99619483947754
+    - 30.004093170166016
+    unit: kG
+  QUAD:UNDH:3680:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -29.999616622924805
+    read_only: false
+    value_range:
+    - -30.003984451293945
+    - -29.996126174926758
+    unit: kG
+  QUAD:UNDH:3780:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 30.0001277923584
+    read_only: false
+    value_range:
+    - 29.997133255004883
+    - 30.00319480895996
+    unit: kG
+  QUAD:UNDH:3880:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -30.000167846679688
+    read_only: false
+    value_range:
+    - -30.002561569213867
+    - -29.99714469909668
+    unit: kG
+  QUAD:UNDH:3980:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 30.000091552734375
+    read_only: false
+    value_range:
+    - 29.994361877441406
+    - 30.00579071044922
+    unit: kG
+  QUAD:UNDH:4080:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -30.00008773803711
+    read_only: false
+    value_range:
+    - -30.006589889526367
+    - -29.99155616760254
+    unit: kG
+  QUAD:UNDH:4180:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 29.999652862548828
+    read_only: false
+    value_range:
+    - 29.99405860900879
+    - 30.004716873168945
+    unit: kG
+  QUAD:UNDH:4280:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -29.99981689453125
+    read_only: false
+    value_range:
+    - -30.005260467529297
+    - -29.993431091308594
+    unit: kG
+  QUAD:UNDH:4380:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 30.00043296813965
+    read_only: false
+    value_range:
+    - 29.99149513244629
+    - 30.00352668762207
+    unit: kG
+  QUAD:UNDH:4480:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -29.9997501373291
+    read_only: false
+    value_range:
+    - -30.007246017456055
+    - -29.97597885131836
+    unit: kG
+  QUAD:UNDH:4580:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 30.000293731689453
+    read_only: false
+    value_range:
+    - 29.99628448486328
+    - 30.009353637695312
+    unit: kG
+  QUAD:UNDH:4680:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -40.96110916137695
+    read_only: false
+    value_range:
+    - -41.023189544677734
+    - -39.94914245605469
+    unit: kG
+  QUAD:LI21:201:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -7.023688793182373
+    read_only: false
+    value_range:
+    - -8.62252426147461
+    - -2.9184024333953857
+    unit: kG
+  QUAD:LI21:301:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -0.1838965117931366
+    read_only: false
+    value_range:
+    - -0.1839919537305832
+    - -0.18380530178546906
+    unit: kG
+  QUAD:LI24:701:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -20.95453453063965
+    read_only: false
+    value_range:
+    - -20.955387115478516
+    - -13.969274520874023
+    unit: kG
+  QUAD:LI21:401:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 1.2579798698425293
+    read_only: false
+    value_range:
+    - 0.807345986366272
+    - 1.2974697351455688
+    unit: kG
+  QUAD:LI21:501:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -1.5395961999893188
+    read_only: false
+    value_range:
+    - -1.6181596517562866
+    - -0.9817104935646057
+    unit: kG
+  QUAD:LI21:601:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 1.765993356704712
+    read_only: false
+    value_range:
+    - 1.2652913331985474
+    - 1.8709330558776855
+    unit: kG
+  QUAD:LI21:701:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -2.207437038421631
+    read_only: false
+    value_range:
+    - -2.3438212871551514
+    - -1.5526777505874634
+    unit: kG
+  QUAD:LI21:801:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 2.7435076236724854
+    read_only: false
+    value_range:
+    - 1.8732759952545166
+    - 2.8998312950134277
+    unit: kG
+  QUAD:LI21:901:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -3.2224531173706055
+    read_only: false
+    value_range:
+    - -3.4157297611236572
+    - -2.152127742767334
+    unit: kG
+  QUAD:LI22:201:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 3.124361753463745
+    read_only: false
+    value_range:
+    - 2.0494790077209473
+    - 3.560842275619507
+    unit: kG
+  QUAD:LI22:301:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -4.022610187530518
+    read_only: false
+    value_range:
+    - -4.522728443145752
+    - -2.434352159500122
+    unit: kG
+  QUAD:LI22:401:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 4.441101551055908
+    read_only: false
+    value_range:
+    - 2.675431728363037
+    - 4.936089992523193
+    unit: kG
+  QUAD:LI22:501:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -5.158733367919922
+    read_only: false
+    value_range:
+    - -5.76203727722168
+    - -3.146383047103882
+    unit: kG
+  QUAD:LI22:601:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 6.213307857513428
+    read_only: false
+    value_range:
+    - 3.7713868618011475
+    - 6.909282684326172
+    unit: kG
+  QUAD:LI22:701:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -6.612524509429932
+    read_only: false
+    value_range:
+    - -7.327755451202393
+    - -3.9155988693237305
+    unit: kG
+  QUAD:LI22:801:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 7.286632537841797
+    read_only: false
+    value_range:
+    - 4.332723140716553
+    - 8.138812065124512
+    unit: kG
+  QUAD:LI22:901:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -6.613517761230469
+    read_only: false
+    value_range:
+    - -7.293863296508789
+    - -3.9421448707580566
+    unit: kG
+  QUAD:LI23:201:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 6.20369815826416
+    read_only: false
+    value_range:
+    - 3.6991350650787354
+    - 6.829252243041992
+    unit: kG
+  QUAD:LI23:301:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -6.603721618652344
+    read_only: false
+    value_range:
+    - -7.275477409362793
+    - -3.937861680984497
+    unit: kG
+  QUAD:LI23:401:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 6.099545001983643
+    read_only: false
+    value_range:
+    - 3.627194404602051
+    - 6.7084641456604
+    unit: kG
+  QUAD:LI23:501:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -6.796770095825195
+    read_only: false
+    value_range:
+    - -7.48622465133667
+    - -4.047740936279297
+    unit: kG
+  QUAD:LI23:601:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 7.231057643890381
+    read_only: false
+    value_range:
+    - 4.294067859649658
+    - 7.962332725524902
+    unit: kG
+  QUAD:LI23:701:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -8.0819730758667
+    read_only: false
+    value_range:
+    - -8.897425651550293
+    - -4.805255889892578
+    unit: kG
+  QUAD:LI23:801:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 9.420169830322266
+    read_only: false
+    value_range:
+    - 5.585941314697266
+    - 10.347235679626465
+    unit: kG
+  QUAD:LI23:901:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -9.803484916687012
+    read_only: false
+    value_range:
+    - -10.765859603881836
+    - -5.8162946701049805
+    unit: kG
+  QUAD:LI24:201:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 11.029939651489258
+    read_only: false
+    value_range:
+    - 6.811530590057373
+    - 11.965710639953613
+    unit: kG
+  QUAD:LI24:301:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -12.313459396362305
+    read_only: false
+    value_range:
+    - -13.151202201843262
+    - -7.702062129974365
+    unit: kG
+  QUAD:LI24:401:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 14.647502899169922
+    read_only: false
+    value_range:
+    - 9.044830322265625
+    - 15.84463119506836
+    unit: kG
+  QUAD:LI24:501:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -14.135113716125488
+    read_only: false
+    value_range:
+    - -14.76771068572998
+    - -9.022802352905273
+    unit: kG
+  QUAD:LI24:601:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 9.412679672241211
+    read_only: false
+    value_range:
+    - 6.159085750579834
+    - 9.750685691833496
+    unit: kG
+  QUAD:LI24:702:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -20.95453453063965
+    read_only: false
+    value_range:
+    - -20.955387115478516
+    - -13.969274520874023
+    unit: kG
+  QUAD:LI24:901:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 17.336612701416016
+    read_only: false
+    value_range:
+    - 11.556938171386719
+    - 17.337291717529297
+    unit: kG
+  QUAD:LI25:201:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 11.577884674072266
+    read_only: false
+    value_range:
+    - 7.857098579406738
+    - 11.652408599853516
+    unit: kG
+  QUAD:LI25:301:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -8.047331809997559
+    read_only: false
+    value_range:
+    - -8.348615646362305
+    - -5.753606796264648
+    unit: kG
+  QUAD:LI25:401:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 7.526213645935059
+    read_only: false
+    value_range:
+    - 5.471653461456299
+    - 7.811742782592773
+    unit: kG
+  QUAD:LI25:501:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -7.366200923919678
+    read_only: false
+    value_range:
+    - -7.65356969833374
+    - -5.456874370574951
+    unit: kG
+  QUAD:LI25:601:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 7.2868452072143555
+    read_only: false
+    value_range:
+    - 5.396615982055664
+    - 7.85613489151001
+    unit: kG
+  QUAD:LI25:701:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -7.611361503601074
+    read_only: false
+    value_range:
+    - -8.188580513000488
+    - -5.722440242767334
+    unit: kG
+  QUAD:LI25:801:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 8.196151733398438
+    read_only: false
+    value_range:
+    - 5.894128799438477
+    - 8.821040153503418
+    unit: kG
+  QUAD:LI25:901:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -8.082236289978027
+    read_only: false
+    value_range:
+    - -8.701128005981445
+    - -5.903156280517578
+    unit: kG
+  QUAD:LI26:201:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 8.905728340148926
+    read_only: false
+    value_range:
+    - 0.19921469688415527
+    - 15.584007263183594
+    unit: kG
+  QUAD:LI26:301:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -8.64865493774414
+    read_only: false
+    value_range:
+    - -15.154759407043457
+    - -0.20027148723602295
+    unit: kG
+  QUAD:LI26:401:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 10.174625396728516
+    read_only: false
+    value_range:
+    - 0.20270586013793945
+    - 19.882917404174805
+    unit: kG
+  QUAD:LI26:501:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -9.74402904510498
+    read_only: false
+    value_range:
+    - -19.614015579223633
+    - -3.0157687664031982
+    unit: kG
+  QUAD:LI26:601:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 11.1459379196167
+    read_only: false
+    value_range:
+    - 5.45085334777832
+    - 20.66390609741211
+    unit: kG
+  QUAD:LI26:701:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -10.12381362915039
+    read_only: false
+    value_range:
+    - -18.370912551879883
+    - -5.957860946655273
+    unit: kG
+  QUAD:LI26:801:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 11.111616134643555
+    read_only: false
+    value_range:
+    - 4.757839679718018
+    - 17.604393005371094
+    unit: kG
+  QUAD:LI26:901:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -6.741613388061523
+    read_only: false
+    value_range:
+    - -14.644014358520508
+    - -1.6580276489257812
+    unit: kG
+  QUAD:LI27:201:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 10.094886779785156
+    read_only: false
+    value_range:
+    - 8.172499656677246
+    - 11.214076042175293
+    unit: kG
+  QUAD:LI27:301:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -10.549817085266113
+    read_only: false
+    value_range:
+    - -11.98211669921875
+    - -8.845065116882324
+    unit: kG
+  QUAD:LI27:401:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 10.561673164367676
+    read_only: false
+    value_range:
+    - 8.908507347106934
+    - 11.973215103149414
+    unit: kG
+  QUAD:LI27:501:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -10.882133483886719
+    read_only: false
+    value_range:
+    - -12.33036994934082
+    - -9.249858856201172
+    unit: kG
+  QUAD:LI27:601:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 11.223258018493652
+    read_only: false
+    value_range:
+    - 9.59332275390625
+    - 12.69169807434082
+    unit: kG
+  QUAD:LI27:701:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -11.427587509155273
+    read_only: false
+    value_range:
+    - -12.907695770263672
+    - -9.589673042297363
+    unit: kG
+  QUAD:LI27:801:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 12.065448760986328
+    read_only: false
+    value_range:
+    - 9.860147476196289
+    - 13.635490417480469
+    unit: kG
+  QUAD:LI27:901:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -11.866600036621094
+    read_only: false
+    value_range:
+    - -13.421582221984863
+    - -9.440723419189453
+    unit: kG
+  QUAD:LI28:201:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 11.9609375
+    read_only: false
+    value_range:
+    - 9.472262382507324
+    - 13.893677711486816
+    unit: kG
+  QUAD:LI28:301:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -12.753613948822021
+    read_only: false
+    value_range:
+    - -14.007567405700684
+    - -10.167932510375977
+    unit: kG
+  QUAD:LI28:401:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 12.519538879394531
+    read_only: false
+    value_range:
+    - 6.579861164093018
+    - 13.932640075683594
+    unit: kG
+  QUAD:LI28:501:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -12.634086608886719
+    read_only: false
+    value_range:
+    - -14.213104248046875
+    - -0.19370371103286743
+    unit: kG
+  QUAD:LI28:601:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 12.7022066116333
+    read_only: false
+    value_range:
+    - 3.7928245067596436
+    - 14.216349601745605
+    unit: kG
+  QUAD:LI28:701:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -12.894618034362793
+    read_only: false
+    value_range:
+    - -14.55186939239502
+    - -0.1930026412010193
+    unit: kG
+  QUAD:LI28:801:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 13.278484344482422
+    read_only: false
+    value_range:
+    - 4.67686128616333
+    - 14.962789535522461
+    unit: kG
+  QUAD:LI28:901:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -12.830718040466309
+    read_only: false
+    value_range:
+    - -15.136317253112793
+    - -10.62944507598877
+    unit: kG
+  QUAD:LI29:201:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 12.873763084411621
+    read_only: false
+    value_range:
+    - 11.162287712097168
+    - 14.436914443969727
+    unit: kG
+  QUAD:LI29:301:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -13.665643692016602
+    read_only: false
+    value_range:
+    - -15.086411476135254
+    - -11.917793273925781
+    unit: kG
+  QUAD:LI29:401:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 13.422246932983398
+    read_only: false
+    value_range:
+    - 11.776640892028809
+    - 14.72998332977295
+    unit: kG
+  QUAD:LI29:501:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -13.534170150756836
+    read_only: false
+    value_range:
+    - -14.724255561828613
+    - -12.009578704833984
+    unit: kG
+  QUAD:LI29:601:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 13.623615264892578
+    read_only: false
+    value_range:
+    - 12.262092590332031
+    - 14.792816162109375
+    unit: kG
+  QUAD:LI29:701:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -13.72568130493164
+    read_only: false
+    value_range:
+    - -14.942991256713867
+    - -12.557027816772461
+    unit: kG
+  QUAD:LI29:801:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 14.187458992004395
+    read_only: false
+    value_range:
+    - 13.038265228271484
+    - 15.494569778442383
+    unit: kG
+  QUAD:LI29:901:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -13.750750541687012
+    read_only: false
+    value_range:
+    - -14.965811729431152
+    - -12.749227523803711
+    unit: kG
+  QUAD:LI30:201:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 13.900449752807617
+    read_only: false
+    value_range:
+    - 13.056685447692871
+    - 15.010658264160156
+    unit: kG
+  QUAD:LI30:301:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -14.54440689086914
+    read_only: false
+    value_range:
+    - -15.614253044128418
+    - -13.801875114440918
+    unit: kG
+  QUAD:LI30:401:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 14.226929664611816
+    read_only: false
+    value_range:
+    - 13.69515609741211
+    - 15.213142395019531
+    unit: kG
+  QUAD:LI30:501:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -14.464568138122559
+    read_only: false
+    value_range:
+    - -15.207056045532227
+    - -13.957844734191895
+    unit: kG
+  QUAD:LI30:601:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 14.611154556274414
+    read_only: false
+    value_range:
+    - 14.037918090820312
+    - 15.212827682495117
+    unit: kG
+  QUAD:LI30:701:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -14.73243236541748
+    read_only: false
+    value_range:
+    - -15.229225158691406
+    - -14.343217849731445
+    unit: kG
+  QUAD:LI30:801:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 18.059956550598145
+    read_only: false
+    value_range:
+    - 17.74070930480957
+    - 18.47154426574707
+    unit: kG
+  QUAD:IN20:631:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 7.1585211753845215
+    read_only: false
+    value_range:
+    - 7.153985977172852
+    - 7.1621880531311035
+    unit: kG
+  QUAD:IN20:651:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -5.918021202087402
+    read_only: false
+    value_range:
+    - -5.921041488647461
+    - -5.817676544189453
+    unit: kG
+  QUAD:IN20:731:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 10.907441139221191
+    read_only: false
+    value_range:
+    - 10.724224090576172
+    - 10.911758422851562
+    unit: kG
+  QUAD:IN20:771:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -3.469513177871704
+    read_only: false
+    value_range:
+    - -3.473116636276245
+    - -3.41040301322937
+    unit: kG
+  QUAD:IN20:781:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 6.631329536437988
+    read_only: false
+    value_range:
+    - 6.627516269683838
+    - 6.637024402618408
+    unit: kG
+  QUAD:LI21:131:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -2.4340152740478516
+    read_only: false
+    value_range:
+    - -2.4352543354034424
+    - -2.4310882091522217
+    unit: kG
+  QUAD:LI21:161:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 1.3784031867980957
+    read_only: false
+    value_range:
+    - 1.3774464130401611
+    - 1.379645586013794
+    unit: kG
+  QUAD:LI21:278:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 7.573178768157959
+    read_only: false
+    value_range:
+    - 5.390344142913818
+    - 10.096536636352539
+    unit: kG
+  QUAD:LI21:315:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 5.590969562530518
+    read_only: false
+    value_range:
+    - 5.388442516326904
+    - 5.799100399017334
+    unit: kG
+  SOLN:IN20:121:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 0.4843061864376068
+    read_only: false
+    value_range:
+    - 0.4750012755393982
+    - 0.4898073077201843
+    unit: kG-m
+  SOLN:IN20:311:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -0.000622840307187289
+    read_only: false
+    value_range:
+    - -0.0006276898202486336
+    - -0.000619793776422739
+    unit: kG-m
+  QUAD:IN20:121:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 0.0037149195559322834
+    read_only: false
+    value_range:
+    - -0.012858917005360126
+    - 0.014996109530329704
+    unit: kG
+  QUAD:IN20:122:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 0.004051219206303358
+    read_only: false
+    value_range:
+    - -0.011106831952929497
+    - 0.014521649107336998
+    unit: kG
+  QUAD:IN20:361:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -3.630293846130371
+    read_only: false
+    value_range:
+    - -4.05964994430542
+    - -3.170670747756958
+    unit: kG
+  QUAD:IN20:371:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 2.7550361156463623
+    read_only: false
+    value_range:
+    - 2.470209836959839
+    - 3.0689961910247803
+    unit: kG
+  QUAD:IN20:425:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -1.6361221075057983
+    read_only: false
+    value_range:
+    - -3.1995935440063477
+    - -0.5901550054550171
+    unit: kG
+  QUAD:IN20:441:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 0.07104134559631348
+    read_only: false
+    value_range:
+    - -0.538829505443573
+    - 1.268821358680725
+    unit: kG
+  QUAD:IN20:511:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 2.8956358432769775
+    read_only: false
+    value_range:
+    - 0.6183972358703613
+    - 4.204927444458008
+    unit: kG
+  QUAD:IN20:525:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -2.226306200027466
+    read_only: false
+    value_range:
+    - -3.698307514190674
+    - -0.8770037889480591
+    unit: kG
+  ACCL:LI21:1:L1S_S_AV:
+    variable_class: TorchScalarVariable
+    default_value: 105.69712448120117
+    read_only: false
+    value_range:
+    - 100.00001525878906
+    - 111.22259521484375
+    unit: Megavolts
+  ACCL:LI21:180:L1X_S_AV:
+    variable_class: TorchScalarVariable
+    default_value: 18.41381072998047
+    read_only: false
+    value_range:
+    - 6.948431968688965
+    - 25.50543975830078
+    unit: Megavolts
+  ACCL:LI22:1:ADES:
+    variable_class: TorchScalarVariable
+    default_value: 5227.193359375
+    read_only: false
+    value_range:
+    - 3502.705322265625
+    - 5997.24365234375
+    unit: MeV
+  ACCL:LI25:1:ADES:
+    variable_class: TorchScalarVariable
+    default_value: 6133.2021484375
+    read_only: false
+    value_range:
+    - 5606.73388671875
+    - 8023.0810546875
+    unit: MeV
+  ACCL:LI21:1:L1S_S_PV:
+    variable_class: TorchScalarVariable
+    default_value: -22.458297729492188
+    read_only: false
+    value_range:
+    - -33.887779235839844
+    - -15.789875030517578
+    unit: deg 2856 MHz
+  ACCL:LI21:180:L1X_S_PV:
+    variable_class: TorchScalarVariable
+    default_value: -159.9999237060547
+    read_only: false
+    value_range:
+    - -175.42947387695312
+    - -156.74661254882812
+    unit: deg 11.424 GHz
+  ACCL:LI22:1:PDES:
+    variable_class: TorchScalarVariable
+    default_value: -36.95354461669922
+    read_only: false
+    value_range:
+    - -44.52250289916992
+    - -26.240581512451172
+    unit: Degrees
+  CAMR:IN20:186:XRMS:
+    variable_class: TorchScalarVariable
+    default_value: 334.7821044921875
+    read_only: false
+    value_range:
+    - 250.59193420410156
+    - 379.858154296875
+    unit: um
+  CAMR:IN20:186:YRMS:
+    variable_class: TorchScalarVariable
+    default_value: 325.3790588378906
+    read_only: false
+    value_range:
+    - 251.82470703125
+    - 377.97906494140625
+    unit: um
+  BLEN:LI21:265:AIMAX1H:
+    variable_class: TorchScalarVariable
+    default_value: 216.41799926757812
+    read_only: false
+    value_range:
+    - 21.628271102905273
+    - 295.4963073730469
+    unit: A
+  BLEN:LI24:886:BIMAX1H:
+    variable_class: TorchScalarVariable
+    default_value: 3116.6708984375
+    read_only: false
+    value_range:
+    - 1230.0247802734375
+    - 5643.43408203125
+    unit: A
+  SIOC:SYS0:ML00:CALC038:
+    variable_class: TorchScalarVariable
+    default_value: 250.0469512939453
+    read_only: false
+    value_range:
+    - 240.00051879882812
+    - 274.9855651855469
+    unit: pC
+  SIOC:SYS0:ML00:CALC252:
+    variable_class: TorchScalarVariable
+    default_value: 178.77903747558594
+    read_only: false
+    value_range:
+    - 0.0
+    - 199.99745178222656
+    unit: pC
+  BEND:DMPH:400:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 10.62000846862793
+    read_only: false
+    value_range:
+    - 10.514976501464844
+    - 10.789048194885254
+    unit: GeV/c
+  SIOC:SYS0:ML00:AO627:
+    variable_class: TorchScalarVariable
+    default_value: 9718.16796875
+    read_only: false
+    value_range:
+    - 9500.0078125
+    - 9999.8466796875
+    unit: eV
+  XCOR:UNDH:1380:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 3.13312302751001e-05
+    read_only: false
+    value_range:
+    - -0.0009821036364883184
+    - 0.0009955056011676788
+    unit: kG-m
+  XCOR:UNDH:1480:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 9.630867862142622e-05
+    read_only: false
+    value_range:
+    - -0.0002964562445413321
+    - 0.000836852181237191
+    unit: kG-m
+  XCOR:UNDH:1580:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 0.0001912557054311037
+    read_only: false
+    value_range:
+    - -0.0003992630518041551
+    - 0.000698764924891293
+    unit: kG-m
+  XCOR:UNDH:1680:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 4.132541289436631e-05
+    read_only: false
+    value_range:
+    - -0.0002583581954240799
+    - 0.0002874867932405323
+    unit: kG-m
+  XCOR:UNDH:1780:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -0.00010225858568446711
+    read_only: false
+    value_range:
+    - -0.0005246761720627546
+    - 0.00040158562478609383
+    unit: kG-m
+  XCOR:UNDH:1880:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -0.0001250849454663694
+    read_only: false
+    value_range:
+    - -0.0003737287479452789
+    - 0.0003176488680765033
+    unit: kG-m
+  XCOR:UNDH:1980:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -0.0001198389581986703
+    read_only: false
+    value_range:
+    - -0.000429774314397946
+    - 0.0005280743353068829
+    unit: kG-m
+  XCOR:UNDH:2080:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -1.230518682859838e-05
+    read_only: false
+    value_range:
+    - -0.0004994860501028597
+    - 0.0009310322348028421
+    unit: kG-m
+  XCOR:UNDH:2180:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 2.3291771867661737e-05
+    read_only: false
+    value_range:
+    - -0.0007958629867061973
+    - 0.0009633363224565983
+    unit: kG-m
+  XCOR:UNDH:2280:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 6.911856871738564e-06
+    read_only: false
+    value_range:
+    - -0.0006120636244304478
+    - 0.0005776818725280464
+    unit: kG-m
+  XCOR:UNDH:2380:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -3.974194987677038e-05
+    read_only: false
+    value_range:
+    - -0.0002869816089514643
+    - 0.0002396650961600244
+    unit: kG-m
+  XCOR:UNDH:2480:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -2.5063609427888878e-05
+    read_only: false
+    value_range:
+    - -0.0006338375387713313
+    - 0.00015527963114436716
+    unit: kG-m
+  XCOR:UNDH:2580:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 7.192694283730816e-06
+    read_only: false
+    value_range:
+    - -0.0003280419623479247
+    - 0.0002896543883252889
+    unit: kG-m
+  XCOR:UNDH:2680:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 3.241708691348322e-05
+    read_only: false
+    value_range:
+    - -0.00016108786803670228
+    - 0.0005595804541371763
+    unit: kG-m
+  XCOR:UNDH:2780:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 4.75671658932697e-05
+    read_only: false
+    value_range:
+    - -0.0008402586099691689
+    - 0.0005265165818855166
+    unit: kG-m
+  XCOR:UNDH:2880:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -5.291559318720829e-06
+    read_only: false
+    value_range:
+    - -0.000255841325270012
+    - 0.0009620104683563113
+    unit: kG-m
+  XCOR:UNDH:2980:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -6.859230779809877e-05
+    read_only: false
+    value_range:
+    - -0.000788069621194154
+    - 0.00013974700414109975
+    unit: kG-m
+  XCOR:UNDH:3080:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -8.781007636571303e-05
+    read_only: false
+    value_range:
+    - -0.0003647462581284344
+    - 7.703727169428021e-05
+    unit: kG-m
+  XCOR:UNDH:3180:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -9.890428191283718e-05
+    read_only: false
+    value_range:
+    - -0.000600970524828881
+    - 0.00024407422461081296
+    unit: kG-m
+  XCOR:UNDH:3280:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -2.2034822904970497e-05
+    read_only: false
+    value_range:
+    - -0.0008363833767361939
+    - 0.0003439175197854638
+    unit: kG-m
+  XCOR:UNDH:3380:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 6.628128517149889e-07
+    read_only: false
+    value_range:
+    - -0.00027618854073807597
+    - 0.0002918792306445539
+    unit: kG-m
+  XCOR:UNDH:3480:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 1.1350202839821577e-06
+    read_only: false
+    value_range:
+    - -0.00026849121786653996
+    - 0.0005286589730530977
+    unit: kG-m
+  XCOR:UNDH:3580:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 6.533164196298458e-06
+    read_only: false
+    value_range:
+    - -0.0004505771794356406
+    - 0.00020057357323821634
+    unit: kG-m
+  XCOR:UNDH:3680:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 2.2087098841439e-05
+    read_only: false
+    value_range:
+    - -0.00022451893892139196
+    - 0.00032661628210917115
+    unit: kG-m
+  XCOR:UNDH:3780:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 3.672538514365442e-05
+    read_only: false
+    value_range:
+    - -0.00045030718320049345
+    - 0.0005812929593957961
+    unit: kG-m
+  XCOR:UNDH:3880:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -2.799393712393794e-07
+    read_only: false
+    value_range:
+    - -0.00025016232393682003
+    - 0.0002342849038541317
+    unit: kG-m
+  XCOR:UNDH:3980:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -4.283879025024362e-05
+    read_only: false
+    value_range:
+    - -0.000595622812397778
+    - 0.0004537559289019555
+    unit: kG-m
+  XCOR:UNDH:4080:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -7.95123414718546e-05
+    read_only: false
+    value_range:
+    - -0.00026854994939640164
+    - 6.59581201034598e-05
+    unit: kG-m
+  XCOR:UNDH:4180:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -0.00011508604802656919
+    read_only: false
+    value_range:
+    - -0.000695984810590744
+    - 0.0005792076117359102
+    unit: kG-m
+  XCOR:UNDH:4280:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -6.0163034504512325e-05
+    read_only: false
+    value_range:
+    - -0.0006600914057344198
+    - 0.0008707446977496147
+    unit: kG-m
+  XCOR:UNDH:4380:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -4.7088681753848505e-07
+    read_only: false
+    value_range:
+    - -0.0006451521185226738
+    - 0.0009396484238095582
+    unit: kG-m
+  XCOR:UNDH:4480:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 6.965340435272083e-05
+    read_only: false
+    value_range:
+    - -0.0003751741605810821
+    - 0.0006930948002263904
+    unit: kG-m
+  XCOR:UNDH:4580:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 8.208939107134938e-05
+    read_only: false
+    value_range:
+    - -0.0009115072898566723
+    - 0.0009999098256230354
+    unit: kG-m
+  XCOR:UNDH:4680:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 3.859415301121771e-05
+    read_only: false
+    value_range:
+    - -0.0009910506196320057
+    - 0.000999510521069169
+    unit: kG-m
+  XCOR:UNDH:4780:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 2.317506869076169e-06
+    read_only: false
+    value_range:
+    - -0.0007537493947893381
+    - 0.0002590437652543187
+    unit: kG-m
+  YCOR:UNDH:1380:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 0.00017729130922816694
+    read_only: false
+    value_range:
+    - -0.0007998915389180183
+    - 0.002322693355381489
+    unit: kG-m
+  YCOR:UNDH:1480:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 0.00031440614839084446
+    read_only: false
+    value_range:
+    - -0.001001303200609982
+    - 0.0020921085961163044
+    unit: kG-m
+  YCOR:UNDH:1580:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 0.0001898530317703262
+    read_only: false
+    value_range:
+    - -0.0011799116618931293
+    - 0.0010067607508972287
+    unit: kG-m
+  YCOR:UNDH:1680:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 0.00014480395475402474
+    read_only: false
+    value_range:
+    - -0.0009916082490235567
+    - 0.0007648301543667912
+    unit: kG-m
+  YCOR:UNDH:1780:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 5.8549034292809665e-05
+    read_only: false
+    value_range:
+    - -0.00043671546154655516
+    - 0.00047224925947375596
+    unit: kG-m
+  YCOR:UNDH:1880:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 6.50418660370633e-05
+    read_only: false
+    value_range:
+    - -0.0005957565153948963
+    - 0.0011087642051279545
+    unit: kG-m
+  YCOR:UNDH:1980:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 7.378652662737295e-05
+    read_only: false
+    value_range:
+    - -0.00016657126252539456
+    - 0.000654485949780792
+    unit: kG-m
+  YCOR:UNDH:2080:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 9.250422408513259e-06
+    read_only: false
+    value_range:
+    - -0.0005237142322584987
+    - 0.0015063132159411907
+    unit: kG-m
+  YCOR:UNDH:2180:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -3.7039623634882446e-07
+    read_only: false
+    value_range:
+    - -0.000575279991608113
+    - 0.0008172884117811918
+    unit: kG-m
+  YCOR:UNDH:2280:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -2.622389729367569e-05
+    read_only: false
+    value_range:
+    - -0.0006034813122823834
+    - 0.0005024568527005613
+    unit: kG-m
+  YCOR:UNDH:2380:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 4.5798168457622523e-07
+    read_only: false
+    value_range:
+    - -0.00027631359989754856
+    - 0.00037451452226378024
+    unit: kG-m
+  YCOR:UNDH:2480:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 3.1043302442412823e-05
+    read_only: false
+    value_range:
+    - -0.00037303115823306143
+    - 0.0004823935159947723
+    unit: kG-m
+  YCOR:UNDH:2580:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 3.581157943699509e-05
+    read_only: false
+    value_range:
+    - -0.000279325497103855
+    - 0.00023415032774209976
+    unit: kG-m
+  YCOR:UNDH:2680:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 3.493251642794348e-05
+    read_only: false
+    value_range:
+    - -0.0005424672272056341
+    - 0.0003341590636409819
+    unit: kG-m
+  YCOR:UNDH:2780:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -4.738057668873807e-06
+    read_only: false
+    value_range:
+    - -0.0006376646342687309
+    - 0.0002725540252868086
+    unit: kG-m
+  YCOR:UNDH:2880:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -3.3163527405122295e-05
+    read_only: false
+    value_range:
+    - -0.00047650589840486646
+    - 0.0005619300645776093
+    unit: kG-m
+  YCOR:UNDH:2980:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -2.180776937166229e-05
+    read_only: false
+    value_range:
+    - -0.0004848685930483043
+    - 0.0004569693701341748
+    unit: kG-m
+  YCOR:UNDH:3080:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 2.912725722126197e-05
+    read_only: false
+    value_range:
+    - -0.0007536783814430237
+    - 0.00027199735632166266
+    unit: kG-m
+  YCOR:UNDH:3180:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 5.818250429001637e-05
+    read_only: false
+    value_range:
+    - -0.0004203379503451288
+    - 0.00025513191940262914
+    unit: kG-m
+  YCOR:UNDH:3280:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 3.7361638533184305e-05
+    read_only: false
+    value_range:
+    - -0.0006829249323345721
+    - 0.0004671179340220988
+    unit: kG-m
+  YCOR:UNDH:3380:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -1.5515148334088735e-05
+    read_only: false
+    value_range:
+    - -0.0003889016225002706
+    - 0.000672376190777868
+    unit: kG-m
+  YCOR:UNDH:3480:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -6.104487692937255e-05
+    read_only: false
+    value_range:
+    - -0.0005380988586694002
+    - 0.0007592468173243105
+    unit: kG-m
+  YCOR:UNDH:3580:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -4.485617637328687e-07
+    read_only: false
+    value_range:
+    - -0.00022893176355864853
+    - 0.0005933999782428145
+    unit: kG-m
+  YCOR:UNDH:3680:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 5.021193283027969e-05
+    read_only: false
+    value_range:
+    - -0.0004956517950631678
+    - 0.00038829297409392893
+    unit: kG-m
+  YCOR:UNDH:3780:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 5.110011261422187e-05
+    read_only: false
+    value_range:
+    - -0.0008113833609968424
+    - 0.0005073792999610305
+    unit: kG-m
+  YCOR:UNDH:3880:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 3.6485995224211365e-05
+    read_only: false
+    value_range:
+    - -0.001201955950818956
+    - 0.0003546945517882705
+    unit: kG-m
+  YCOR:UNDH:3980:BACT:
+    variable_class: TorchScalarVariable
+    default_value: -4.168170562479645e-06
+    read_only: false
+    value_range:
+    - -0.0003619982744567096
+    - 0.00044134663767181337
+    unit: kG-m
+  YCOR:UNDH:4080:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 3.254912735428661e-05
+    read_only: false
+    value_range:
+    - -0.00086312455823645
+    - 0.0015412082429975271
+    unit: kG-m
+  YCOR:UNDH:4180:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 3.716743231052533e-05
+    read_only: false
+    value_range:
+    - -0.000343025429174304
+    - 0.0018032232765108347
+    unit: kG-m
+  YCOR:UNDH:4280:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 4.520393122220412e-05
+    read_only: false
+    value_range:
+    - -0.0007666326127946377
+    - 0.0016142847016453743
+    unit: kG-m
+  YCOR:UNDH:4380:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 6.290613964665681e-05
+    read_only: false
+    value_range:
+    - -0.0002774629683699459
+    - 0.0007250587223097682
+    unit: kG-m
+  YCOR:UNDH:4480:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 3.94530979974661e-05
+    read_only: false
+    value_range:
+    - -0.0010996756609529257
+    - 0.0009239603532478213
+    unit: kG-m
+  YCOR:UNDH:4580:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 1.5519786757067777e-05
+    read_only: false
+    value_range:
+    - -0.0007436369196511805
+    - 0.0009525191853754222
+    unit: kG-m
+  YCOR:UNDH:4680:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 4.632295258488739e-06
+    read_only: false
+    value_range:
+    - -0.0007205481524579227
+    - 0.0007914139423519373
+    unit: kG-m
+  YCOR:UNDH:4780:BACT:
+    variable_class: TorchScalarVariable
+    default_value: 4.5491628952731844e-07
+    read_only: false
+    value_range:
+    - -0.0008967298199422657
+    - 0.002440386451780796
+    unit: kG-m
+  PHAS:UNDH:1495:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 17.09600067138672
+    read_only: false
+    value_range:
+    - 12.887749671936035
+    - 19.842500686645508
+    unit: mm
+  PHAS:UNDH:1595:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 16.92675018310547
+    read_only: false
+    value_range:
+    - 13.457249641418457
+    - 19.69675064086914
+    unit: mm
+  PHAS:UNDH:1695:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 17.17799949645996
+    read_only: false
+    value_range:
+    - 13.475500106811523
+    - 19.9375
+    unit: mm
+  PHAS:UNDH:1795:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 17.150249481201172
+    read_only: false
+    value_range:
+    - 13.711999893188477
+    - 19.952749252319336
+    unit: mm
+  PHAS:UNDH:1895:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 17.151750564575195
+    read_only: false
+    value_range:
+    - 12.88325023651123
+    - 21.66925048828125
+    unit: mm
+  PHAS:UNDH:1995:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 16.70050048828125
+    read_only: false
+    value_range:
+    - 13.025500297546387
+    - 19.37700080871582
+    unit: mm
+  PHAS:UNDH:2095:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 13.987750053405762
+    read_only: false
+    value_range:
+    - 12.039750099182129
+    - 21.5627498626709
+    unit: mm
+  PHAS:UNDH:2295:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 17.1560001373291
+    read_only: false
+    value_range:
+    - 15.122750282287598
+    - 19.872249603271484
+    unit: mm
+  PHAS:UNDH:2395:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 17.085250854492188
+    read_only: false
+    value_range:
+    - 15.775500297546387
+    - 19.839000701904297
+    unit: mm
+  PHAS:UNDH:2495:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 17.100299835205078
+    read_only: false
+    value_range:
+    - 15.794549942016602
+    - 19.753049850463867
+    unit: mm
+  PHAS:UNDH:2595:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 17.18524932861328
+    read_only: false
+    value_range:
+    - 15.999750137329102
+    - 19.761249542236328
+    unit: mm
+  PHAS:UNDH:2695:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 17.05525016784668
+    read_only: false
+    value_range:
+    - 15.70300006866455
+    - 19.62350082397461
+    unit: mm
+  PHAS:UNDH:2795:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 13.4375
+    read_only: false
+    value_range:
+    - 12.000499725341797
+    - 21.482999801635742
+    unit: mm
+  PHAS:UNDH:2995:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 17.074249267578125
+    read_only: false
+    value_range:
+    - 15.177499771118164
+    - 19.37299919128418
+    unit: mm
+  PHAS:UNDH:3095:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 17.328250885009766
+    read_only: false
+    value_range:
+    - 15.979000091552734
+    - 19.485000610351562
+    unit: mm
+  PHAS:UNDH:3195:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 17.351749420166016
+    read_only: false
+    value_range:
+    - 16.09025001525879
+    - 19.515750885009766
+    unit: mm
+  PHAS:UNDH:3295:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 17.33074951171875
+    read_only: false
+    value_range:
+    - 16.107749938964844
+    - 19.400249481201172
+    unit: mm
+  PHAS:UNDH:3395:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 17.22504997253418
+    read_only: false
+    value_range:
+    - 15.645050048828125
+    - 19.246299743652344
+    unit: mm
+  PHAS:UNDH:3495:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 17.085750579833984
+    read_only: false
+    value_range:
+    - 15.306249618530273
+    - 19.056499481201172
+    unit: mm
+  PHAS:UNDH:3595:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 17.528499603271484
+    read_only: false
+    value_range:
+    - 16.104000091552734
+    - 19.414499282836914
+    unit: mm
+  PHAS:UNDH:3695:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 17.35955047607422
+    read_only: false
+    value_range:
+    - 15.976799964904785
+    - 19.209800720214844
+    unit: mm
+  PHAS:UNDH:3795:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 17.451250076293945
+    read_only: false
+    value_range:
+    - 16.036500930786133
+    - 19.357749938964844
+    unit: mm
+  PHAS:UNDH:3895:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 17.1924991607666
+    read_only: false
+    value_range:
+    - 15.628000259399414
+    - 19.13425064086914
+    unit: mm
+  PHAS:UNDH:3995:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 17.428499221801758
+    read_only: false
+    value_range:
+    - 15.836750030517578
+    - 19.548749923706055
+    unit: mm
+  PHAS:UNDH:4095:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 17.29599952697754
+    read_only: false
+    value_range:
+    - 15.634499549865723
+    - 19.4377498626709
+    unit: mm
+  PHAS:UNDH:4195:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 17.535749435424805
+    read_only: false
+    value_range:
+    - 15.929499626159668
+    - 19.74074935913086
+    unit: mm
+  PHAS:UNDH:4295:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 17.65625
+    read_only: false
+    value_range:
+    - 16.04924964904785
+    - 19.942249298095703
+    unit: mm
+  PHAS:UNDH:4395:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 17.837749481201172
+    read_only: false
+    value_range:
+    - 16.163249969482422
+    - 20.100000381469727
+    unit: mm
+  PHAS:UNDH:4495:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 17.925050735473633
+    read_only: false
+    value_range:
+    - 16.167049407958984
+    - 20.292800903320312
+    unit: mm
+  PHAS:UNDH:4595:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 17.870250701904297
+    read_only: false
+    value_range:
+    - 16.056249618530273
+    - 20.256500244140625
+    unit: mm
+  PHAS:UNDH:4695:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 18.060749053955078
+    read_only: false
+    value_range:
+    - 16.15974998474121
+    - 20.651500701904297
+    unit: mm
+  USEG:UNDH:1450:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 7.361015796661377
+    read_only: false
+    value_range:
+    - 7.279615879058838
+    - 7.818066120147705
+    unit: mm
+  USEG:UNDH:1550:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 7.30649995803833
+    read_only: false
+    value_range:
+    - 7.224699974060059
+    - 7.689549922943115
+    unit: mm
+  USEG:UNDH:1650:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 7.34915018081665
+    read_only: false
+    value_range:
+    - 7.26485013961792
+    - 7.781050205230713
+    unit: mm
+  USEG:UNDH:1750:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 7.351600170135498
+    read_only: false
+    value_range:
+    - 7.26800012588501
+    - 7.856249809265137
+    unit: mm
+  USEG:UNDH:1850:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 7.363550186157227
+    read_only: false
+    value_range:
+    - 7.281449794769287
+    - 7.713500022888184
+    unit: mm
+  USEG:UNDH:1950:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 7.373700141906738
+    read_only: false
+    value_range:
+    - 7.2893500328063965
+    - 7.892950057983398
+    unit: mm
+  USEG:UNDH:2050:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 7.415949821472168
+    read_only: false
+    value_range:
+    - 7.33489990234375
+    - 7.853750228881836
+    unit: mm
+  USEG:UNDH:2250:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 7.3844499588012695
+    read_only: false
+    value_range:
+    - 7.302999973297119
+    - 7.526899814605713
+    unit: mm
+  USEG:UNDH:2350:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 7.341549873352051
+    read_only: false
+    value_range:
+    - 7.261600017547607
+    - 7.484300136566162
+    unit: mm
+  USEG:UNDH:2450:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 7.395100116729736
+    read_only: false
+    value_range:
+    - 7.315549850463867
+    - 7.534749984741211
+    unit: mm
+  USEG:UNDH:2550:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 7.377200126647949
+    read_only: false
+    value_range:
+    - 7.2970499992370605
+    - 7.513150215148926
+    unit: mm
+  USEG:UNDH:2650:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 7.381100177764893
+    read_only: false
+    value_range:
+    - 7.300250053405762
+    - 7.513599872589111
+    unit: mm
+  USEG:UNDH:2750:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 7.34975004196167
+    read_only: false
+    value_range:
+    - 7.271550178527832
+    - 7.478300094604492
+    unit: mm
+  USEG:UNDH:2950:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 7.348100185394287
+    read_only: false
+    value_range:
+    - 7.263750076293945
+    - 7.472449779510498
+    unit: mm
+  USEG:UNDH:3050:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 7.388850212097168
+    read_only: false
+    value_range:
+    - 7.3042497634887695
+    - 7.509349822998047
+    unit: mm
+  USEG:UNDH:3150:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 7.359650135040283
+    read_only: false
+    value_range:
+    - 7.274099826812744
+    - 7.476900100708008
+    unit: mm
+  USEG:UNDH:3250:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 7.302149772644043
+    read_only: false
+    value_range:
+    - 7.216700077056885
+    - 7.415649890899658
+    unit: mm
+  USEG:UNDH:3350:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 7.351399898529053
+    read_only: false
+    value_range:
+    - 7.26455020904541
+    - 7.462900161743164
+    unit: mm
+  USEG:UNDH:3450:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 7.383646011352539
+    read_only: false
+    value_range:
+    - 7.296596050262451
+    - 7.490096092224121
+    unit: mm
+  USEG:UNDH:3550:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 7.361299991607666
+    read_only: false
+    value_range:
+    - 7.273449897766113
+    - 7.786499977111816
+    unit: mm
+  USEG:UNDH:3650:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 7.330599784851074
+    read_only: false
+    value_range:
+    - 7.241399765014648
+    - 7.441450119018555
+    unit: mm
+  USEG:UNDH:3750:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 7.390850067138672
+    read_only: false
+    value_range:
+    - 7.298250198364258
+    - 7.496600151062012
+    unit: mm
+  USEG:UNDH:3850:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 7.423999786376953
+    read_only: false
+    value_range:
+    - 7.329649925231934
+    - 7.530849933624268
+    unit: mm
+  USEG:UNDH:3950:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 7.375850200653076
+    read_only: false
+    value_range:
+    - 7.278649806976318
+    - 7.482250213623047
+    unit: mm
+  USEG:UNDH:4050:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 7.404399871826172
+    read_only: false
+    value_range:
+    - 7.3043999671936035
+    - 7.512650012969971
+    unit: mm
+  USEG:UNDH:4150:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 7.379950046539307
+    read_only: false
+    value_range:
+    - 7.280350208282471
+    - 7.491950035095215
+    unit: mm
+  USEG:UNDH:4250:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 7.43149995803833
+    read_only: false
+    value_range:
+    - 7.328199863433838
+    - 7.5457000732421875
+    unit: mm
+  USEG:UNDH:4350:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 7.406050205230713
+    read_only: false
+    value_range:
+    - 7.29925012588501
+    - 7.521850109100342
+    unit: mm
+  USEG:UNDH:4450:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 7.386149883270264
+    read_only: false
+    value_range:
+    - 7.27554988861084
+    - 7.502200126647949
+    unit: mm
+  USEG:UNDH:4550:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 7.370250225067139
+    read_only: false
+    value_range:
+    - 7.259799957275391
+    - 7.48829984664917
+    unit: mm
+  USEG:UNDH:4650:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 7.40084981918335
+    read_only: false
+    value_range:
+    - 7.28754997253418
+    - 7.523250102996826
+    unit: mm
+  USEG:UNDH:4750:GapAct:
+    variable_class: TorchScalarVariable
+    default_value: 7.515850067138672
+    read_only: false
+    value_range:
+    - 7.395750045776367
+    - 7.641449928283691
+    unit: mm
+model: resources/lcls_fel_final_model_cpu.pt
+model_class: TorchModule
+output_format: tensor
+output_transformers:
+- resources/lcls_fel_output_scaler.pt
+output_variables:
+  GDET:FEE1:241:ENRC:
+    read_only: false
+    variable_class: TorchScalarVariable
+    unit: mJ
+precision: double
