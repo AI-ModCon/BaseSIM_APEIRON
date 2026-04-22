@@ -47,7 +47,7 @@ detector_name = "ADWINDetector"
 detection_interval = 2
 aggregation = "mean"
 reset_after_learning = false
-max_stream_updates = 322
+max_stream_updates = 307
 
 # ADWIN hyperparameters
 adwin_delta = 0.05
