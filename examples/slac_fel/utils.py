@@ -188,19 +188,6 @@ def load_fel_data(
         warnings.warn(msg, stacklevel=2)
         _log.warning(msg)
 
-    # TODO: check why there are duplicates
-    def remove_duplicate_columns(df):
-        df_T = df.T
-        duplicates = df_T.duplicated(keep='first') 
-        # print the duplicate columns
-        duplicate_cols = df_T[duplicates].index.tolist()
-        if duplicate_cols:
-            print(f"Found duplicate columns: {duplicate_cols}")
-        unique_columns = df_T[~duplicates].T
-        return unique_columns
-
-    df = remove_duplicate_columns(df)
-
     X_raw = torch.as_tensor(df[input_cols].values, dtype=torch.float32)
     y_raw = torch.as_tensor(df[output_cols].values, dtype=torch.float32)
 
@@ -284,19 +271,6 @@ def load_window_file(
         )
         warnings.warn(msg, stacklevel=2)
         _log.warning(msg)
-
-    # TODO: check why there are duplicates
-    def remove_duplicate_columns(df):
-        df_T = df.T
-        duplicates = df_T.duplicated(keep='first') 
-        # print the duplicate columns
-        duplicate_cols = df_T[duplicates].index.tolist()
-        if duplicate_cols:
-            print(f"Found duplicate columns: {duplicate_cols}")
-        unique_columns = df_T[~duplicates].T
-        return unique_columns
-
-    df = remove_duplicate_columns(df)
 
     X_raw = torch.as_tensor(df[input_cols].values, dtype=torch.float32)
     y_raw = torch.as_tensor(df[output_cols].values, dtype=torch.float32)
