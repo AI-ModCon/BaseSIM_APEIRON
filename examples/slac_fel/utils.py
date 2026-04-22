@@ -240,7 +240,7 @@ def discover_window_files(data_path: str) -> List[str]:
     Returns:
         List of absolute paths, one per window file, sorted by numeric suffix.
     """
-    pattern = os.path.join(data_path, "hxr_*.pkl")
+    pattern = os.path.join(data_path, "data_*.pkl")
     paths = glob.glob(pattern)
     paths.sort(key=_natural_sort_key)
     return paths

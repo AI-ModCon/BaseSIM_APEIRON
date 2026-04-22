@@ -10,7 +10,7 @@ name = "fel"
 pretrained_path = "examples/slac_fel/model/final_lcls_fel_model.pt"
 # Directory containing: input_scaler.pt, output_scaler.pt, feature_config.yml
 config_path = "examples/slac_fel/model"
-max_ckpts = 1
+max_ckpts = 5
 ckpts_path = "output/slac-fel/"
 
 [data]
@@ -44,10 +44,10 @@ kfac_ema_decay = 0.95
 [drift_detection]
 detector_name = "ADWINDetector"
 # Check for drift every N batches.  With batch_size=512 and 5000 samples per window
-detection_interval = 1
+detection_interval = 2
 aggregation = "mean"
 reset_after_learning = false
-max_stream_updates = 1180 # 856
+max_stream_updates = 322
 
 # ADWIN hyperparameters
 adwin_delta = 0.05

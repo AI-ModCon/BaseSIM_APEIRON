@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import gc
 import logging
+import os
 from typing import Any, List, Optional, Tuple
 
 import torch
@@ -25,10 +26,10 @@ from model.torch_model_harness import BaseModelHarness
 from examples.slac_fel.utils import (
     FELDataset,
     discover_window_files,
-    load_all_window_files,
     load_feature_config,
     load_fel_data,
     load_scalers,
+    load_window_file,
     make_loader,
     split_into_windows,
     split_timestamps,
@@ -113,10 +114,9 @@ class SLAC_FEL(BaseModelHarness):
 
     The data path (``cfg.data.path``) must point to a directory containing:
 
-    * ``data_1.pkl``, ``data_2.pkl``, … – pre-filtered, chronologically-sorted
-      DataFrames.  All files are loaded, concatenated into a single dataset in
-      chronological order, and then split into fixed-size windows controlled by
-      ``cfg.data.window_size``.
+    * ``hxr_*.pkl`` – pre-filtered, chronologically-sorted DataFrames.  Files
+      are loaded lazily one at a time as windows are consumed, keeping only
+      one file's worth of tensors in memory at once.
     * **OR** ``data.pkl`` – a single monolithic DataFrame that will be split
       into fixed-size windows via ``cfg.data.window_size`` (legacy fallback).
 
@@ -140,50 +140,35 @@ class SLAC_FEL(BaseModelHarness):
         self.input_cols, self.output_cols = load_feature_config(cfg.model.config_path)
 
         # ----- discover per-file windows or fall back to monolithic ----------
-        self._window_files = discover_window_files(cfg.data.path)
-        self._lazy = len(self._window_files) > 0
+        self._window_file_paths = discover_window_files(cfg.data.path)
+        self._lazy = len(self._window_file_paths) > 0
+
+        # Dimensions come from the feature config – no data loading needed.
+        input_size = len(self.input_cols)
+        output_size = len(self.output_cols)
 
         if self._lazy:
-            # Load all per-file pickles, concatenate, and split into
-            # fixed-size windows controlled by cfg.data.window_size.
-            X_all, y_all, timestamps = load_all_window_files(
-                cfg.data.path,
-                self.input_cols,
-                self.output_cols,
-                self.input_scaler,
-                self.output_scaler,
-            )
-            print(f"[SLAC-FEL] Discovered {len(self._window_files)} window files in {cfg.data.path}")
-            input_size = X_all.shape[1]
-            output_size = y_all.shape[1]
-            self.windows = split_into_windows(
-                X_all, y_all, window_size=cfg.data.window_size
-            )
-            print(f"[SLAC-FEL] Concatenated all window files into {X_all.shape[0]} samples → "
-                  f"{len(self.windows)} windows (window_size={cfg.data.window_size})")
-            self.window_timestamps = split_timestamps(
-                timestamps, window_size=cfg.data.window_size
-            )
-            self.num_windows = len(self.windows)
-            self._prefetched_window = None
+            # Lazy mode: files are loaded one at a time as windows are consumed.
+            self._file_idx: int = 0
+            self._active_windows: List[Tuple[Tensor, Tensor]] = []
+            self._active_timestamps: List = []
+            self._active_window_idx: int = 0
+            # num_windows is unknown until all files are scanned; use -1 as sentinel.
+            self.num_windows: int = -1
             print(
-                f"[SLAC-FEL] Loaded {len(self._window_files)} data files → "
-                f"{X_all.shape[0]} total samples → {self.num_windows} windows "
-                f"(window_size={cfg.data.window_size}, "
+                f"[SLAC-FEL] Lazy loading: {len(self._window_file_paths)} file(s) in "
+                f"{cfg.data.path} (window_size={cfg.data.window_size}, "
                 f"input_dim={input_size}, output_dim={output_size})"
             )
         else:
             # Legacy mode: single data.pkl split into fixed-size windows.
             X, y, timestamps = load_fel_data(cfg.data.path, cfg.model.config_path, device=cfg.device)
             print(f"[SLAC-FEL] Legacy mode: single data file {cfg.data.path} with {X.shape[0]} samples")
-            input_size = X.shape[1]
-            output_size = y.shape[1]
             self.windows = split_into_windows(X, y, window_size=cfg.data.window_size)
             self.window_timestamps = split_timestamps(
                 timestamps, window_size=cfg.data.window_size
             )
             self.num_windows = len(self.windows)
-            self._prefetched_window = None
             print(
                 f"[SLAC-FEL] Legacy mode: {self.num_windows} windows "
                 f"(window_size={cfg.data.window_size}, "
@@ -266,17 +251,56 @@ class SLAC_FEL(BaseModelHarness):
             make_loader(ds_hist_val, bs, shuffle=False, num_workers=nw, pin_memory=pin),
         )
 
+    def _load_active_file(self) -> None:
+        """Load the next pkl file into ``_active_windows`` / ``_active_timestamps``.
+
+        Wraps around to the first file once all files have been consumed and
+        frees the previous file's tensors (those no longer referenced by
+        ``history_windows``) via an explicit GC pass.
+        """
+        if self._file_idx >= len(self._window_file_paths):
+            print(
+                f"[SLAC-FEL] All {len(self._window_file_paths)} file(s) exhausted; "
+                "wrapping around to the first file."
+            )
+            self._file_idx = 0
+
+        pkl_path = self._window_file_paths[self._file_idx]
+        print(
+            f"[SLAC-FEL] Loading file "
+            f"{self._file_idx + 1}/{len(self._window_file_paths)}: "
+            f"{os.path.basename(pkl_path)}"
+        )
+
+        X_w, y_w, idx = load_window_file(
+            pkl_path,
+            self.input_cols,
+            self.output_cols,
+            self.input_scaler,
+            self.output_scaler,
+        )
+        self._active_windows = split_into_windows(
+            X_w, y_w, window_size=self.cfg.data.window_size
+        )
+        self._active_timestamps = split_timestamps(idx, window_size=self.cfg.data.window_size)
+        self._active_window_idx = 0
+        self._file_idx += 1
+        gc.collect()
+        print(
+            f"[SLAC-FEL] Ready: {len(self._active_windows)} windows from "
+            f"{os.path.basename(pkl_path)} "
+            f"({X_w.shape[0]} samples, window_size={self.cfg.data.window_size})"
+        )
+
     def update_data_stream(self) -> None:
         """Advance to the next chronological time window.
 
-        Each call serves the next pre-split in-memory window from
-        ``self.windows``.
+        In lazy mode each pkl file is loaded on demand when the current file's
+        windows are exhausted.  In legacy mode all windows are already in memory.
         """
         self._dispose_current_loaders()
 
         # ── Archive the *previous* window into history ────────────────────
-        # We saved a reference in _current_window during the last call so
-        # we never have to re-load it from disk.
         if self._current_window is not None:
             self.history_windows.append(self._current_window)
             self._current_window = None
@@ -284,18 +308,32 @@ class SLAC_FEL(BaseModelHarness):
             while len(self.history_windows) > self.max_history_windows:
                 self.history_windows.pop(0)
 
-        if self.window_idx >= self.num_windows:
-            print(
-                f"Warning: All {self.num_windows} time windows exhausted; "
-                "wrapping around to the first window."
-            )
-            self.window_idx = 0
+        # ── Fetch the next window tensors ─────────────────────────────────
+        if self._lazy:
+            # Load a new file if we've consumed all windows from the current one.
+            if self._active_window_idx >= len(self._active_windows):
+                self._load_active_file()
 
-        # ── Load the window tensors ──────────────────────────────────────
-        X_w, y_w = self.windows[self.window_idx]
+            X_w, y_w = self._active_windows[self._active_window_idx]
+            ts = self._active_timestamps[self._active_window_idx]
+            self._active_window_idx += 1
+            window_label = (
+                f"{self._file_idx}/{len(self._window_file_paths)} "
+                f"(win {self._active_window_idx}/{len(self._active_windows)} in file)"
+            )
+        else:
+            if self.window_idx >= self.num_windows:
+                print(
+                    f"Warning: All {self.num_windows} time windows exhausted; "
+                    "wrapping around to the first window."
+                )
+                self.window_idx = 0
+
+            X_w, y_w = self.windows[self.window_idx]
+            ts = self.window_timestamps[self.window_idx]
+            window_label = f"{self.window_idx + 1}/{self.num_windows}"
 
         # Record timestamp range for this window
-        ts = self.window_timestamps[self.window_idx]
         self.current_window_timerange = (str(ts[0]), str(ts[-1]))
 
         # Keep a reference so the next call can archive it without reloading
@@ -325,7 +363,7 @@ class SLAC_FEL(BaseModelHarness):
         )
 
         print(
-            f"[SLAC-FEL] Window {self.window_idx + 1}/{self.num_windows}: "
+            f"[SLAC-FEL] Window {window_label}: "
             f"{n_train} train / {n_val} val samples "
             f"[{self.current_window_timerange[0]} → {self.current_window_timerange[1]}]"
         )
