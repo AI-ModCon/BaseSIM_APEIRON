@@ -16,7 +16,9 @@ def load_drift_detector(cfg: Config) -> BaseDriftDetector:
 
     detector_instance: BaseDriftDetector
     if detector_name == "ADWINDetector":
-        from apeiron.drift_detection.detectors.statistical_detectors import ADWINDetector
+        from apeiron.drift_detection.detectors.statistical_detectors import (
+            ADWINDetector,
+        )
 
         detector_instance = ADWINDetector(
             delta=cfg.drift_detection.adwin_delta,
@@ -24,7 +26,9 @@ def load_drift_detector(cfg: Config) -> BaseDriftDetector:
             moderate_threshold=cfg.drift_detection.adwin_moderate_threshold,
         )
     elif detector_name == "KSWINDetector":
-        from apeiron.drift_detection.detectors.statistical_detectors import KSWINDetector
+        from apeiron.drift_detection.detectors.statistical_detectors import (
+            KSWINDetector,
+        )
 
         detector_instance = KSWINDetector(
             alpha=cfg.drift_detection.kswin_alpha,

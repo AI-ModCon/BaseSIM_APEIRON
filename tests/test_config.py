@@ -295,7 +295,8 @@ class TestDeviceSelection:
     def test_select_best_gpu_with_output(self):
         fake_output = b"1000\n2000\n500\n"
         with patch(
-            "apeiron.config.configuration.subprocess.check_output", return_value=fake_output
+            "apeiron.config.configuration.subprocess.check_output",
+            return_value=fake_output,
         ):
             assert _select_best_gpu() == 1  # index of 2000
 

@@ -16,8 +16,12 @@ from apeiron.driver.continuous_monitor import ContinuousMonitor
 def _patch_logger():
     mock_logger = MagicMock()
     mock_logger.step = 0
-    with patch("apeiron.driver.continuous_monitor.get_logger", return_value=mock_logger):
-        with patch("apeiron.training.continuous_trainer.get_logger", return_value=mock_logger):
+    with patch(
+        "apeiron.driver.continuous_monitor.get_logger", return_value=mock_logger
+    ):
+        with patch(
+            "apeiron.training.continuous_trainer.get_logger", return_value=mock_logger
+        ):
             yield mock_logger
 
 

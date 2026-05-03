@@ -16,7 +16,9 @@ from apeiron.training.continuous_trainer import ContinuousTrainer
 def _patch_logger():
     mock_logger = MagicMock()
     mock_logger.step = 0
-    with patch("apeiron.training.continuous_trainer.get_logger", return_value=mock_logger):
+    with patch(
+        "apeiron.training.continuous_trainer.get_logger", return_value=mock_logger
+    ):
         yield mock_logger
 
 
