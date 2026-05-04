@@ -1,11 +1,11 @@
 import sys
 
-from logger import get_logger, configure_backend
-from config.configuration import build_config, Config
+from apeiron.logger import get_logger, configure_backend
+from apeiron.config.configuration import build_config, Config
 
 from examples.utils import get_example
 
-from driver.continuous_monitor import ContinuousMonitor
+from apeiron.driver.continuous_monitor import ContinuousMonitor
 
 
 def main(argv: list[str] | None = None) -> int:

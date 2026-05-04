@@ -10,7 +10,7 @@ from unittest.mock import patch
 import pytest
 import torch
 
-from config.configuration import (
+from apeiron.config.configuration import (
     Config,
     ContinualLearningCfg,
     DriftDetectionCfg,
@@ -287,7 +287,7 @@ class TestFrozenDataclasses:
 class TestDeviceSelection:
     def test_select_best_gpu_no_nvidia_smi(self):
         with patch(
-            "config.configuration.subprocess.check_output",
+            "apeiron.config.configuration.subprocess.check_output",
             side_effect=FileNotFoundError,
         ):
             assert _select_best_gpu() is None
@@ -295,13 +295,14 @@ class TestDeviceSelection:
     def test_select_best_gpu_with_output(self):
         fake_output = b"1000\n2000\n500\n"
         with patch(
-            "config.configuration.subprocess.check_output", return_value=fake_output
+            "apeiron.config.configuration.subprocess.check_output",
+            return_value=fake_output,
         ):
             assert _select_best_gpu() == 1  # index of 2000
 
     def test_get_available_device_cpu_fallback(self):
         with (
-            patch("config.configuration._select_best_gpu", return_value=None),
+            patch("apeiron.config.configuration._select_best_gpu", return_value=None),
             patch("torch.cuda.is_available", return_value=False),
             patch.object(torch.backends, "mps", create=True) as mock_mps,
         ):

@@ -12,11 +12,11 @@ import pandas as pd
 import pytest
 import torch
 
-from config.configuration import build_config
-from drift_detection.detectors.base import DriftSignal, LearningRegime
-from driver.continuous_monitor import ContinuousMonitor
-from logger import get_logger
-import logger.logger as logger_module
+from apeiron.config.configuration import build_config
+from apeiron.drift_detection.detectors.base import DriftSignal, LearningRegime
+from apeiron.driver.continuous_monitor import ContinuousMonitor
+from apeiron.logger import get_logger
+import apeiron.logger.logger as logger_module
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:

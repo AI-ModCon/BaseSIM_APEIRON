@@ -10,7 +10,7 @@ import torch.nn as nn
 from torch.optim import SGD
 from torch.utils.data import DataLoader, TensorDataset
 
-from config.configuration import (
+from apeiron.config.configuration import (
     Config,
     ContinualLearningCfg,
     DataCfg,
@@ -18,7 +18,7 @@ from config.configuration import (
     ModelCfg,
     TrainCfg,
 )
-from model.torch_model_harness import BaseModelHarness
+from apeiron.model.torch_model_harness import BaseModelHarness
 
 
 # ---------------------------------------------------------------------------
@@ -80,7 +80,7 @@ class DummyHarness(BaseModelHarness):
         self._hist_train_ds = hist_train_data
         self._hist_val_ds = hist_val_data
 
-        from evaluation.metrics import accuracy
+        from apeiron.evaluation.metrics import accuracy
 
         self.eval_metrics = {"accuracy": accuracy}
 

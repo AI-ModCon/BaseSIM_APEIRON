@@ -9,14 +9,16 @@ import pytest
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 
-from training.continuous_trainer import ContinuousTrainer
+from apeiron.training.continuous_trainer import ContinuousTrainer
 
 
 @pytest.fixture(autouse=True)
 def _patch_logger():
     mock_logger = MagicMock()
     mock_logger.step = 0
-    with patch("training.continuous_trainer.get_logger", return_value=mock_logger):
+    with patch(
+        "apeiron.training.continuous_trainer.get_logger", return_value=mock_logger
+    ):
         yield mock_logger
 
 

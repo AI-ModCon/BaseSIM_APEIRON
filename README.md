@@ -1,8 +1,8 @@
-# SIM: Self Improving Model framework
+# Apeiron
 [![Build Status](https://github.com/AI-ModCon/BaseSim_Framework/actions/workflows/build-test.yml/badge.svg)](https://github.com/AI-ModCon/BaseSim_Framework/actions/workflows/build-test.yml)
 [![Coverage Status](https://codecov.io/gh/AI-ModCon/BaseSim_Framework/badge.svg?branch=main)](https://codecov.io/gh/AI-ModCon/BaseSim_Framework?branch=main)
 
-A PyTorch framework for continuous learning that automatically detects concept drift in data streams and adapts models through JVP regularized retraining.
+A PyTorch framework for continual learning that automatically detects concept drift in data streams and adapts models through JVP regularized retraining.
 
 ## What This Repository Does
 
@@ -17,16 +17,35 @@ The pipeline runs on a changing data stream and loops through these stages:
 Core modules:
 
 - `src/main.py`: entry point
-- `src/config/configuration.py`: TOML/env/CLI config assembly
-- `src/driver/continuous_monitor.py`: monitoring + drift loop
-- `src/training/continuous_trainer.py`: CL training loop
-- `src/training/updater/`: CL update strategies
-- `src/drift_detection/`: detectors and detector factory
-- `examples/`: concrete model harness implementations
+- `src/apeiron/config/configuration.py`: TOML/env/CLI config assembly
+- `src/apeiron/driver/continuous_monitor.py`: monitoring + drift loop
+- `src/apeiron/training/continuous_trainer.py`: CL training loop
+- `src/apeiron/training/updater/`: CL update strategies
+- `src/apeiron/drift_detection/`: detectors and detector factory
+- `examples/`: standalone example projects (each declares `apeiron` as a dependency)
 
 ## Installation
 
-Requires Python `>=3.13,<3.15` and Poetry.
+### As a dependency in your project
+
+```toml
+# pyproject.toml
+[tool.poetry.dependencies]
+apeiron = "^0.1.0"  # once published to PyPI
+
+# Or as a path dependency during development
+apeiron = { path = "../apeiron/", develop = true }
+```
+
+```python
+from apeiron import BaseModelHarness, ContinuousMonitor, build_config
+from apeiron.drift_detection import ADWINDetector
+from apeiron.training.updater import BaseUpdater
+```
+
+### For development in this repo
+
+Requires Python `>=3.13,<3.14` and Poetry.
 
 ```bash
 poetry install
@@ -39,6 +58,7 @@ From the project root:
 ```bash
 poetry run python -m src.main --config examples/mnist/mnist.toml
 poetry run python -m src.main --config examples/cifar/cifar10_vit.toml
+poetry run python -m src.main --config examples/imagenet/imagenet_vit.toml  # requires ImageNet data at data.path
 ```
 
 ## Metrics Logging
@@ -105,7 +125,7 @@ poetry run mypy .
 
 Platform-specific deployment guides:
 
-- [NERSC Perlmutter](./src/deployment/perlmutter/README.md)
+- [NERSC Perlmutter](./src/apeiron/deployment/perlmutter/README.md)
 
 ## What `main.py` Does
 - Builds the `DummyCNN_MNIST` model defined in `src/model/DummyCNN_MNIST.py`, a cross-entropy loss, and an Adam optimizer.
@@ -127,4 +147,4 @@ Training logs report the task id, training/test accuracy, and replay-memory accu
 
 Platform-specific deployment guides:
 
-- [OLCF Frontier](./src/deployment/frontier/README.md)
+- [OLCF Frontier](./src/apeiron/deployment/frontier/README.md)
