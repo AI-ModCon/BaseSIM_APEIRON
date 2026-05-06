@@ -12,13 +12,14 @@ Required methods:
 | --- | --- | --- |
 | `get_optmizer()` | `torch.optim.Optimizer` | Returns optimizer used by continual learning loops. |
 | `update_data_stream()` | `None` | Advances stream state and rebuilds current loaders. |
-| `get_cur_data_loaders()` | `(train_loader, val_loader)` | Returns loaders for the current drift state. |
-| `get_hist_data_loaders()` | `(hist_train_loader, hist_val_loader)` or `(None, None)` | Returns historical replay loaders used by CL methods. |
+| `get_stream_dataloader()` | `data_loader` | Returns the loader for the current stream of data. |
+| `get_train_dataloaders()` | `(train_loader, val_loader)` | Returns loaders for the current drift state. |
+| `get_hist_dataloaders()` | `(hist_train_loader, hist_val_loader)` or `(None, None)` | Returns historical replay loaders used by CL methods. |
 | `get_criterion()` | callable loss fn | Returns criterion compatible with model output/labels. |
 
 Important inherited behavior:
 
-- `eval()` loops over `get_cur_data_loaders()[1]` and aggregates all metrics in `self.eval_metrics`.
+- `eval()` loops over `get_train_dataloaders()[1]` and aggregates all metrics in `self.eval_metrics`.
 - `history_eval()` loops over historical validation data and returns `None` if there is no history.
 - `_unpack(batch)` assumes `(x, y)` tuples. Override it if your loader format differs.
 
@@ -110,5 +111,6 @@ Supported `model.name` values for CIFAR/ImageNet loaders:
 ## Common Pitfalls
 
 - `metric_index` in drift detection is position-based, not name-based. Keep metric order stable in `eval_metrics`.
-- `get_cur_data_loaders()` must return non-`None` loaders after `update_data_stream()`.
+- `get_stream_dataloader()` must return a non-`None` loader after `update_data_stream()`.
+- `get_train_dataloaders()` must return non-`None` loaders after `update_data_stream()`.
 - If your batch is not exactly `(x, y)`, override `_unpack` in your harness.

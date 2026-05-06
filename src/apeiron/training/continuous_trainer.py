@@ -67,8 +67,8 @@ class ContinuousTrainer:
     ) -> int:
         """Run the outer continuous learning training loop for a drift event."""
         logger = get_logger(__name__)
-        cur_train_loader, cur_test_loader = self.modelHarness.get_cur_data_loaders()
-        hist_train_loader, hist_test_loader = self.modelHarness.get_hist_data_loaders()
+        cur_train_loader, cur_test_loader = self.modelHarness.get_train_dataloaders()
+        hist_train_loader, hist_test_loader = self.modelHarness.get_hist_dataloaders()
 
         train_iter = iter(cur_train_loader)
         if hist_train_loader is not None:

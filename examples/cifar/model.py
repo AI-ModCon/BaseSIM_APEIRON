@@ -131,7 +131,10 @@ class CIFAR_VISION(BaseModelHarness):
     def get_optmizer(self) -> Optimizer:
         return torch.optim.Adam(self.model.parameters(), lr=self.cfg.train.init_lr)
 
-    def get_cur_data_loaders(self):
+    def get_stream_dataloader(self):
+        return self._cur_val_loader
+
+    def get_train_dataloaders(self):
         return self._cur_train_loader, self._cur_val_loader
 
     def update_data_stream(self) -> None:
@@ -159,7 +162,7 @@ class CIFAR_VISION(BaseModelHarness):
 
         self.task_counter += 1
 
-    def get_hist_data_loaders(
+    def get_hist_dataloaders(
         self,
     ) -> Tuple[Optional[DataLoader], Optional[DataLoader]]:
         """

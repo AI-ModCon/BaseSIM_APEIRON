@@ -86,7 +86,7 @@ class TestInnerCLLoop:
         mock_updater.update_post_fwd_bwd.return_value = 0.1
         trainer.cl_updater = mock_updater
 
-        cur_train, _ = dummy_harness.get_cur_data_loaders()
+        cur_train, _ = dummy_harness.get_train_dataloaders()
         train_iter = iter(cur_train)
 
         trainer.inner_cl_training_loop(
@@ -115,7 +115,7 @@ class TestInnerCLLoop:
         mock_updater.update_post_fwd_bwd.return_value = 0.1
         trainer.cl_updater = mock_updater
 
-        cur_train, _ = dummy_harness.get_cur_data_loaders()
+        cur_train, _ = dummy_harness.get_train_dataloaders()
         train_iter = iter(cur_train)
 
         trainer.inner_cl_training_loop(
@@ -144,7 +144,7 @@ class TestInnerCLLoop:
         mock_updater.update_post_fwd_bwd.return_value = 0.1
         trainer.cl_updater = mock_updater
 
-        cur_train, _ = harness.get_cur_data_loaders()
+        cur_train, _ = harness.get_train_dataloaders()
         train_iter = iter(cur_train)
 
         trainer.inner_cl_training_loop(
@@ -166,7 +166,7 @@ class TestInnerCLLoop:
             name: p.clone() for name, p in dummy_harness.model.named_parameters()
         }
 
-        cur_train, _ = dummy_harness.get_cur_data_loaders()
+        cur_train, _ = dummy_harness.get_train_dataloaders()
         train_iter = iter(cur_train)
 
         trainer.inner_cl_training_loop(
@@ -188,7 +188,7 @@ class TestInnerCLLoop:
             logger=MagicMock(),
             profiler=None,
         )
-        cur_train, _ = dummy_harness.get_cur_data_loaders()
+        cur_train, _ = dummy_harness.get_train_dataloaders()
         train_iter = iter(cur_train)
 
         gen_loss, reg_loss = trainer.inner_cl_training_loop(

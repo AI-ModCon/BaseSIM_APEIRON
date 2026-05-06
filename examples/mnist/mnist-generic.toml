@@ -11,6 +11,7 @@ pretrained_path = "examples/mnist/mnist.pth"
 [data]
 name = "mnist"
 path = ""  # folder or file later for custom dataset
+batch_size = 64
 
 [train]
 batch_size = 64

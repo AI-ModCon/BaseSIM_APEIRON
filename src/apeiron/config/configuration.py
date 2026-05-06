@@ -106,7 +106,7 @@ class TrainCfg:
 class DataCfg:
     name: str
     path: str
-    batch_size: int = 0
+    batch_size: int = 1 # streaming batch size
 
 
 @dataclass(frozen=True)

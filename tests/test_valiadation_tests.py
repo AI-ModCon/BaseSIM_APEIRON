@@ -109,7 +109,7 @@ def _run_mnist_until_first_drift(output_csv: Path) -> None:
     )
 
     with patch.object(monitor.detector, "update", return_value=forced_signal):
-        _, val_loader = harness.get_cur_data_loaders()
+        _, val_loader = harness.get_train_dataloaders()
         for batch in val_loader:
             metrics = monitor._evaluate_batch(batch)
             monitor.metric_buffer.append(metrics)

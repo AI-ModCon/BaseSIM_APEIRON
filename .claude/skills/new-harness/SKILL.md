@@ -64,11 +64,14 @@ class <Name>Harness(BaseModelHarness):
         # Rebuild data loaders with new transforms
         # Track augmentation history for replay
 
-    def get_cur_data_loaders(self) -> Tuple[DataLoader, DataLoader]:
+    def get_stream_dataloader(self) -> DataLoader:
+        # Return data_loader for current data
+
+    def get_train_dataloaders(self) -> Tuple[DataLoader, DataLoader]:
         # Return (train_loader, val_loader) for current data
         # Call _dispose_current_loaders() first if loaders exist
 
-    def get_hist_data_loaders(self) -> Tuple[Optional[DataLoader], Optional[DataLoader]]:
+    def get_hist_dataloaders(self) -> Tuple[Optional[DataLoader], Optional[DataLoader]]:
         # Return historical data loaders for CL replay
         # Return (None, None) when task_counter == 1
 
@@ -80,7 +83,7 @@ Key patterns from existing harnesses:
 - `eval_metrics` must be `Dict[str, Callable[[Tensor, Tensor], scalar]]`
 - Use `_dispose_current_loaders()` helper for memory cleanup before rebuilding loaders
 - `update_data_stream()` increments `task_counter` and applies cumulative augmentation drift
-- `get_hist_data_loaders()` returns `(None, None)` when `task_counter == 1` (no history yet)
+- `get_hist_dataloaders()` returns `(None, None)` when `task_counter == 1` (no history yet)
 
 ### 3. `examples/$0/utils.py`
 Dataset loading utilities following the MNIST pattern:
