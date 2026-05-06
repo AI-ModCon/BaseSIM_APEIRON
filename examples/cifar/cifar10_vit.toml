@@ -11,7 +11,6 @@ pretrained_path = "examples/cifar/cifar10_vit.pth"
 [data]
 name = "cifar10"
 path = ""  # folder or file later for custom dataset
-batch_size = 256
 
 [train]
 batch_size = 256
