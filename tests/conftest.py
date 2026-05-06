@@ -90,6 +90,10 @@ class DummyHarness(BaseModelHarness):
     def update_data_stream(self):
         pass
 
+    def get_stream_dataloader(self):
+        bs = self.cfg.data.batch_size
+        return (DataLoader(self._val_ds, batch_size=bs),)
+
     def get_train_dataloaders(self):
         bs = self.cfg.train.batch_size
         return (
