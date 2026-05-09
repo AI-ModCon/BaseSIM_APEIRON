@@ -49,8 +49,9 @@ class MNIST_CNN(BaseModelHarness):
       - One MNIST train dataset (train=True) and one MNIST val dataset (train=False)
       - Current drift params in self.cur_aug
       - Historical drifts in self.aug_history (previous iterations)
-      - get_cur_data_loaders(): build loaders over FULL train/val using self.cur_aug
-      - get_hist_data_loaders():  build loaders over FULL train/val using the chained augmentations of all historical loades
+      - get_stream_dataloader(): build loader over FULL data stream using self.cur_aug
+      - get_train_dataloaders(): build loaders over FULL train/val using self.cur_aug
+      - get_hist_dataloaders():  build loaders over FULL train/val using the chained augmentations of all historical loades
     """
 
     def __init__(self, cfg: Config, model: nn.Module = Cnn()):
@@ -89,6 +90,7 @@ class MNIST_CNN(BaseModelHarness):
 
         self._cur_train_loader: Optional[DataLoader] = None
         self._cur_val_loader: Optional[DataLoader] = None
+        self._cur_stream_loader: Optional[DataLoader] = None
 
     def _dispose_current_loaders(self):
         if self._cur_train_loader is not None:
@@ -102,7 +104,10 @@ class MNIST_CNN(BaseModelHarness):
     def get_optmizer(self) -> Optimizer:
         return torch.optim.Adam(self.model.parameters(), lr=self.cfg.train.init_lr)
 
-    def get_cur_data_loaders(self):
+    def get_stream_dataloader(self):
+        return self._cur_stream_loader
+
+    def get_train_dataloaders(self):
         return self._cur_train_loader, self._cur_val_loader
 
     def update_data_stream(self) -> None:
@@ -118,6 +123,7 @@ class MNIST_CNN(BaseModelHarness):
         ds_val_tf = TransformedView(self.ds_val, x_transform=tf)
 
         bs = self.cfg.train.batch_size
+        stream_bs = self.cfg.data.batch_size
         nw = getattr(self.cfg.train, "num_workers", self.cfg.train.num_workers)
         pin = torch.cuda.is_available()
 
@@ -127,10 +133,12 @@ class MNIST_CNN(BaseModelHarness):
         self._cur_val_loader = make_loader(
             ds_val_tf, bs, shuffle=False, num_workers=nw, pin_memory=pin
         )
-
+        self._cur_stream_loader = make_loader(
+            ds_val_tf, stream_bs, shuffle=True, num_workers=nw, pin_memory=pin
+        )
         self.task_counter += 1
 
-    def get_hist_data_loaders(
+    def get_hist_dataloaders(
         self,
     ) -> Tuple[Optional[DataLoader], Optional[DataLoader]]:
         """

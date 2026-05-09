@@ -52,19 +52,28 @@ class BaseModelHarness(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_cur_data_loaders(self) -> Tuple[DataLoader, DataLoader]:
+    def get_stream_dataloader(self) -> DataLoader:
         """
         Returns a training and validation dataloader compatible with the model input
+        that will be used for continual learning
         """
         raise NotImplementedError
 
     @abstractmethod
-    def get_hist_data_loaders(
+    def get_hist_dataloaders(
         self,
     ) -> Tuple[Optional[DataLoader], Optional[DataLoader]]:
         """
         Returns a training and validation dataloader with historical data (to measure drift) compatible with the model input
         If there is no historical data, return None
+        """
+        raise NotImplementedError
+
+    @torch.no_grad()
+    def get_train_dataloaders(self) -> Tuple[DataLoader, DataLoader]:
+        """
+        Returns a training and validation dataloader compatible with the model input
+        that will be used to loop over for inference
         """
         raise NotImplementedError
 
@@ -101,7 +110,7 @@ class BaseModelHarness(ABC):
         sums = [0.0 for _ in self.eval_metrics]
         counts = [0 for _ in self.eval_metrics]
 
-        for batch in self.get_cur_data_loaders()[1]:  # assumes iterable
+        for batch in self.get_train_dataloaders()[1]:  # assumes iterable
             x, y = self._unpack(batch)
             x, y = x.to(self.cfg.device), y.to(self.cfg.device)
 
@@ -137,7 +146,7 @@ class BaseModelHarness(ABC):
 
         Returns None if no historical data is available.
         """
-        hist_loaders = self.get_hist_data_loaders()
+        hist_loaders = self.get_hist_dataloaders()
         if hist_loaders is None or hist_loaders[1] is None:
             return None
 

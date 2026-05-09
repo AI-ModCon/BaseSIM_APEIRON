@@ -34,7 +34,7 @@ poetry run mypy .
 
 ### Core Pipeline
 1. **Config** (`src/config/configuration.py`): TOML-based config parsed into frozen dataclasses (`Config`, `ModelCfg`, `DataCfg`, `TrainCfg`, `ContinualLearningCfg`, `DriftDetectionCfg`, `VisualizationCfg`). Supports `--set key=val` CLI overrides and `APP_` env var overrides.
-2. **Model Harness** (`src/model/torch_model_harness.py`): Abstract `BaseModelHarness` providing `get_cur_data_loaders()`, `get_hist_data_loaders()`, `update_data_stream()`, `get_criterion()`, `get_optmizer()`, and `eval_metrics` dict.
+2. **Model Harness** (`src/model/torch_model_harness.py`): Abstract `BaseModelHarness` providing `get_stream_dataloader()`, `get_train_dataloaders()`, `get_hist_dataloaders()`, `update_data_stream()`, `get_criterion()`, `get_optmizer()`, and `eval_metrics` dict.
 3. **Driver** (`src/driver/continuous_monitor.py`): `ContinuousMonitor` orchestrates the monitoring loop -- evaluates batches, checks drift at intervals, dispatches CL training on drift.
 4. **Drift Detection** (`src/drift_detection/`): `BaseDriftDetector` ABC with `update(value) -> DriftSignal`. Implementations: ADWINDetector, KSWINDetector, PageHinkleyDetector, ModelPerformanceDetector, ModelEvalDetector, EnsembleDetector.
 5. **Training** (`src/training/continuous_trainer.py`): `ContinuousTrainer` runs outer/inner CL loops with gradient accumulation.
