@@ -1,0 +1,48 @@
+name: Publish to PyPI
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: src
+      WANDB_MODE: disabled
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.13"
+      - name: Install dependencies
+        run: |
+          pip install --no-cache-dir poetry poetry-plugin-export
+          poetry config virtualenvs.create false
+          poetry export -f requirements.txt -o requirements.txt --without-hashes --with dev
+          pip install --no-cache-dir -r requirements.txt && rm requirements.txt
+      - name: Lint
+        run: |
+          poetry run ruff check
+          poetry run ruff format --check
+      - name: Type check
+        run: poetry run mypy .
+      - name: Test
+        run: poetry run pytest
+
+  publish:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.13"
+      - name: Install Poetry
+        run: pip install poetry
+      - name: Build package
+        run: poetry build
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
