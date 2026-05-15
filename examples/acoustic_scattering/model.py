@@ -188,11 +188,23 @@ class ACOUSTIC_SCATTERING(BaseModelHarness):
                 setattr(self, attr, None)
         gc.collect()
 
+    @property
+    def stream_exhausted(self) -> bool:
+        """True when all brackets have been consumed."""
+        return self.bracket_ptr >= len(self.brackets)
+
     def update_data_stream(self) -> None:
         self._dispose_current_loaders()
 
-        bracket_indices = self.brackets[self.bracket_ptr]
-        self.bracket_ptr = min(self.bracket_ptr + 1, len(self.brackets) - 1)
+        if self.bracket_ptr >= len(self.brackets):
+            # All brackets consumed — re-use the last one so the monitor
+            # can still evaluate, but mark stream as exhausted.
+            ptr = len(self.brackets) - 1
+        else:
+            ptr = self.bracket_ptr
+            self.bracket_ptr += 1
+
+        bracket_indices = self.brackets[ptr]
 
         # 80/20 train/val split within bracket
         n = len(bracket_indices)
@@ -335,14 +347,20 @@ class ACOUSTIC_SCATTERING(BaseModelHarness):
         return {k: v / max(n_batches, 1) for k, v in metric_sums.items()}
 
     def get_data_budget(self) -> int:
-        """Total unique frame-pairs across all training brackets.
+        """Effective training frame-pairs across all brackets.
 
-        This is the number of samples Track 1 (offline) must match so
-        that both tracks see the same amount of data.
+        Accounts for the 80/20 train/val split within each bracket and
+        the active-selection ``selection_ratio``.  This is the number of
+        samples Track 1 (offline) must match so that both tracks train
+        on the same amount of data.
         """
+        ratio = self.selection_ratio if self.scorer is not None else 1.0
         total = 0
         for bracket in self.brackets:
-            total += len(FramePairDataset(self.tensor_data, bracket))
+            n_pairs = len(FramePairDataset(self.tensor_data, bracket))
+            n_train = int(0.8 * n_pairs)  # mirrors update_data_stream split
+            n_selected = max(1, int(n_train * ratio))
+            total += n_selected
         return total
 
     # ------------------------------------------------------------------

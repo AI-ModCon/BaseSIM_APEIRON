@@ -353,9 +353,13 @@ class ContinuousMonitor:
         """Check if monitoring should stop.
 
         Returns:
-            True if max_stream_updates has been reached
+            True if max_stream_updates has been reached or all data consumed
         """
-        return self.stream_update_count >= self.max_stream_updates
+        if self.stream_update_count >= self.max_stream_updates:
+            return True
+        if getattr(self.modelHarness, "stream_exhausted", False):
+            return True
+        return False
 
     def _export_results(self) -> None:
         """Run final test-set evaluation and write results.json."""

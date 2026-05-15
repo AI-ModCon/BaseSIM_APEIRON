@@ -8,7 +8,7 @@ verbosity = "INFO"
 name = "vit_dense_small"
 pretrained_path = "output/acoustic_scattering/init_weights.pt"
 
-max_ckpts = 0
+max_ckpts = -1
 ckpts_path = "output/acoustic_scattering_offline/"
 
 [data]

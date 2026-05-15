@@ -57,10 +57,9 @@ def train_one_epoch(
         with profiler.measure_flops(tag="forward"):
             y_hat = model(x)
             loss = criterion(y_hat, y)
-
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
         total_loss += loss.item()
         n_batches += 1
@@ -141,15 +140,15 @@ def main(argv: list[str] | None = None) -> int:
         all_train_ids.extend(bracket)
     full_ds = FramePairDataset(harness.tensor_data, all_train_ids)
 
-    # 3. Random sample `data_budget` indices, 80/20 train/val split
+    # 3. Random sample: data_budget for training + 20% extra for validation
     rng = torch.Generator().manual_seed(cfg.seed)
     n_available = len(full_ds)
-    budget = min(data_budget, n_available)
-    perm = torch.randperm(n_available, generator=rng)[:budget]
+    n_val = max(1, int(data_budget * 0.25))  # 20% of total (= 25% of train)
+    n_total = min(data_budget + n_val, n_available)
+    perm = torch.randperm(n_available, generator=rng)[:n_total]
 
-    split = int(0.8 * len(perm))
-    train_ds = SelectiveFramePairDataset(full_ds, perm[:split].tolist())
-    val_ds = SelectiveFramePairDataset(full_ds, perm[split:].tolist())
+    train_ds = SelectiveFramePairDataset(full_ds, perm[:data_budget].tolist())
+    val_ds = SelectiveFramePairDataset(full_ds, perm[data_budget:].tolist())
 
     bs = cfg.train.batch_size
     nw = cfg.train.num_workers
@@ -176,6 +175,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         val_metrics = evaluate(model, val_loader, harness.eval_metrics, cfg.device)
         val_loss = val_metrics.get("loss", train_loss)
+        final_epoch = epoch + 1
 
         print(
             f"Epoch {epoch + 1}/{cfg.train.max_iter}  "
@@ -195,8 +195,6 @@ def main(argv: list[str] | None = None) -> int:
             if stale >= patience:
                 print(f"Early stopping at epoch {epoch + 1} (patience={patience})")
                 break
-
-        final_epoch = epoch + 1
 
     # Reload best weights for final evaluation
     best_path = Path(cfg.model.ckpts_path) / "best_model.pt"

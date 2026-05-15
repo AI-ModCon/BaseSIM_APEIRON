@@ -8,7 +8,7 @@ verbosity = "INFO"
 name = "vit_dense_small"
 pretrained_path = "output/acoustic_scattering/init_weights.pt"
 
-max_ckpts = 0
+max_ckpts = -1
 ckpts_path = "output/acoustic_scattering_cl/"
 
 [data]
@@ -43,7 +43,7 @@ detection_interval = 10
 aggregation = "mean"
 metric_index = 0  # monitor vrmse
 reset_after_learning = false
-max_stream_updates = 5  # one per bracket
+max_stream_updates = 10  # upper bound; stream_exhausted stops earlier
 
 adwin_delta = 0.002
 adwin_minor_threshold = 0.3
