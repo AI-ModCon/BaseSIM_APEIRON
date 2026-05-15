@@ -52,7 +52,8 @@ def train_one_epoch(
     total_loss = 0.0
     n_batches = 0
 
-    for x, y in tqdm(loader, desc="Training", leave=False):
+    pbar = tqdm(loader, desc="  train", leave=False)
+    for x, y in pbar:
         x, y = x.to(device), y.to(device)
 
         with profiler.measure_flops(tag="forward"):
@@ -62,8 +63,10 @@ def train_one_epoch(
             loss.backward()
             optimizer.step()
 
-        total_loss += loss.item()
+        batch_loss = loss.item()
+        total_loss += batch_loss
         n_batches += 1
+        pbar.set_postfix(loss=f"{batch_loss:.6f}", avg=f"{total_loss / n_batches:.6f}")
 
     return total_loss / max(n_batches, 1)
 
