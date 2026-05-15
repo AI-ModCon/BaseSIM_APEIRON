@@ -21,6 +21,7 @@ from typing import Any, Dict
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 from apeiron.config.configuration import build_config, Config
 from apeiron.profilers import FLOPSProfiler
@@ -51,7 +52,7 @@ def train_one_epoch(
     total_loss = 0.0
     n_batches = 0
 
-    for x, y in loader:
+    for x, y in tqdm(loader, desc="Training", leave=False):
         x, y = x.to(device), y.to(device)
 
         with profiler.measure_flops(tag="forward"):
@@ -79,7 +80,7 @@ def evaluate(
     metric_sums: Dict[str, float] = {k: 0.0 for k in metrics}
     n_batches = 0
 
-    for x, y in loader:
+    for x, y in tqdm(loader, desc="Evaluating", leave=False):
         x, y = x.to(device), y.to(device)
         y_hat = model(x)
         for key, metric_fn in metrics.items():
@@ -169,7 +170,8 @@ def main(argv: list[str] | None = None) -> int:
     stale = 0
     final_epoch = 0
 
-    for epoch in range(cfg.train.max_iter):
+    epoch_bar = tqdm(range(cfg.train.max_iter), desc="Epochs")
+    for epoch in epoch_bar:
         train_loss = train_one_epoch(
             model, train_loader, optimizer, criterion, cfg.device, profiler
         )
@@ -177,10 +179,11 @@ def main(argv: list[str] | None = None) -> int:
         val_loss = val_metrics.get("loss", train_loss)
         final_epoch = epoch + 1
 
-        print(
-            f"Epoch {epoch + 1}/{cfg.train.max_iter}  "
-            f"train_loss={train_loss:.6f}  val_loss={val_loss:.6f}  "
-            f"val_vrmse={val_metrics.get('vrmse', float('nan')):.6f}"
+        epoch_bar.set_postfix(
+            train_loss=f"{train_loss:.4f}",
+            val_loss=f"{val_loss:.4f}",
+            vrmse=f"{val_metrics.get('vrmse', float('nan')):.4f}",
+            stale=stale,
         )
 
         if val_loss < best_val_loss:
