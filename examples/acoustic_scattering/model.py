@@ -35,6 +35,48 @@ def _build_model(cfg: Config) -> nn.Module:
     return vit_dense_base()
 
 
+def generate_init_checkpoint(
+    model_name: str = "vit_dense_small",
+    output_path: str = "output/acoustic_scattering/init_weights.pt",
+    seed: int = 42,
+) -> str:
+    """Generate a deterministic init checkpoint for reproducible experiments.
+
+    Both the offline baseline (Track 1) and CL pipeline (Track 2) should
+    start from the same random initialisation.  This function creates that
+    shared starting point.
+
+    Parameters
+    ----------
+    model_name : str
+        One of ``"vit_dense_small"`` or ``"vit_dense_base"``.
+    output_path : str
+        Where to write the ``.pt`` state dict.
+    seed : int
+        Seed used before model construction so that ``__init__`` weight
+        initialisers are deterministic.
+
+    Returns
+    -------
+    str
+        The resolved output path.
+    """
+    from pathlib import Path
+
+    torch.manual_seed(seed)
+    model = (
+        vit_dense_small()
+        if model_name.lower() == "vit_dense_small"
+        else vit_dense_base()
+    )
+
+    out = Path(output_path)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    torch.save(model.state_dict(), out)
+    print(f"Init checkpoint saved to {out}  (seed={seed}, model={model_name})")
+    return str(out)
+
+
 class ACOUSTIC_SCATTERING(BaseModelHarness):
     """Complexity-ordered acoustic-scattering next-frame prediction.
 
