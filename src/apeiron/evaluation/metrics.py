@@ -22,3 +22,19 @@ def accuracy_topk(output, target, topk=(1,)):
 @torch.no_grad()
 def accuracy(output, target):
     return accuracy_topk(output, target, topk=(1,))[0]
+
+
+@torch.no_grad()
+def vrmse(output: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    """Variance-normalised RMSE for pixel-level regression.
+
+    VRMSE = RMSE / std(target).  A scale-free error measure: 1.0 means the
+    model's error equals the natural spread of the target field.
+    """
+    mse = torch.mean((output - target) ** 2)
+    rmse = torch.sqrt(mse)
+    target_std = torch.std(target)
+    # Guard against zero-variance targets (constant fields).
+    if target_std < 1e-8:
+        return rmse
+    return rmse / target_std

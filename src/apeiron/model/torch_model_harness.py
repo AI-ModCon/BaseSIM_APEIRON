@@ -186,20 +186,42 @@ class BaseModelHarness(ABC):
 
     @property
     def ckpts_enabled(self) -> bool:
-        return self.cfg.model.max_ckpts > 0 and bool(self.cfg.model.ckpts_path)
+        return self.cfg.model.max_ckpts != 0 and bool(self.cfg.model.ckpts_path)
 
-    def save_ckpt(self, event: int) -> str:
-        """Persist model state, evict oldest when over budget."""
+    def save_ckpt(
+        self,
+        event: int,
+        metadata: Dict[str, Any] | None = None,
+        tag: str = "",
+    ) -> str:
+        """Persist model state with optional metadata, evict oldest when over budget.
+
+        Parameters
+        ----------
+        event : int
+            Drift event number used in the filename.
+        metadata : dict, optional
+            Arbitrary metadata to store alongside the state dict.
+        tag : str, optional
+            Suffix appended to the filename (e.g. "pre", "post").
+        """
         d = Path(self.cfg.model.ckpts_path)
         d.mkdir(parents=True, exist_ok=True)
 
-        fname = f"drift_adaptation_{event}.pt"
-        torch.save(self.model.state_dict(), d / fname)
+        suffix = f"_{tag}" if tag else ""
+        fname = f"drift_adaptation_{event}{suffix}.pt"
+        payload: Dict[str, Any] = {"state_dict": self.model.state_dict()}
+        if metadata is not None:
+            payload["metadata"] = metadata
+        torch.save(payload, d / fname)
         (d / "latest").write_text(fname)
 
-        # Guillotine the oldest survivors
-        alive = sorted(d.glob("drift_adaptation_*.pt"), key=lambda p: p.stat().st_mtime)
-        while len(alive) > self.cfg.model.max_ckpts:
-            alive.pop(0).unlink()
+        # Guillotine the oldest survivors (skip when max_ckpts < 0 → retain all)
+        if self.cfg.model.max_ckpts > 0:
+            alive = sorted(
+                d.glob("drift_adaptation_*.pt"), key=lambda p: p.stat().st_mtime
+            )
+            while len(alive) > self.cfg.model.max_ckpts:
+                alive.pop(0).unlink()
 
         return str(d / fname)

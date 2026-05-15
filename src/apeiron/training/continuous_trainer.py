@@ -64,8 +64,15 @@ class ContinuousTrainer:
     def outer_cl_training_loop(
         self,
         drift_event_id: int = 0,
-    ) -> int:
-        """Run the outer continuous learning training loop for a drift event."""
+    ) -> dict[str, Any]:
+        """Run the outer continuous learning training loop for a drift event.
+
+        Returns
+        -------
+        dict[str, Any]
+            Dictionary with keys: pre_curr_acc, pre_hist_acc (or None),
+            post_curr_acc, post_hist_acc (or None), total_iters.
+        """
         logger = get_logger(__name__)
         cur_train_loader, cur_test_loader = self.modelHarness.get_train_dataloaders()
         hist_train_loader, hist_test_loader = self.modelHarness.get_hist_dataloaders()
@@ -77,14 +84,14 @@ class ContinuousTrainer:
             hist_train_iter = None
 
         # TODO: need to find away to explicitly match the metrics to their name/label
-        cur_validation_metrics = self.modelHarness.eval()
-        hist_validation_metrics = self.modelHarness.history_eval()
+        pre_cur_metrics = self.modelHarness.eval()
+        pre_hist_metrics = self.modelHarness.history_eval()
 
         logger.info("==== Continual Learning ====")
-        logger.info("\tInitial test acc: {}".format(cur_validation_metrics[0]), level=1)
-        if hist_validation_metrics is not None:
+        logger.info("\tInitial test acc: {}".format(pre_cur_metrics[0]), level=1)
+        if pre_hist_metrics is not None:
             logger.info(
-                "\tInitial historical test acc: {}".format(hist_validation_metrics[0]),
+                "\tInitial historical test acc: {}".format(pre_hist_metrics[0]),
                 level=1,
             )
         else:
@@ -124,13 +131,13 @@ class ContinuousTrainer:
 
         self.cl_updater.cl_postprocessing()
 
-        cur_validation_metrics = self.modelHarness.eval()
-        hist_validation_metrics = self.modelHarness.history_eval()
+        post_cur_metrics = self.modelHarness.eval()
+        post_hist_metrics = self.modelHarness.history_eval()
 
-        logger.info(f"\tTest Accuracy: {cur_validation_metrics[0]:.1f}%", level=1)
-        if hist_validation_metrics is not None:
+        logger.info(f"\tTest Accuracy: {post_cur_metrics[0]:.1f}%", level=1)
+        if post_hist_metrics is not None:
             logger.info(
-                f"\tHist Test Accuracy: {hist_validation_metrics[0]:.1f}%",
+                f"\tHist Test Accuracy: {post_hist_metrics[0]:.1f}%",
                 level=1,
             )
 
@@ -138,18 +145,18 @@ class ContinuousTrainer:
             logger.info("\tNo historical data available for evaluation", level=1)
 
         logger.stage("eval")
-        if hist_validation_metrics is not None:
+        if post_hist_metrics is not None:
             logger.log(
                 {
-                    "test_curr_acc": cur_validation_metrics[0],
-                    "test_hist_acc": hist_validation_metrics[0],
+                    "test_curr_acc": post_cur_metrics[0],
+                    "test_hist_acc": post_hist_metrics[0],
                 },
                 commit=False,
             )
         else:
             logger.log(
                 {
-                    "test_curr_acc": cur_validation_metrics[0],
+                    "test_curr_acc": post_cur_metrics[0],
                 },
                 commit=False,
             )
@@ -164,7 +171,13 @@ class ContinuousTrainer:
                 },
             )
 
-        return 0
+        return {
+            "pre_curr_acc": pre_cur_metrics[0],
+            "pre_hist_acc": pre_hist_metrics[0] if pre_hist_metrics is not None else None,
+            "post_curr_acc": post_cur_metrics[0],
+            "post_hist_acc": post_hist_metrics[0] if post_hist_metrics is not None else None,
+            "total_iters": iter_count,
+        }
 
     def inner_cl_training_loop(
         self,

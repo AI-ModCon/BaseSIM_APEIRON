@@ -15,6 +15,10 @@ def get_example(cfg: Config) -> BaseModelHarness:
         from examples.imagenet.model import IMAGENET_VISION
 
         return IMAGENET_VISION(cfg=cfg)
+    elif cfg.data.name == "acoustic_scattering":
+        from examples.acoustic_scattering.model import ACOUSTIC_SCATTERING
+
+        return ACOUSTIC_SCATTERING(cfg=cfg)
     else:
         raise NotImplementedError(
             f"Example for dataset {cfg.data.name} is not implemented."
