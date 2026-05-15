@@ -9,6 +9,9 @@ This module implements a continuous monitoring architecture that:
 """
 
 from __future__ import annotations
+
+import json
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import torch
@@ -121,6 +124,9 @@ class ContinuousMonitor:
         self.logger.info("==== Continuous Monitoring Complete ====", level=0)
         self.logger.info(f"\tTotal batches processed: {self.batch_count}", level=1)
         self.logger.info(f"\tTotal stream updates: {self.stream_update_count}", level=1)
+
+        # --- Final test-set evaluation & results export ---
+        self._export_results()
 
     def _process_stream(self) -> None:
         """Process batches from current data stream.
@@ -286,14 +292,36 @@ class ContinuousMonitor:
 
         self.logger.info("-> Dispatching continual learning module...", level=0)
 
+        # Build lineage metadata common to pre and post checkpoints
+        meta: dict[str, object] = {
+            "updater": self.cfg.continual_learning.update_mode,
+            "drift_event_id": self.drift_event_count,
+            "seed": self.cfg.seed,
+            "drift_score": drift_signal.drift_score,
+            "regime": drift_signal.regime.value if drift_signal.regime else None,
+        }
+
+        # Save PRE-CL checkpoint
+        if self.modelHarness.ckpts_enabled:
+            pre_path = self.modelHarness.save_ckpt(
+                event=self.drift_event_count,
+                metadata={**meta, "phase": "pre"},
+                tag="pre",
+            )
+            self.logger.info(f"* Pre-CL checkpoint saved to: {pre_path}", level=0)
+
         # PAUSE monitoring, dispatch learning module
-        self.trainer.outer_cl_training_loop(
+        cl_results = self.trainer.outer_cl_training_loop(
             drift_event_id=self.drift_event_count,
         )
 
+        # Save POST-CL checkpoint with CL accuracy results
         if self.modelHarness.ckpts_enabled:
-            ckptpath = self.modelHarness.save_ckpt(event=self.drift_event_count)
-            self.logger.info(f"* Checkpoint saved to: {ckptpath}", level=0)
+            post_meta = {**meta, "phase": "post", **cl_results}
+            post_path = self.modelHarness.save_ckpt(
+                event=self.drift_event_count, metadata=post_meta, tag="post"
+            )
+            self.logger.info(f"* Post-CL checkpoint saved to: {post_path}", level=0)
 
         self.logger.info("<- Continual learning complete.", level=0)
 
@@ -328,6 +356,53 @@ class ContinuousMonitor:
             True if max_stream_updates has been reached
         """
         return self.stream_update_count >= self.max_stream_updates
+
+    def _export_results(self) -> None:
+        """Run final test-set evaluation and write results.json."""
+        # Test-set evaluation (if harness supports it)
+        test_metrics: dict[str, float] = {}
+        if hasattr(self.modelHarness, "final_evaluation"):
+            test_metrics = self.modelHarness.final_evaluation()
+            self.logger.info(f"\tTest metrics: {test_metrics}", level=1)
+
+        # Accumulate all FLOPs including scoring
+        scoring_flops = 0.0
+        if hasattr(self.modelHarness, "scoring_profiler"):
+            sp = self.modelHarness.scoring_profiler.profiles.get("scoring", {})
+            scoring_flops = sum(sp.get("flop", []))
+
+        train_flops = sum(
+            self.flops_profiler.profiles.get("update_fwd_bwd", {}).get("flop", [])
+        )
+        infer_flops = sum(self.flops_profiler.profiles.get("infer", {}).get("flop", []))
+
+        # Data budget (if harness supports it)
+        data_budget = 0
+        if hasattr(self.modelHarness, "get_data_budget"):
+            data_budget = self.modelHarness.get_data_budget()
+
+        results = {
+            "track": "apeiron",
+            "test_metrics": test_metrics,
+            "flops": {
+                "train": train_flops,
+                "scoring": scoring_flops,
+                "inference": infer_flops,
+                "total": train_flops + scoring_flops + infer_flops,
+            },
+            "drift_events": self.drift_event_count,
+            "stream_updates": self.stream_update_count,
+            "total_batches": self.batch_count,
+            "data_budget": data_budget,
+        }
+
+        ckpts_path = getattr(self.cfg.model, "ckpts_path", "")
+        if ckpts_path:
+            out_dir = Path(ckpts_path)
+            out_dir.mkdir(parents=True, exist_ok=True)
+            out_path = out_dir / "results.json"
+            out_path.write_text(json.dumps(results, indent=2))
+            self.logger.info(f"\tResults saved to {out_path}", level=1)
 
     def _log_metrics(self, drift_signal: DriftSignal, metric_value: float) -> None:
         """Log drift detection metrics.

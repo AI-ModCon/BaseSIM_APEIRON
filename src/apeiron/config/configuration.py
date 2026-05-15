@@ -107,6 +107,11 @@ class DataCfg:
     name: str
     path: str
     batch_size: int = 1  # streaming batch size
+    n_brackets: int = 5  # number of complexity brackets for ordered datasets
+    scoring_strategy: str = "none"  # "none", "residual", "uncertainty"
+    selection_ratio: float = 0.5  # fraction of samples to keep after scoring
+    mc_samples: int = 5  # MC dropout forward passes (uncertainty only)
+    test_fraction: float = 0.0  # fraction of trajectories held out for test
 
 
 @dataclass(frozen=True)
