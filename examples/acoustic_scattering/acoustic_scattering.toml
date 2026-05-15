@@ -1,0 +1,59 @@
+# acoustic_scattering.toml — next-frame prediction on complexity-ordered maze data
+seed = 42
+device = "auto"
+multi_gpu = false
+verbosity = "INFO"
+
+[model]
+name = "vit_dense_small"
+pretrained_path = ""
+
+max_ckpts = 0
+ckpts_path = "output/acoustic_scattering/"
+
+[data]
+name = "acoustic_scattering"
+path = ""  # set via --set data.path=<file.pt>
+batch_size = 8
+n_brackets = 5
+scoring_strategy = "residual"
+selection_ratio = 0.5
+mc_samples = 5
+test_fraction = 0.0
+
+[train]
+batch_size = 16
+num_workers = 4
+init_lr = 1e-4
+max_iter = 600
+grad_accumulation_steps = 1
+
+[continual_learning]
+update_mode = "base"
+ewc_lambda = 1000.0
+ewc_ema_decay = 0.95
+kfac_lambda = 0.01
+kfac_ema_decay = 0.95
+jvp_lambda = 0.001
+jvp_deltax_norm = 1
+
+[drift_detection]
+detector_name = "ADWINDetector"
+detection_interval = 10
+aggregation = "mean"
+metric_index = 0  # monitor vrmse
+reset_after_learning = false
+max_stream_updates = 5  # one per bracket
+
+adwin_delta = 0.002
+adwin_minor_threshold = 0.3
+adwin_moderate_threshold = 0.6
+
+[logging]
+backend = "none"
+experiment_name = "acoustic-scattering-cl"
+
+[visualization]
+baseline = 1.0
+input = "output/acoustic_scattering.csv"
+output = "output/acoustic_scattering_dashboard.png"

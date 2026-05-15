@@ -1,0 +1,50 @@
+# acoustic_scattering_offline.toml — Offline supervised baseline (Track 1)
+seed = 42
+device = "auto"
+multi_gpu = false
+verbosity = "INFO"
+
+[model]
+name = "vit_dense_small"
+pretrained_path = "output/acoustic_scattering/init_weights.pt"
+
+max_ckpts = 0
+ckpts_path = "output/acoustic_scattering_offline/"
+
+[data]
+name = "acoustic_scattering"
+path = ""  # set via --set data.path=<file.pt>
+batch_size = 8
+n_brackets = 5
+scoring_strategy = "none"  # no active selection for offline baseline
+selection_ratio = 0.5
+mc_samples = 5
+test_fraction = 0.1
+
+[train]
+batch_size = 16
+num_workers = 4
+init_lr = 1e-4
+max_iter = 100  # max epochs; early stopping will likely trigger earlier
+grad_accumulation_steps = 1
+
+# Required sections (not used by offline_train but needed by build_config)
+[continual_learning]
+update_mode = "base"
+
+[drift_detection]
+detector_name = "ADWINDetector"
+detection_interval = 10
+aggregation = "mean"
+metric_index = 0
+reset_after_learning = false
+max_stream_updates = 5
+
+[logging]
+backend = "none"
+experiment_name = "acoustic-scattering-offline"
+
+[visualization]
+baseline = 1.0
+input = "output/acoustic_scattering_offline.csv"
+output = "output/acoustic_scattering_offline_dashboard.png"
