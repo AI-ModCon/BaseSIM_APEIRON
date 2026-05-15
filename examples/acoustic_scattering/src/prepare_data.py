@@ -5,6 +5,9 @@ Reads HDF5 files produced by ``the-well-download``, extracts the pressure
 field, optionally subsamples trajectories and spatial resolution, and saves
 the result as a single ``.pt`` file ready for the Apeiron harness.
 
+Memory-efficient: trajectories are selected and downsampled *per file*
+so only the kept (and possibly resized) data is ever resident in memory.
+
 The Well organises data as::
 
     <base>/acoustic_scattering_maze/<split>/
@@ -29,30 +32,27 @@ A dictionary saved via ``torch.save`` containing:
 - ``"complexity"``  : Tensor (N,) — pre-computed complexity score per trajectory
 - ``"source_info"`` : dict with provenance (files, sampling, resolution)
 
-The harness's ``load_tensor`` call expects shape ``(seq, len, x, y)``, so
-we also provide a thin wrapper that unpacks just the ``"pressure"`` key.
-
 Usage
 -----
 ::
 
     # Full dataset, 256x256
-    python -m examples.acoustic_scattering.src.prepare_data \
-        --data-dir /path/to/acoustic_scattering_maze/train \
+    python -m examples.acoustic_scattering.src.prepare_data \\
+        --data-dir /path/to/acoustic_scattering_maze/train \\
         --output data/acoustic_scattering.pt
 
     # Subsample 200 trajectories, downsample to 128x128
-    python -m examples.acoustic_scattering.src.prepare_data \
-        --data-dir /path/to/acoustic_scattering_maze/train \
-        --output data/acoustic_scattering_200x128.pt \
-        --n-trajectories 200 \
-        --spatial-size 128 \
+    python -m examples.acoustic_scattering.src.prepare_data \\
+        --data-dir /path/to/acoustic_scattering_maze/train \\
+        --output data/acoustic_scattering_200x128.pt \\
+        --n-trajectories 200 \\
+        --spatial-size 128 \\
         --seed 42
 
     # Include validation split too
-    python -m examples.acoustic_scattering.src.prepare_data \
-        --data-dir /path/to/acoustic_scattering_maze/train \
-        --data-dir /path/to/acoustic_scattering_maze/valid \
+    python -m examples.acoustic_scattering.src.prepare_data \\
+        --data-dir /path/to/acoustic_scattering_maze/train \\
+        --data-dir /path/to/acoustic_scattering_maze/valid \\
         --output data/acoustic_scattering_all.pt
 """
 
@@ -71,7 +71,7 @@ from torch.nn.functional import interpolate
 
 
 # ------------------------------------------------------------------
-# HDF5 reading
+# HDF5 discovery
 # ------------------------------------------------------------------
 
 
@@ -88,34 +88,107 @@ def discover_hdf5_files(dirs: list[Path]) -> list[Path]:
     return files
 
 
-def read_hdf5_file(
-    path: Path,
-) -> tuple[np.ndarray, np.ndarray, dict[str, np.ndarray]]:
-    """Read one HDF5 file, returning pressure, c, and scalar metadata.
+# ------------------------------------------------------------------
+# Two-pass processing
+# ------------------------------------------------------------------
+
+
+def survey_files(files: list[Path]) -> list[int]:
+    """Return the number of trajectories in each HDF5 file (without loading data)."""
+    counts: list[int] = []
+    for fpath in files:
+        with h5py.File(fpath, "r") as f:
+            n = f["t0_fields"]["pressure"].shape[0]
+            counts.append(n)
+    return counts
+
+
+def choose_indices(
+    file_counts: list[int],
+    n_keep: int,
+    seed: int,
+) -> list[list[int]]:
+    """Decide which local trajectory indices to keep from each file.
+
+    Returns a list (one per file) of sorted local indices.
+    """
+    n_total = sum(file_counts)
+    n_keep = min(n_keep, n_total)
+
+    # Draw n_keep global indices
+    rng = np.random.RandomState(seed)
+    if n_keep < n_total:
+        global_idx = np.sort(rng.choice(n_total, size=n_keep, replace=False))
+    else:
+        global_idx = np.arange(n_total)
+
+    # Map global → (file_id, local_index)
+    per_file: list[list[int]] = [[] for _ in file_counts]
+    cumsum = 0
+    file_id = 0
+    for gi in global_idx:
+        while gi >= cumsum + file_counts[file_id]:
+            cumsum += file_counts[file_id]
+            file_id += 1
+        per_file[file_id].append(int(gi - cumsum))
+
+    return per_file
+
+
+def downsample_trajectory(traj: np.ndarray, target_size: int) -> Tensor:
+    """Bilinear downsample a single trajectory (T, H, W) → (T, S, S) Tensor."""
+    t = torch.from_numpy(traj).unsqueeze(0).float()  # (1, T, H, W)
+    t = interpolate(
+        t, size=(target_size, target_size), mode="bilinear", align_corners=False
+    )
+    return t.squeeze(0)  # (T, S, S)
+
+
+def read_selected(
+    fpath: Path,
+    local_indices: list[int],
+    spatial_size: int,
+) -> tuple[list[Tensor], list[np.ndarray], dict[str, list[np.ndarray]]]:
+    """Read only the selected trajectories from one HDF5 file.
+
+    Downsamples spatially on the fly so the full-res data is never
+    fully resident in memory.
 
     Returns
     -------
-    pressure : ndarray (B, T, H, W)
-    c_field  : ndarray (B, 1, H, W) or empty if not present
-    scalars  : dict of param_name → ndarray (B,)
+    pressures : list of Tensor, each (T, H', W')
+    c_fields  : list of ndarray, each (1, H, W) — original resolution (small)
+    scalars   : dict of param → list of ndarray per trajectory
     """
-    with h5py.File(path, "r") as f:
-        # Pressure field — required
-        pressure = f["t0_fields"]["pressure"][:]  # (B, T, H, W)
+    pressures: list[Tensor] = []
+    c_fields: list[np.ndarray] = []
+    scalars: dict[str, list[np.ndarray]] = {}
 
-        # Speed of sound — encodes maze geometry (optional)
-        c_field = np.empty(0)
-        if "c" in f["t0_fields"]:
-            c_field = f["t0_fields"]["c"][:]  # (B, 1, H, W)
+    with h5py.File(fpath, "r") as f:
+        pressure_ds = f["t0_fields"]["pressure"]  # (B, T, H, W)
+        has_c = "c" in f["t0_fields"]
+        c_ds = f["t0_fields"]["c"] if has_c else None
 
-        # Scalar metadata
-        scalars: dict[str, np.ndarray] = {}
+        scalar_keys: list[str] = []
         if "scalars" in f:
-            for key in f["scalars"]:
-                val = f["scalars"][key][:]
-                scalars[key] = val
+            scalar_keys = list(f["scalars"].keys())
 
-    return pressure, c_field, scalars
+        for li in local_indices:
+            # Read one trajectory at a time — h5py loads only the slice
+            p = pressure_ds[li]  # (T, H, W)
+
+            if spatial_size > 0 and p.shape[-1] != spatial_size:
+                pressures.append(downsample_trajectory(p, spatial_size))
+            else:
+                pressures.append(torch.from_numpy(p))
+
+            if c_ds is not None:
+                c_fields.append(c_ds[li])  # (1, H, W) — small, keep as-is
+
+            for sk in scalar_keys:
+                scalars.setdefault(sk, []).append(f["scalars"][sk][li])
+
+    return pressures, c_fields, scalars
 
 
 # ------------------------------------------------------------------
@@ -165,33 +238,6 @@ def compute_metadata_complexity(
 
 
 # ------------------------------------------------------------------
-# Spatial downsampling
-# ------------------------------------------------------------------
-
-
-def downsample_spatial(data: Tensor, target_size: int) -> Tensor:
-    """Bilinear downsample (N, T, H, W) → (N, T, target_size, target_size).
-
-    Processes one trajectory at a time to limit peak memory.
-    """
-    if data.shape[-1] == target_size and data.shape[-2] == target_size:
-        return data
-
-    N, T = data.shape[:2]
-    out = torch.empty(N, T, target_size, target_size, dtype=data.dtype)
-
-    for i in range(N):
-        # interpolate expects (B, C, H, W) — treat T as the channel dim
-        frame = data[i].unsqueeze(0)  # (1, T, H, W)
-        frame = interpolate(
-            frame, size=(target_size, target_size), mode="bilinear", align_corners=False
-        )
-        out[i] = frame.squeeze(0)
-
-    return out
-
-
-# ------------------------------------------------------------------
 # Main
 # ------------------------------------------------------------------
 
@@ -233,63 +279,57 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    # 1. Discover and read HDF5 files
+    # 1. Discover files and survey trajectory counts (no data loaded)
     files = discover_hdf5_files(args.data_dir)
-    print(f"Found {len(files)} HDF5 file(s)")
+    file_counts = survey_files(files)
+    n_total = sum(file_counts)
+    print(f"Found {len(files)} HDF5 file(s), {n_total} total trajectories")
+    for fpath, cnt in zip(files, file_counts):
+        print(f"  {fpath.name}: {cnt} trajectories")
 
-    all_pressure: list[np.ndarray] = []
+    # 2. Decide which trajectories to keep
+    n_keep = args.n_trajectories if args.n_trajectories > 0 else n_total
+    n_keep = min(n_keep, n_total)
+    per_file_indices = choose_indices(file_counts, n_keep, args.seed)
+    print(f"Keeping {n_keep} / {n_total} trajectories")
+
+    # 3. Read selected trajectories, downsample on the fly
+    all_pressure: list[Tensor] = []
     all_c: list[np.ndarray] = []
     all_scalars: dict[str, list[np.ndarray]] = {}
 
-    for fpath in files:
-        print(f"  Reading {fpath.name} ...", end=" ", flush=True)
-        pressure, c_field, scalars = read_hdf5_file(fpath)
-        print(f"pressure {pressure.shape}", flush=True)
-
-        all_pressure.append(pressure)
-        if c_field.size > 0:
-            all_c.append(c_field)
-
+    for fpath, local_idx in zip(files, per_file_indices):
+        if not local_idx:
+            continue
+        print(
+            f"  Reading {len(local_idx)} trajectories from {fpath.name} ...",
+            flush=True,
+        )
+        pressures, c_fields, scalars = read_selected(
+            fpath, local_idx, args.spatial_size
+        )
+        all_pressure.extend(pressures)
+        all_c.extend(c_fields)
         for k, v in scalars.items():
-            all_scalars.setdefault(k, []).append(v)
+            all_scalars.setdefault(k, []).extend(v)
 
-    # Concatenate along batch dim
-    pressure_np = np.concatenate(all_pressure, axis=0)  # (N, T, H, W)
-    c_np = np.concatenate(all_c, axis=0) if all_c else None
-    merged_scalars = {k: np.concatenate(v, axis=0) for k, v in all_scalars.items()}
+    # 4. Stack into tensors
+    pressure_t = torch.stack(all_pressure)  # (N, T, H', W')
+    print(f"Pressure tensor shape: {pressure_t.shape}")
 
-    n_total = pressure_np.shape[0]
-    print(f"Total trajectories: {n_total}, shape: {pressure_np.shape}")
+    c_np: np.ndarray | None = None
+    if all_c:
+        c_np = np.stack(all_c)  # (N, 1, H, W) — original resolution
 
-    # 2. Subsample trajectories
-    rng = np.random.RandomState(args.seed)
-    n_keep = args.n_trajectories if args.n_trajectories > 0 else n_total
-    n_keep = min(n_keep, n_total)
+    merged_scalars: dict[str, np.ndarray] = {}
+    for k, v in all_scalars.items():
+        merged_scalars[k] = np.array(v)
 
-    if n_keep < n_total:
-        idx = np.sort(rng.choice(n_total, size=n_keep, replace=False))
-        pressure_np = pressure_np[idx]
-        if c_np is not None:
-            c_np = c_np[idx]
-        merged_scalars = {k: v[idx] for k, v in merged_scalars.items()}
-        print(f"Subsampled to {n_keep} trajectories")
-    else:
-        idx = np.arange(n_total)
-
-    # 3. Compute complexity from metadata
+    # 5. Compute complexity from metadata
     complexity = compute_metadata_complexity(c_np, merged_scalars, n_keep)
     print(f"Complexity range: [{complexity.min():.4f}, {complexity.max():.4f}]")
 
-    # 4. Convert to torch and optionally downsample
-    pressure_t = torch.from_numpy(pressure_np)  # (N, T, H, W)
-
-    if args.spatial_size > 0:
-        print(f"Downsampling {pressure_t.shape[-1]} → {args.spatial_size} ...")
-        pressure_t = downsample_spatial(pressure_t, args.spatial_size)
-
-    print(f"Final tensor shape: {pressure_t.shape}")
-
-    # 5. Build metadata dict
+    # 6. Build metadata dict
     metadata: dict[str, Any] = {}
     for k, v in merged_scalars.items():
         metadata[k] = v.tolist()
@@ -298,13 +338,11 @@ def main(argv: list[str] | None = None) -> int:
         "files": [str(f) for f in files],
         "n_original": n_total,
         "n_kept": n_keep,
-        "subsampled_indices": idx.tolist(),
-        "spatial_size": pressure_t.shape[-1],
-        "original_spatial_size": pressure_np.shape[-1],
+        "spatial_size": int(pressure_t.shape[-1]),
         "seed": args.seed,
     }
 
-    # 6. Save
+    # 7. Save
     output_dict = {
         "pressure": pressure_t,
         "metadata": metadata,
