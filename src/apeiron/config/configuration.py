@@ -187,6 +187,7 @@ class Config:
     device: str
     multi_gpu: bool
     verbosity: str = "INFO"
+    flop_budget: float | None = None  # Total FLOP budget; None = unlimited
     visualization: VisualizationCfg | None = None
     logging: LoggingCfg | None = None
 

@@ -33,9 +33,7 @@ class TransformerBlock(nn.Module):
     def __init__(self, embed_dim: int, num_heads: int, mlp_ratio: float = 4.0):
         super().__init__()
         self.norm1 = nn.LayerNorm(embed_dim)
-        self.attn = nn.MultiheadAttention(
-            embed_dim, num_heads, batch_first=True
-        )
+        self.attn = nn.MultiheadAttention(embed_dim, num_heads, batch_first=True)
         self.norm2 = nn.LayerNorm(embed_dim)
         hidden = int(embed_dim * mlp_ratio)
         self.mlp = nn.Sequential(
@@ -81,10 +79,7 @@ class DenseViT(nn.Module):
         self.pos_embed: nn.Parameter  # set lazily or via fixed init
 
         self.blocks = nn.ModuleList(
-            [
-                TransformerBlock(embed_dim, num_heads, mlp_ratio)
-                for _ in range(depth)
-            ]
+            [TransformerBlock(embed_dim, num_heads, mlp_ratio) for _ in range(depth)]
         )
         self.norm = nn.LayerNorm(embed_dim)
 
@@ -93,9 +88,7 @@ class DenseViT(nn.Module):
 
         # Positional embedding is allocated for up to 1024 tokens; we slice
         # at forward time so the same weights work for varying resolutions.
-        self.pos_embed = nn.Parameter(
-            torch.randn(1, 1024, embed_dim) * 0.02
-        )
+        self.pos_embed = nn.Parameter(torch.randn(1, 1024, embed_dim) * 0.02)
 
         self._init_weights()
 
@@ -114,9 +107,7 @@ class DenseViT(nn.Module):
                 if m.bias is not None:
                     nn.init.zeros_(m.bias)
 
-    def _unpatchify(
-        self, x: Tensor, gh: int, gw: int
-    ) -> Tensor:
+    def _unpatchify(self, x: Tensor, gh: int, gw: int) -> Tensor:
         """Rearrange (B, N, P*P) → (B, 1, H, W)."""
         B = x.shape[0]
         P = self.patch_size
@@ -141,8 +132,15 @@ class DenseViT(nn.Module):
 
 def vit_dense_base(**kwargs) -> DenseViT:
     """DenseViT-Base: 768d, 12 layers, 12 heads (~86 M params)."""
+    defaults = dict(embed_dim=768, depth=12, num_heads=12, patch_size=16, in_channels=4)
+    defaults.update(kwargs)
+    return DenseViT(**defaults)
+
+
+def vit_dense_large(**kwargs) -> DenseViT:
+    """DenseViT-Large: 1024d, 24 layers, 16 heads (~304 M params)."""
     defaults = dict(
-        embed_dim=768, depth=12, num_heads=12, patch_size=16, in_channels=4
+        embed_dim=1024, depth=24, num_heads=16, patch_size=16, in_channels=4
     )
     defaults.update(kwargs)
     return DenseViT(**defaults)
@@ -150,8 +148,6 @@ def vit_dense_base(**kwargs) -> DenseViT:
 
 def vit_dense_small(**kwargs) -> DenseViT:
     """DenseViT-Small: 384d, 6 layers, 6 heads (~22 M params)."""
-    defaults = dict(
-        embed_dim=384, depth=6, num_heads=6, patch_size=16, in_channels=4
-    )
+    defaults = dict(embed_dim=384, depth=6, num_heads=6, patch_size=16, in_channels=4)
     defaults.update(kwargs)
     return DenseViT(**defaults)

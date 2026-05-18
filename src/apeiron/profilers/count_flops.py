@@ -69,6 +69,7 @@ class FLOPSProfiler:
         self.start_time: Optional[float] = None
         self.flop_counter: Optional[FlopCounterMode] = None
         self.profiles: Dict[str, Dict[str, List[float]]] = {}
+        self._cumulative_flops: float = 0.0
 
     @contextmanager
     def measure_flops(
@@ -108,6 +109,7 @@ class FLOPSProfiler:
             # Combine automatic and manual FLOPs
             self.profiles[self.tag]["flop"].append(total_flops)
             self.profiles[self.tag]["time"].append(elapsed_time)
+            self._cumulative_flops += total_flops
 
             self.tag = None
             self.start_time = None
@@ -169,6 +171,7 @@ class FLOPSProfiler:
 
         self.profiles[self.tag]["flop"].append(total_flops)
         self.profiles[self.tag]["time"].append(elapsed_time)
+        self._cumulative_flops += total_flops
 
         self.tag = None
         self.start_time = None
@@ -182,6 +185,10 @@ class FLOPSProfiler:
         self.profiles[tag] = {}
         self.profiles[tag]["flop"] = []
         self.profiles[tag]["time"] = []
+
+    def total_flops(self) -> float:
+        """Return cumulative FLOPs across all tags and all measurements."""
+        return self._cumulative_flops
 
     def _estimate_flops_per_elem(self, prof: profile, debug: bool = False) -> int:
         """Estimate FLOPs per parameter element from profiler data.

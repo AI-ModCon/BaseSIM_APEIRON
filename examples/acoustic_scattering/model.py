@@ -25,13 +25,19 @@ from examples.acoustic_scattering.src.utils import (
     split_into_brackets,
     split_test_set,
 )
-from examples.acoustic_scattering.src.vit_dense import vit_dense_base, vit_dense_small
+from examples.acoustic_scattering.src.vit_dense import (
+    vit_dense_base,
+    vit_dense_large,
+    vit_dense_small,
+)
 
 
 def _build_model(cfg: Config) -> nn.Module:
     name = cfg.model.name.lower()
     if name == "vit_dense_small":
         return vit_dense_small()
+    if name == "vit_dense_large":
+        return vit_dense_large()
     return vit_dense_base()
 
 
@@ -64,11 +70,13 @@ def generate_init_checkpoint(
     from pathlib import Path
 
     torch.manual_seed(seed)
-    model = (
-        vit_dense_small()
-        if model_name.lower() == "vit_dense_small"
-        else vit_dense_base()
-    )
+    builders = {
+        "vit_dense_small": vit_dense_small,
+        "vit_dense_base": vit_dense_base,
+        "vit_dense_large": vit_dense_large,
+    }
+    builder = builders.get(model_name.lower(), vit_dense_base)
+    model = builder()
 
     out = Path(output_path)
     out.parent.mkdir(parents=True, exist_ok=True)

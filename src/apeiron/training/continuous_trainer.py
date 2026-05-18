@@ -173,9 +173,13 @@ class ContinuousTrainer:
 
         return {
             "pre_curr_acc": pre_cur_metrics[0],
-            "pre_hist_acc": pre_hist_metrics[0] if pre_hist_metrics is not None else None,
+            "pre_hist_acc": pre_hist_metrics[0]
+            if pre_hist_metrics is not None
+            else None,
             "post_curr_acc": post_cur_metrics[0],
-            "post_hist_acc": post_hist_metrics[0] if post_hist_metrics is not None else None,
+            "post_hist_acc": post_hist_metrics[0]
+            if post_hist_metrics is not None
+            else None,
             "total_iters": iter_count,
         }
 

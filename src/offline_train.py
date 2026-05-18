@@ -104,7 +104,7 @@ def save_results(
     """Write results.json to the checkpoint directory."""
     fwd_flops = sum(profiler.profiles.get("forward", {}).get("flop", []))
 
-    results = {
+    results: Dict[str, Any] = {
         "track": "offline",
         "test_metrics": test_metrics,
         "flops": {
@@ -115,6 +115,7 @@ def save_results(
         },
         "epochs": epochs,
         "data_budget": data_budget,
+        "flop_budget": cfg.flop_budget,
     }
 
     out_dir = Path(cfg.model.ckpts_path)

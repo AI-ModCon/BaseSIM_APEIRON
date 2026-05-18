@@ -101,6 +101,13 @@ class ContinuousMonitor:
         self.logger.info(f"\tAggregation method: {self.aggregation}", level=1)
         self.logger.info(f"\tMax stream updates: {self.max_stream_updates}", level=1)
 
+    def _total_flops(self) -> float:
+        """Return cumulative FLOPs across training profiler and scoring profiler."""
+        total = self.flops_profiler.total_flops()
+        if hasattr(self.modelHarness, "scoring_profiler"):
+            total += self.modelHarness.scoring_profiler.total_flops()
+        return total
+
     def run(self) -> None:
         """Main continuous monitoring loop.
 
@@ -369,35 +376,38 @@ class ContinuousMonitor:
             test_metrics = self.modelHarness.final_evaluation()
             self.logger.info(f"\tTest metrics: {test_metrics}", level=1)
 
-        # Accumulate all FLOPs including scoring
+        # Accumulate FLOPs from all profiler tags
+        flop_breakdown: dict[str, float] = {}
+        for tag, data in self.flops_profiler.profiles.items():
+            flop_breakdown[tag] = sum(data.get("flop", []))
+
+        # Include scoring profiler if available
         scoring_flops = 0.0
         if hasattr(self.modelHarness, "scoring_profiler"):
-            sp = self.modelHarness.scoring_profiler.profiles.get("scoring", {})
-            scoring_flops = sum(sp.get("flop", []))
+            for tag, data in self.modelHarness.scoring_profiler.profiles.items():
+                tag_sum = sum(data.get("flop", []))
+                flop_breakdown[f"scoring_{tag}"] = tag_sum
+                scoring_flops += tag_sum
 
-        train_flops = sum(
-            self.flops_profiler.profiles.get("update_fwd_bwd", {}).get("flop", [])
-        )
-        infer_flops = sum(self.flops_profiler.profiles.get("infer", {}).get("flop", []))
+        total_flops = sum(flop_breakdown.values())
 
         # Data budget (if harness supports it)
         data_budget = 0
         if hasattr(self.modelHarness, "get_data_budget"):
             data_budget = self.modelHarness.get_data_budget()
 
-        results = {
+        results: dict[str, object] = {
             "track": "apeiron",
             "test_metrics": test_metrics,
             "flops": {
-                "train": train_flops,
-                "scoring": scoring_flops,
-                "inference": infer_flops,
-                "total": train_flops + scoring_flops + infer_flops,
+                **flop_breakdown,
+                "total": total_flops,
             },
             "drift_events": self.drift_event_count,
             "stream_updates": self.stream_update_count,
             "total_batches": self.batch_count,
             "data_budget": data_budget,
+            "flop_budget": self.cfg.flop_budget,
         }
 
         ckpts_path = getattr(self.cfg.model, "ckpts_path", "")
