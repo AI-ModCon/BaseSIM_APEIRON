@@ -1,11 +1,26 @@
 from __future__ import annotations
 
 import copy
+import os
 from dataclasses import dataclass
 from typing import Any, Callable, Optional, cast
 
 import torch
+import torch.distributed as dist
 from torch import Tensor, nn
+
+
+def ensure_matey_dist_initialized() -> None:
+    """Initialize a single-process torch.distributed group for MATEY loaders.
+
+    MATEY's MultisetBatchSampler uses DistributedSampler when distributed=True,
+    which requires init_process_group even for world_size=1 interactive runs.
+    """
+    if not dist.is_available() or dist.is_initialized():
+        return
+    os.environ.setdefault("MASTER_ADDR", "127.0.0.1")
+    os.environ.setdefault("MASTER_PORT", "29500")
+    dist.init_process_group(backend="gloo", rank=0, world_size=1)
 
 
 def _move_to_device(x: Any, device: str | torch.device) -> Any:

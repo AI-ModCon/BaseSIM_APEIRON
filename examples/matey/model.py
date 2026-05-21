@@ -19,6 +19,7 @@ from examples.matey.src.matey_batches import (
     MateyLoaderAdapter as _MateyLoaderAdapter,
     MateyModelAdapter as _MateyModelAdapter,
     MateyTargetBatch,
+    ensure_matey_dist_initialized,
 )
 from examples.matey.src.solps_split import SolpsStagedSplit, stage_solps_split
 from logger import get_logger
@@ -546,13 +547,14 @@ class MATEYHarness(BaseModelHarness):
 
     def _build_loader(self, params: Any, split: str) -> tuple[Any, Any, Any]:
         get_data_loader = self._modules["get_data_loader"]
+        ensure_matey_dist_initialized()
         with self._matey_single_worker_loader_patch(get_data_loader):
             return get_data_loader(
                 params,
                 params.train_data_paths
                 if split == "train"
                 else params.valid_data_paths,
-                False,
+                True,
                 split=split,
                 train_offset=getattr(params, "embedding_offset", 0),
                 global_rank=0,

@@ -25,11 +25,6 @@ from drift_detection.detectors.statistical_detectors import (
     KSWINDetector,
     PageHinkleyDetector,
 )
-from drift_detection.detectors.model_performance_detector import (
-    ModelPerformanceDetector,
-    EnsembleDetector,
-    ModelEvalDetector,
-)
 
 __all__ = [
     "BaseDriftDetector",
@@ -38,7 +33,7 @@ __all__ = [
     "ADWINDetector",
     "KSWINDetector",
     "PageHinkleyDetector",
-    "ModelPerformanceDetector",
-    "EnsembleDetector",
-    "ModelEvalDetector",
 ]
+
+# ModelPerformanceDetector / EnsembleDetector / ModelEvalDetector require
+# evidently and are imported lazily via load_drift_detector().

@@ -20,6 +20,7 @@ from examples.matey.src.matey_batches import (
     MateyInputBatch,
     MateyLoaderAdapter as _MateyLoaderAdapter,
     MateyTargetBatch,
+    ensure_matey_dist_initialized,
 )
 from model.torch_model_harness import BaseModelHarness
 
@@ -310,7 +311,7 @@ class MATEYHarness(BaseModelHarness):
             return str(path.resolve())
 
     def _configure_data_paths(self, params: Any) -> None:
-        entry = [self._as_config_path(self._data_root), "SOLPS2DwION", "", "tk-2D"]
+        entry = [self._as_config_path(self._data_root), "SOLPS2D", "", "tk-2D"]
         params.train_data_paths = [copy.deepcopy(entry)]
         params.valid_data_paths = [copy.deepcopy(entry)]
 
@@ -390,11 +391,12 @@ class MATEYHarness(BaseModelHarness):
 
     def _build_loader(self, params: Any, split: str) -> tuple[Any, Any, Any]:
         get_data_loader = self._modules["get_data_loader"]
+        ensure_matey_dist_initialized()
         with self._matey_single_worker_loader_patch(get_data_loader):
             return get_data_loader(
                 params,
                 params.train_data_paths if split == "train" else params.valid_data_paths,
-                False,
+                True,
                 split=split,
                 train_offset=getattr(params, "embedding_offset", 0),
                 global_rank=0,

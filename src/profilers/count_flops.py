@@ -160,12 +160,16 @@ class FLOPSProfiler:
 
         elapsed_time = time.perf_counter() - self.start_time
 
-        # Estimate FLOPs using the profiler
-        flops_per_elem = self._estimate_flops_per_elem(prof)
         total_params_require_grad = sum(
             p.numel() for p in model.parameters() if p.requires_grad
         )
-        total_flops = flops_per_elem * total_params_require_grad
+        if total_params_require_grad == 0:
+            # Parameter-free models (e.g. outer-loop metric placeholders) have no
+            # optimizer work to profile; skip ATen aggregation to avoid empty frames.
+            total_flops = 0
+        else:
+            flops_per_elem = self._estimate_flops_per_elem(prof)
+            total_flops = flops_per_elem * total_params_require_grad
 
         self.profiles[self.tag]["flop"].append(total_flops)
         self.profiles[self.tag]["time"].append(elapsed_time)
@@ -221,8 +225,13 @@ class FLOPSProfiler:
                 }
             )
 
+        if not data:
+            return 0
+
         # Create DataFrame
         df = pd.DataFrame(data)
+        if df.empty:
+            return 0
 
         # Multiply FLOPs per element by the number of times each operation was called
         df["est_flops_per_param"] = df.apply(
