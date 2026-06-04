@@ -156,9 +156,7 @@ class DriftDetectionCfg:
 
 @dataclass(frozen=True)
 class VisualizationCfg:
-    baseline: float = 95.0  # baseline accuracy threshold for drift detection
-    input: str = "output/cl_only.csv"  # input CSV file path
-    output: str = "output/drift_dashboard.png"  # output dashboard image path
+    input: str = "output/cl_only.csv"  # CSV path where run metrics are written
 
 
 @dataclass(frozen=True)

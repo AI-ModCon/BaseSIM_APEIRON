@@ -56,6 +56,4 @@ experiment_name = "mnist-continual-learning"  # Optional: project/experiment nam
 # mlflow_tracking_uri = "http://localhost:5000"  # Optional: MLflow tracking server
 
 [visualization]
-baseline = 90.0
 input = "output/mnist.csv"
-output = "output/mnist_dashboard.png"

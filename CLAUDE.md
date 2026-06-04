@@ -9,11 +9,6 @@ A PyTorch continuous learning framework for real-time concept drift detection an
 poetry run python -m src.main --config <path_to_toml>
 ```
 
-### Visualizing results
-```bash
-poetry run python -m src.visualize --config <path_to_toml>
-```
-
 ### Running tests
 ```bash
 poetry run pytest
@@ -30,19 +25,21 @@ poetry run mypy .
 
 ### Entry Points
 - `src/main.py` -- Main experiment runner. Builds config, loads model harness, runs ContinuousMonitor.
-- `src/visualize.py` -- Visualization entry point. Reads CSV metrics and generates dashboard PNGs.
+
+The installable package lives under `src/apeiron/` (imported as `apeiron`; see `pyproject.toml` `packages = [{ include = "apeiron", from = "src" }]`).
 
 ### Core Pipeline
-1. **Config** (`src/config/configuration.py`): TOML-based config parsed into frozen dataclasses (`Config`, `ModelCfg`, `DataCfg`, `TrainCfg`, `ContinualLearningCfg`, `DriftDetectionCfg`, `VisualizationCfg`). Supports `--set key=val` CLI overrides and `APP_` env var overrides.
-2. **Model Harness** (`src/model/torch_model_harness.py`): Abstract `BaseModelHarness` providing `get_stream_dataloader()`, `get_train_dataloaders()`, `get_hist_dataloaders()`, `update_data_stream()`, `get_criterion()`, `get_optmizer()`, and `eval_metrics` dict.
-3. **Driver** (`src/driver/continuous_monitor.py`): `ContinuousMonitor` orchestrates the monitoring loop -- evaluates batches, checks drift at intervals, dispatches CL training on drift.
-4. **Drift Detection** (`src/drift_detection/`): `BaseDriftDetector` ABC with `update(value) -> DriftSignal`. Implementations: ADWINDetector, KSWINDetector, PageHinkleyDetector, ModelPerformanceDetector, ModelEvalDetector, EnsembleDetector.
-5. **Training** (`src/training/continuous_trainer.py`): `ContinuousTrainer` runs outer/inner CL loops with gradient accumulation.
-6. **Updaters** (`src/training/updater/`): `BaseUpdater` with hooks `cl_preprocessing()`, `fwd_bwd()`, `update_pre_fwd_bwd()`, `update_post_fwd_bwd()`, `update_post_optimizer_call()`, `cl_postprocessing()`. Implementations: base (vanilla), jvp_reg (JVP regularization), ewc_online (EWC), kfac_online (KFAC), none (no-op).
-7. **Evaluation** (`src/evaluation/metrics.py`): `accuracy()` and `accuracy_topk()`.
-8. **Logger** (`src/logger/`): Singleton `Logger` combining WandB metrics and console output. Stages: eval, drift, cl.
-9. **Profilers** (`src/profilers/`): `FLOPSProfiler` using PyTorch FlopCounterMode.
-10. **Visualization** (`src/visualization/metrics.py`): Dashboard generation from CSV metrics.
+1. **Config** (`src/apeiron/config/configuration.py`): TOML-based config parsed into frozen dataclasses (`Config`, `ModelCfg`, `DataCfg`, `TrainCfg`, `ContinualLearningCfg`, `DriftDetectionCfg`, `LoggingCfg`, `VisualizationCfg`). Supports `--set key=val` CLI overrides and `APP_` env var overrides.
+2. **Model Harness** (`src/apeiron/model/torch_model_harness.py`): Abstract `BaseModelHarness` providing `get_stream_dataloader()`, `get_train_dataloaders()`, `get_hist_dataloaders()`, `update_data_stream()`, `get_criterion()`, `get_optmizer()`, and `eval_metrics` dict.
+3. **Driver** (`src/apeiron/driver/continuous_monitor.py`): `ContinuousMonitor` orchestrates the monitoring loop -- evaluates batches, checks drift at intervals, dispatches CL training on drift.
+4. **Drift Detection** (`src/apeiron/drift_detection/`): `BaseDriftDetector` ABC with `update(value) -> DriftSignal`. Implementations: ADWINDetector, KSWINDetector, PageHinkleyDetector, ModelPerformanceDetector, ModelEvalDetector, EnsembleDetector.
+5. **Training** (`src/apeiron/training/continuous_trainer.py`): `ContinuousTrainer` runs outer/inner CL loops with gradient accumulation.
+6. **Updaters** (`src/apeiron/training/updater/`): `BaseUpdater` with hooks `cl_preprocessing()`, `fwd_bwd()`, `update_pre_fwd_bwd()`, `update_post_fwd_bwd()`, `update_post_optimizer_call()`, `cl_postprocessing()`. Implementations: base (vanilla), jvp_reg (JVP regularization), ewc_online (EWC), kfac_online (KFAC), none (no-op).
+7. **Evaluation** (`src/apeiron/evaluation/metrics.py`): `accuracy()` and `accuracy_topk()`.
+8. **Logger** (`src/apeiron/logger/`): `Logger` with pluggable metrics backends -- `WandBLogger` and `MLFlowLogger` (configured via `[logging] backend = "wandb"|"mlflow"|"none"`), plus console output. Stages: eval, drift, cl.
+9. **Profilers** (`src/apeiron/profilers/`): `FLOPSProfiler` (`count_flops.py`) using PyTorch FlopCounterMode.
+
+Note: `[visualization]` config (`VisualizationCfg`) is parsed but there is no bundled dashboard/renderer in the current package; runs emit a CSV at `visualization.input` for external plotting.
 
 ### Example Harnesses
 - `examples/mnist/model.py`: `MNIST_CNN` -- CNN on MNIST with affine drift simulation.
@@ -52,18 +49,22 @@ poetry run mypy .
 
 ### Configuration Format (TOML)
 Required sections: `[model]` (name, pretrained_path), `[data]` (name, path), `[train]` (batch_size, num_workers, init_lr), `[drift_detection]` (detector_name, detection_interval, etc).
-Optional sections: `[continual_learning]` (update_mode, lambda params), `[visualization]` (baseline, input, output).
+Optional sections: `[continual_learning]` (update_mode, lambda params), `[logging]` (backend = "wandb"|"mlflow"|"none", experiment_name, mlflow_tracking_uri), `[visualization]` (baseline, input, output -- parsed but not rendered by the package).
 Top-level keys: `seed`, `device` ("auto"|"cpu"|"cuda"|"mps"), `multi_gpu`.
 
 ### Available Drift Detectors
-| Detector | Algorithm | Key Params |
+The `detector_name` config value must be one of the strings the loader accepts
+(`src/apeiron/drift_detection/load_drift_detector.py`):
+
+| `detector_name` | Algorithm | Key Params |
 |---|---|---|
 | `ADWINDetector` | Adaptive windowing (river) | adwin_delta, adwin_minor_threshold, adwin_moderate_threshold |
 | `KSWINDetector` | KS-test windowing (river) | kswin_alpha, kswin_window_size, kswin_stat_size |
 | `PageHinkleyDetector` | Page-Hinkley test (river) | ph_min_instances, ph_delta, ph_threshold, ph_alpha |
 | `ModelPerformanceDetector` | evidently batch analysis | (uses evidently defaults) |
-| `ModelEvalDetector` | Direct eval comparison | metric_index |
-| `EnsembleDetector` | Multi-detector voting | voting strategy |
+| `EvalDetector` | Direct eval comparison (`ModelEvalDetector`) | metric_index |
+
+Note: `EnsembleDetector` is recognized by the loader but raises `NotImplementedError` (sub-detector configuration is not wired up yet) -- do not use it.
 
 ### Available CL Update Modes
 | Mode | Strategy | Key Params |
