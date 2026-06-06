@@ -47,6 +47,4 @@ adwin_minor_threshold = 0.3
 adwin_moderate_threshold = 0.6
 
 [visualization]
-baseline = 90.0
 input = "output/cifar.csv"
-output = "output/cifar10_vit_dashboard.png"

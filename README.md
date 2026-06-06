@@ -104,6 +104,43 @@ poetry run python -m src.main \
   --set train.max_iter=200
 ```
 
+## Agent Skills (Claude Code & Codex)
+
+This repo ships task-oriented **agent skills** that walk an AI coding agent
+through the common Apeiron workflows. The same four skills are maintained for
+both tools:
+
+- **Claude Code** — `.claude/skills/<name>/SKILL.md`
+- **Codex** — `.codex/skills/<name>/SKILL.md`
+
+| Skill | What it does |
+|---|---|
+| `install-apeiron` | Add Apeiron as a dependency to **another** project (path/git), verify `import apeiron`, pick CPU vs CUDA PyTorch. |
+| `explore-examples` | Run a bundled example (MNIST/CIFAR) to see drift detection + CL in action; picks a config and reports the metrics CSV. |
+| `custom-experiment` | Scaffold a harness, data utils, and TOML for **your own** dataset/model, register it in the example factory, smoke-test, and run. |
+| `integrate-apeiron` | Add Apeiron's drift detection / CL to an **existing** training loop; inspects your repo and writes the lightest adapter that fits. |
+
+### Using them
+
+**Claude Code** — the skills are exposed as slash commands. Type `/` and the
+skill name, e.g.:
+
+```
+/explore-examples
+/install-apeiron ../my-project
+```
+
+You can also just describe the task in plain language ("add apeiron to my
+training loop") and the matching skill triggers from its description.
+
+**Codex** — the equivalent skills live under `.codex/skills/`. Invoke a skill by
+name or describe the task; Codex selects the skill whose description matches your
+request. The skills are tool-agnostic in intent — only the file format differs
+between the two trees.
+
+> Keep the two trees in sync: a change to a workflow should be reflected in both
+> `.claude/skills/<name>/SKILL.md` and `.codex/skills/<name>/SKILL.md`.
+
 ## Documentation
 
 Detailed docs are in `docs/`:
@@ -121,13 +158,8 @@ poetry run ruff check .
 poetry run mypy .
 ```
 
-## Deployment
 
-Platform-specific deployment guides:
-
-- [NERSC Perlmutter](./src/apeiron/deployment/perlmutter/README.md)
-
-## What `main.py` Does
+### What `main.py` Does
 - Builds the `DummyCNN_MNIST` model defined in `src/model/DummyCNN_MNIST.py`, a cross-entropy loss, and an Adam optimizer.
 - Loads the MNIST training split, stacks the tensors, and iterates over 10 tasks (digits 0–9). Each task applies random rotation and translation to encourage continual adaptation.
 - Maintains replay buffers (`memory_image`, `memory_label`, etc.) so past samples remain available for rehearsal while training new tasks.
@@ -148,3 +180,4 @@ Training logs report the task id, training/test accuracy, and replay-memory accu
 Platform-specific deployment guides:
 
 - [OLCF Frontier](./src/apeiron/deployment/frontier/README.md)
+- [NERSC Perlmutter](./src/apeiron/deployment/perlmutter/README.md)
