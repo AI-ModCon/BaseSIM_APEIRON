@@ -4,6 +4,15 @@
 This document describes all currently supported TOML configuration options available in Apeiron.
 The code to parse the configuration file can be found in `src/apeiron/config/configuration.py`.
 
+The parser expects these TOML sections:
+
+- Required: `[model]`, `[data]`, `[train]`, `[drift_detection]`
+- Optional: `[continual_learning]`, `[visualization]`
+- Required top-level keys: `seed`, `device`
+- Common top-level optional key: `verbosity`
+
+See each section for field-by-field meaning and defaults.
+
 ## Root-Level Configuration
 
 ```toml
