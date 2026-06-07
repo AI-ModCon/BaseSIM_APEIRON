@@ -7,7 +7,7 @@ The code to parse the configuration file can be found in `src/apeiron/config/con
 The parser expects these TOML sections:
 
 - Required: `[model]`, `[data]`, `[train]`, `[drift_detection]`
-- Optional: `[continual_learning]`, `[visualization]`
+- Optional: `[continual_learning]`, `[visualization]`, `[logging]`
 - Required top-level keys: `seed`, `device`
 - Common top-level optional key: `verbosity`
 
@@ -187,7 +187,7 @@ Details about the drift detection algorithms available can be found in [docs/dri
 
 ## [visualization]
 
-The visualization configuration options are used to store the results of the metrics captured during the run.
+The visualization configuration options are optional and are used to store the results of the metrics captured during the run.
 
 ```toml
 [visualization]
@@ -196,7 +196,7 @@ input = "output/results.csv"
 
 | Option | Type | Description |
 |----------|------|-------------|
-| `input` | str | Required, path to the CSV output file storing the metrics. |
+| `input` | str | Path to the CSV output file storing the metrics. Default: output/output.csv. |
 
 Metrics used:
 ```
@@ -264,6 +264,8 @@ step,metric,value
 ```
 
 ## [logging]
+
+All the parameters are optional.
 
 ```toml
 [logging]

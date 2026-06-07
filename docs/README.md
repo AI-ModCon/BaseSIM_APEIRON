@@ -10,7 +10,7 @@ This directory contains the detailed reference docs for the framework's three ma
 ## Read Order
 
 1. Start with `configurations.md` to learn on the required and optional configuration parameters used by Apeiron.
-2. Start with `model_harness.md` to understand how models and stream loaders are exposed.
+2. Continue with `model_harness.md` to understand how models and stream loaders are exposed.
 3. Read `drift_detectors.md` to see how monitoring decisions are made.
 4. Read `continuous_learning.md` to understand what happens after drift is detected.
 

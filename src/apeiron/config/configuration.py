@@ -155,7 +155,7 @@ class DriftDetectionCfg:
 
 @dataclass(frozen=True)
 class VisualizationCfg:
-    input: str = "output/cl_only.csv"  # CSV path where run metrics are written
+    input: str = "output/output.csv"  # CSV path where run metrics are written
 
 
 @dataclass(frozen=True)
