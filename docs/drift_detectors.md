@@ -182,3 +182,40 @@ adwin_delta = 0.002
 adwin_minor_threshold = 0.3
 adwin_moderate_threshold = 0.6
 ```
+
+Code for the workflow in the Monitor implementation:
+
+```python
+detector = load_drift_detector(cfg)
+
+data = modelHarness.get_stream_dataloader()
+
+for batch_idx, batch in tqdm(
+    enumerate(val_loader),
+    desc="Inference on batches",
+    leave=False,
+):
+    # Inference on batch and compute all metrics
+    metrics = self._evaluate_batch(batch)
+    metric_buffer.append(metrics)
+
+
+metric_idx = cfg.drift_detection.metric_index
+metric_values = [m[metric_idx] for m in metric_buffer]
+
+# aggregate metrics
+aggregation = cfg.drift_detection.aggregation
+if aggregation == "mean":
+    agg_metric = float(np.mean(metric_values))
+elif aggregation == "median":
+    agg_metric = float(np.median(metric_values))
+elif aggregation == "last":
+    agg_metric = float(metric_values[-1])
+
+drift_signal = detector.update(agg_metric)
+if drift_signal.drift_detected:
+    handle_drift(drift_signal)
+
+self.detector.reset()
+modelHarness.update_data_stream()
+```
