@@ -278,7 +278,7 @@ class TestFrozenDataclasses:
 
     def test_visualization_cfg(self):
         viz = VisualizationCfg()
-        assert viz.input == "output/cl_only.csv"
+        assert viz.input == "output/output.csv"
 
 
 # ---------------------------------------------------------------------------
