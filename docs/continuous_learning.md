@@ -126,3 +126,20 @@ ewc_ema_decay = 0.95
 kfac_lambda = 1e-2
 kfac_ema_decay = 0.95
 ```
+
+Codes wanting to do continual learning should use the `ContinuousTrainer` class that takes the configuration parameters, model harness, logger and the profiler.
+
+```python
+cfg = build_config ( argv )
+
+xtrainer = ContinuousTrainer(
+    cfg=cfg,
+    modelHarness=modelHarness,
+    logger=logger,
+    profiler=flops_profiler,
+)
+
+trainer.outer_cl_training_loop(drift_event_id=drift_count)
+if modelHarness.ckpts_enabled:
+    ckptpath = modelHarness.save_ckpt(event=drift_count)
+```

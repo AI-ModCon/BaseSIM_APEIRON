@@ -86,8 +86,7 @@ def _select_best_gpu() -> int | None:
 @dataclass(frozen=True)
 class ModelCfg:
     name: str
-    pretrained_path: str
-
+    pretrained_path: str = ""
     # FIFO checkpointing: 0 disables, N keeps last N post-CL snapshots
     max_ckpts: int = 0
     ckpts_path: str = ""
@@ -156,7 +155,7 @@ class DriftDetectionCfg:
 
 @dataclass(frozen=True)
 class VisualizationCfg:
-    input: str = "output/cl_only.csv"  # CSV path where run metrics are written
+    input: str = "output/output.csv"  # CSV path where run metrics are written
 
 
 @dataclass(frozen=True)
@@ -178,7 +177,7 @@ class Config:
 
     seed: int
     device: str
-    multi_gpu: bool
+    multi_gpu: bool = False
     verbosity: str = "INFO"
     visualization: VisualizationCfg | None = None
     logging: LoggingCfg | None = None
