@@ -1,0 +1,32 @@
+seed = 1337
+device = "auto"
+
+[model]
+name = "prometheus_torch"
+pretrained_path = "examples/prometheus_torch/output/prometheus_torch/checkpoints/torch_case_00.pt"
+max_ckpts = 1
+ckpts_path = "examples/prometheus_torch/output/apeiron/"
+
+[data]
+name = "prometheus_torch"
+path = "examples/prometheus_torch/data"
+
+[train]
+batch_size = 64
+num_workers = 0
+init_lr = 0.001
+max_iter = 600
+
+[drift_detection]
+detector_name = "ADWINDetector"
+detection_interval = 1
+adwin_delta = 0.05
+metric_index = 0
+max_stream_updates = 23
+
+[continual_learning]
+update_mode = "base"
+
+[logging]
+backend = "wandb"
+experiment_name = "prometheus"
