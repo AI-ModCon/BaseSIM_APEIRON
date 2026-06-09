@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from typing import Tuple, Optional, List, Dict, Any
 from torch import nn, Tensor
 from torch.optim import Optimizer
-from torch.utils.data import DataLoader, ConcatDataset
+from torch.utils.data import DataLoader, ConcatDataset, RandomSampler
 
 from apeiron.model.torch_model_harness import BaseModelHarness
 from apeiron.config.configuration import Config
@@ -54,9 +54,12 @@ class MNIST_CNN(BaseModelHarness):
       - get_hist_dataloaders():  build loaders over FULL train/val using the chained augmentations of all historical loades
     """
 
-    def __init__(self, cfg: Config, model: nn.Module = Cnn()):
+    def __init__(
+        self, cfg: Config, model: nn.Module = Cnn(), current_ratio: float = 1.0
+    ):
         super().__init__(cfg=cfg, model=model)
 
+        self.current_ratio = current_ratio
         self.eval_metrics = {"accuracy": accuracy, "loss": self.get_criterion()}
         self.higher_is_better = {"accuracy": True, "loss": False}
 
@@ -127,9 +130,23 @@ class MNIST_CNN(BaseModelHarness):
         nw = getattr(self.cfg.train, "num_workers", self.cfg.train.num_workers)
         pin = torch.cuda.is_available()
 
-        self._cur_train_loader = make_loader(
-            ds_train_tf, bs, shuffle=True, num_workers=nw, pin_memory=pin
-        )
+        if self.current_ratio < 1.0:
+            n_cur = int(len(ds_train_tf) * self.current_ratio)
+            cur_sampler = RandomSampler(
+                ds_train_tf, replacement=True, num_samples=n_cur
+            )
+            self._cur_train_loader = make_loader(
+                ds_train_tf,
+                bs,
+                shuffle=True,
+                num_workers=nw,
+                pin_memory=pin,
+                sampler=cur_sampler,
+            )
+        else:
+            self._cur_train_loader = make_loader(
+                ds_train_tf, bs, shuffle=True, num_workers=nw, pin_memory=pin
+            )
         self._cur_val_loader = make_loader(
             ds_val_tf, bs, shuffle=False, num_workers=nw, pin_memory=pin
         )
@@ -166,9 +183,23 @@ class MNIST_CNN(BaseModelHarness):
         nw = getattr(self.cfg.data, "num_workers", self.cfg.train.num_workers)
         pin = torch.cuda.is_available()
 
-        hist_train_loader = make_loader(
-            ds_hist_train, bs, shuffle=True, num_workers=nw, pin_memory=pin
-        )
+        if self.current_ratio < 1.0:
+            n_hist = int(len(ds_hist_train) * (1.0 - self.current_ratio))
+            hist_sampler = RandomSampler(
+                ds_hist_train, replacement=True, num_samples=n_hist
+            )
+            hist_train_loader = make_loader(
+                ds_hist_train,
+                bs,
+                shuffle=True,
+                num_workers=nw,
+                pin_memory=pin,
+                sampler=hist_sampler,
+            )
+        else:
+            hist_train_loader = make_loader(
+                ds_hist_train, bs, shuffle=True, num_workers=nw, pin_memory=pin
+            )
         hist_val_loader = make_loader(
             ds_hist_val, bs, shuffle=False, num_workers=nw, pin_memory=pin
         )
