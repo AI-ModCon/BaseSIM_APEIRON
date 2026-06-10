@@ -1,6 +1,6 @@
 import sys
 
-from logger import get_logger, configure_backend
+from logger import get_logger, configure_backend, reset_logger
 from config.configuration import build_config, Config
 
 from examples.utils import get_example
@@ -12,8 +12,9 @@ def main(argv: list[str] | None = None) -> int:
     cfg: Config = build_config(argv)
     modelHarness = get_example(cfg=cfg)
 
-    # Configure logger
+    # Configure logger (reset singleton: harness init may have created wandb default)
     backend = configure_backend(cfg)
+    reset_logger()
     logger = get_logger(
         verbosity=cfg.verbosity,
         backend=backend,
@@ -26,6 +27,7 @@ def main(argv: list[str] | None = None) -> int:
         project_name = cfg.logging.experiment_name
 
     logger.init(cfg, project=project_name)
+    get_logger().info("wandb run initialized", level=0)
 
     # Create continuous monitor - replaces fixed loop and detector instantiation
     monitor = ContinuousMonitor(

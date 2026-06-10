@@ -48,6 +48,7 @@ class MATEYHarness(BaseModelHarness):
         modules = self._load_matey_modules()
         params = self._build_matey_params(cfg, modules["YParams"])
         self._configure_data_split(params)
+        self._apply_checkpoint_arch_hints(params, cfg.model.pretrained_path)
         matey_model = self._build_matey_model(cfg, params, modules)
 
         self._adapter_model = _MateyModelAdapter(
@@ -228,9 +229,67 @@ class MATEYHarness(BaseModelHarness):
             "DAdaptAdam": dadapt,
         }
 
+    @staticmethod
+    def _resolve_checkpoint_hyperparams_yaml(pretrained_path: str) -> Path | None:
+        raw = str(pretrained_path).strip()
+        if not raw:
+            return None
+
+        ckpt = Path(raw)
+        if not ckpt.is_absolute():
+            ckpt = Path.cwd() / ckpt
+        ckpt = ckpt.resolve()
+        if not ckpt.is_file():
+            return None
+
+        for parent in (ckpt.parent, ckpt.parent.parent):
+            candidate = parent / "hyperparams.yaml"
+            if candidate.is_file():
+                return candidate
+        return None
+
+    @staticmethod
+    def _apply_checkpoint_arch_hints(params: Any, pretrained_path: str) -> None:
+        """Align model architecture with a pretrained TurBT checkpoint."""
+        raw = str(pretrained_path).strip()
+        if not raw:
+            return
+
+        ckpt_path = Path(raw)
+        if not ckpt_path.is_absolute():
+            ckpt_path = Path.cwd() / ckpt_path
+        ckpt_path = ckpt_path.resolve()
+        if not ckpt_path.is_file():
+            return
+
+        checkpoint = torch.load(ckpt_path, map_location="cpu", weights_only=False)
+        state_dict = MATEYHarness._extract_model_state_dict(checkpoint)
+
+        space_bag_key = next(
+            (key for key in state_dict if key.endswith("space_bag.0.weight")),
+            None,
+        )
+        if space_bag_key is not None:
+            params.n_states = int(state_dict[space_bag_key].shape[1])
+
+        tokenizer_heads = getattr(params, "tokenizer_heads", None)
+        if isinstance(tokenizer_heads, list):
+            for head in tokenizer_heads:
+                if isinstance(head, dict) and head.get("head_name") == "tk-graph":
+                    # Current MATEY requires unit patch size for graph tokenizers.
+                    head["patch_size"] = [[1, 1, 1]]
+            params.tokenizer_heads = tokenizer_heads
+
     def _build_matey_params(self, cfg: Config, yparams_cls: type[Any]) -> Any:
-        yaml_path = DEFAULT_MATEY_YAML
-        params = yparams_cls(str(yaml_path), DEFAULT_MATEY_PROFILE)
+        ckpt_yaml = self._resolve_checkpoint_hyperparams_yaml(cfg.model.pretrained_path)
+        if ckpt_yaml is not None:
+            params = yparams_cls(str(ckpt_yaml))
+            get_logger().info(
+                f"Using MATEY hyperparams from checkpoint: {ckpt_yaml}",
+                level=0,
+            )
+        else:
+            params = yparams_cls(str(DEFAULT_MATEY_YAML), DEFAULT_MATEY_PROFILE)
 
         params.use_ddp = False
         params.use_fsdp = False

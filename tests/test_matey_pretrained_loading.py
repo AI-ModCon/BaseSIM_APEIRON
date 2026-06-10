@@ -85,6 +85,25 @@ def test_missing_pretrained_path_raises(tmp_path: Path) -> None:
         MATEYHarness._load_pretrained_weights_if_available(target, str(missing))
 
 
+def test_resolve_checkpoint_hyperparams_yaml(tmp_path: Path) -> None:
+    run_dir = tmp_path / "demo_nbatchsloc100"
+    ckpt_dir = run_dir / "training_checkpoints"
+    ckpt_dir.mkdir(parents=True)
+    hyperparams = run_dir / "hyperparams.yaml"
+    hyperparams.write_text("model_type: turbt\n", encoding="utf-8")
+    ckpt = ckpt_dir / "best_ckpt.tar"
+    ckpt.write_bytes(b"placeholder")
+
+    resolved = MATEYHarness._resolve_checkpoint_hyperparams_yaml(str(ckpt))
+    assert resolved == hyperparams
+
+
+def test_resolve_checkpoint_hyperparams_yaml_missing(tmp_path: Path) -> None:
+    ckpt = tmp_path / "missing.pt"
+    ckpt.write_bytes(b"x")
+    assert MATEYHarness._resolve_checkpoint_hyperparams_yaml(str(ckpt)) is None
+
+
 def test_unsupported_checkpoint_format_raises(tmp_path: Path) -> None:
     target = _TinyModel()
     bad_ckpt = tmp_path / "bad.pt"

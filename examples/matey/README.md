@@ -2,112 +2,220 @@
 
 BaseSim harness for the [MATEY](https://github.com/FusionFM/MATEY) multiscale transformer codebase.
 
-## Setup
+## Harness overview
 
-1. Install BaseSim (from repo root):
-   ```bash
-   poetry install
-   ```
+| Config | Script | Model | Drift signal | Will ADWIN fire? |
+|--------|--------|-------|--------------|------------------|
+| `matey_outer_loop.toml` | `run_outer_loop.sh` | Placeholder L2 | Synthetic noise → `input_l2` | **Yes** (by design) |
+| `matey_inference_drift.toml` | `run_inference_drift.sh` | Real TurBT ViT | NRMSE on real forward passes | Only if NRMSE shifts |
+| `matey.toml` | `python -m src.main ...` | Real ViT + CL | NRMSE | Depends on data |
 
-2. Install the optional MATEY example dependency (pinned commit):
-   ```bash
-   poetry install --extras matey
-   ```
-   This uses GitHub SSH auth for the private MATEY repo, so your SSH key must
-   have access to `FusionFM/MATEY`.
+### How drift detection works
 
-   This extra is pinned to:
-   `4e615bb5c86024632e386153bfbed028b38a8262`
+1. `ContinuousMonitor` evaluates batches from the validation loader.
+2. Every `detection_interval` batches, metrics are aggregated (`mean`, `median`, or `last`).
+3. **ADWIN** receives the monitored metric (`metric_index`: 0 = first eval metric).
+4. If ADWIN detects a statistically significant change → continual learning dispatch (when `update_mode != "none"`).
 
-   Equivalent pip command:
-   ```bash
-   pip install "matey @ git+ssh://git@github.com/FusionFM/MATEY.git@4e615bb5c86024632e386153bfbed028b38a8262"
-   ```
+**Outer loop** injects increasing Gaussian noise each stream, so `input_l2` jumps and drift fires reliably.
 
-3. (Optional) Install heavy/system-dependent packages as needed for your environment:
-   ```bash
-   MAX_JOBS=4 NINJA_STATUS="[%f/%t] " pip install -vv --progress-bar on --no-build-isolation flash-attn
-   pip install dadaptation==3.1                             # for DAdaptAdam optimizer
-   pip install mpi4py                                       # requires MPI C library
-   pip install netCDF4                                      # requires HDF5/netCDF C libs
-   pip install git+https://github.com/sandialabs/exodusii.git # not on PyPI
-   ```
+**Inference drift** uses real ViT NRMSE. Drift fires only when the metric actually changes between streams (e.g. different machines/shots). Re-shuffling the same three KSTAR example files produces ~flat NRMSE (~0.07) and **no drift** — that is expected, not a failure.
 
-   Alternative: install flash attention without screen output 
-   
-   ``` 
-   MAX_JOBS=4 pip install flash-attn --no-build-isolation  # requires CUDA toolkit + nvcc
-   ```
+---
+
+## Frontier (OLCF) quick start
+
+### Environment
+
+On Frontier, use the shared **matey-env** (ROCm 6.3.1). The run scripts source it automatically:
+
+```bash
+source /lustre/orion/world-shared/stf218/junqi/forge/matey-env-rocm631.sh
+export PYTHONPATH="/lustre/orion/lrn097/proj-shared/fusionMT/MATEY:$(pwd)/src:$(pwd)"
+```
+
+For wandb v1 API keys (`wandb_v1_*`, ~86 chars), upgrade once on a login node:
+
+```bash
+./examples/matey/setup_wandb.sh
+```
+
+### GPU allocation
+
+Real ViT inference requires a GPU compute node:
+
+```bash
+srun --account=lrn097 --partition=batch \
+     --nodes=1 --ntasks=1 --gpus=1 --time=1:00:00 \
+     --pty bash
+```
+
+Login node is fine for staging data, syncing wandb, and plotting CSVs.
+
+### Shared paths (Frontier)
+
+| Resource | Path |
+|----------|------|
+| SOLPS2D baseline | `/lustre/orion/fus183/proj-shared/MATEY/Datasets_pretraining/solps` |
+| March 2026 checkpoint | `.../models/Dev_Fusion_Demo_March2026_Final/demo_nbatchsloc100/training_checkpoints/best_ckpt.tar` |
+| Alternate SOLPS copy (lrn097) | `/lustre/orion/lrn097/proj-shared/fusionMT-data/solps` |
+
+**Data format note:** Only `solps-kstar_example-*.nc` files (dimension `nt`) work with the current `SOLPS2D` loader. Raw `b2time.nc` under `SOLPS2DwION/D3D|KSTAR|SPARC` uses a different schema and fails with `KeyError: 'nt'` until a SOLPS2DwION loader is wired in.
+
+---
+
 ## Running
+
+### 1. Outer loop — validate drift pipeline (CPU ok)
+
+Synthetic noise increases each stream; ADWIN should detect drift and log `Drift check #N: ... detected=True`.
+
+```bash
+cd BaseSIM_APEIRON
+./examples/matey/run_outer_loop.sh
+# optional: ENABLE_WANDB=1 with WANDB_API_KEY set
+```
+
+**Expect:** console drift-check lines every 5 batches; `output/matey_outer_loop.csv`; optional wandb project `matey-outer-loop-drift`.
+
+### 2. Inference drift — real ViT NRMSE (GPU required)
+
+**Sanity check (same domain, no drift expected):**
+
+```bash
+export BASELINE=/lustre/orion/fus183/proj-shared/MATEY/Datasets_pretraining/solps
+export SHIFT="${BASELINE}"
+export CKPT=/lustre/orion/fus183/proj-shared/MATEY/models/Dev_Fusion_Demo_March2026_Final/demo_nbatchsloc100/training_checkpoints/best_ckpt.tar
+export WANDB_MODE=offline
+export ENABLE_WANDB=1
+# read -rs WANDB_API_KEY && export WANDB_API_KEY
+
+./examples/matey/run_inference_drift.sh "${BASELINE}" "${SHIFT}" "${CKPT}" \
+  --set drift_detection.max_stream_updates=6 \
+  --set drift_detection.detection_interval=5
+```
+
+**Expect:** streams alternate `(baseline domain)` / `(shift domain)`; NRMSE logged to CSV/wandb; message `CL dispatch did not run because no drift was detected`.
+
+**Weak cross-file shift (pipeline test, usually no ADWIN trigger):**
+
+```bash
+./examples/matey/stage_solps_shift.sh
+# then set SHIFT to the printed scratch path and re-run run_inference_drift.sh
+```
+
+**Strong drift** needs genuinely different SOLPS2D data (e.g. `lrn037` SOLPS if you have access) or future SOLPS2DwION loader support.
+
+Extra CLI overrides are forwarded after the third argument:
+
+```bash
+./examples/matey/run_inference_drift.sh "${BASELINE}" "${SHIFT}" "${CKPT}" \
+  --set verbosity=INFO:2 \
+  --set continual_learning.update_mode=base
+```
+
+### 3. Full continual learning
 
 ```bash
 poetry run python -m src.main --config examples/matey/matey.toml
 ```
 
-Outer-loop drift demo (L2 placeholder model + input-noise stream updates):
+---
 
-```bash
-poetry run python -m src.main --config examples/matey/matey_outer_loop.toml
-# or
-./examples/matey/run_outer_loop.sh
+## Metrics and visualization
+
+Per-batch **eval metrics** (`eval/nrmse`, `eval/rmse`, `eval/loss`) go to **CSV and wandb**, not the terminal. The terminal shows stream labels, tqdm progress, and (at `verbosity=INFO:1+`) drift-check summaries every `detection_interval` batches:
+
+```text
+Drift check #12: metric_0=0.073142, detected=False, score=0.0000
 ```
 
-**Real ViT inference + cross-domain drift** (requires checkpoint + GPU for meaningful NRMSE):
+| Output | Path |
+|--------|------|
+| Metrics CSV | `output/matey_inference_drift.csv` or `output/matey_outer_loop.csv` |
+| Offline wandb | `wandb/offline-run-*` |
+
+### wandb on Frontier
+
+- **Compute node:** set `WANDB_MODE=offline` (no outbound internet).
+- **Login node:** sync with upgraded wandb (do **not** use bare `wandb` on PATH — it picks matey-env 0.19.x):
 
 ```bash
-./examples/matey/run_inference_drift.sh \
-  /path/to/baseline/solps \
-  /path/to/shift/solps \
-  /path/to/checkpoint.tar
+cd BaseSIM_APEIRON
+unset PYTHONPATH
+export PYTHONPATH="${HOME}/.local/23.11.0-0/lib/python3.10/site-packages"
+read -rs WANDB_API_KEY && echo && export WANDB_API_KEY
+/lustre/orion/world-shared/stf218/junqi/forge/matey-env-rcom631/bin/python -m wandb sync wandb/offline-run-*
 ```
 
-Uses `matey_inference_drift.toml` — alternates `data.path` / `data.alt_path` on each
-stream reload to simulate drift between machines or shot sets. See
-`src/notes/BaseSIM_APEIRON/INTEGRATION_PLAN.md` for the full roadmap.
+Plot NRMSE locally from CSV:
+
+```bash
+python3 << 'EOF'
+import pandas as pd, matplotlib; matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+df = pd.read_csv("output/matey_inference_drift.csv")
+n = df[df.metric == "eval/nrmse"].copy()
+n["value"] = pd.to_numeric(n["value"])
+n.plot(x="step", y="value", figsize=(12, 4), title="NRMSE")
+plt.ylabel("NRMSE"); plt.tight_layout()
+plt.savefig("output/matey_inference_drift_dashboard.png", dpi=150)
+print("Saved output/matey_inference_drift_dashboard.png")
+EOF
+```
+
+---
+
+## Poetry setup (non-Frontier)
+
+1. Install BaseSim (from repo root):
+
+   ```bash
+   poetry install
+   ```
+
+2. Install the optional MATEY example dependency (pinned commit):
+
+   ```bash
+   poetry install --extras matey
+   ```
+
+   Pinned commit: `4e615bb5c86024632e386153bfbed028b38a8262`
+
+---
 
 ## Configuration
 
-Edit [matey.toml](matey.toml) to adjust training parameters, drift detection, and data paths.
+Edit the TOML files to adjust training, drift detection, and data paths.
 
-The `[data].path` should point to your local SOLPS dataset root
-(must contain `train/` and `valid/` directories).
-This data is expected to be user-provided and is not tracked in git.
-
-For the SOLPS example, the harness builds a deterministic file-level split of
-`[0.7, 0.15, 0.15]` and materializes staged views under:
+`[data].path` must point to a SOLPS root with `train/` and `valid/` subdirectories. The harness builds a deterministic file-level split `[0.8, 0.1, 0.1]` and caches staged views under:
 
 ```text
 output/matey_split_cache/<fingerprint>/{train,val,test}
 ```
 
-The cache is reused when source files, split ratios, and seed are unchanged.
+Key drift settings (`matey_inference_drift.toml`):
 
-The example TOML is tuned for short smoke runs to make drift-triggered continual
-learning dispatch easier to observe (`detection_interval=5`, `aggregation="last"`,
-`adwin_delta=0.05`, `max_stream_updates=10`).
+- `drift_detection.metric_index = 0` → **NRMSE**
+- `detection_interval = 5` → check every 5 batches
+- `aggregation = "last"` → use last batch metric in window
+- `max_stream_updates = 10` → number of stream reloads before stop
 
-For the outer-loop harness, use [matey_outer_loop.toml](matey_outer_loop.toml):
-- `data.name = "matey_outer_loop"` selects `model_outer_loop.py`.
-- `data.path` points at `examples/matey/dump/SOLPS2DwION`.
-- `continual_learning.update_mode = "none"` disables parameter updates.
-- `drift_detection.metric_index = 0` monitors the `input_l2` metric.
+Outer loop uses `adwin_delta = 0.05` (more sensitive); inference drift defaults to `0.01`.
 
-For real ViT inference with domain shift, use [matey_inference_drift.toml](matey_inference_drift.toml):
-- `data.name = "matey_inference_drift"` selects `model_inference_drift.py`.
-- `data.path` — baseline SOLPS root; `data.alt_path` — shift domain (optional).
-- `model.pretrained_path` — MATEY checkpoint (required for meaningful metrics).
-- `drift_detection.metric_index = 0` monitors **NRMSE**.
+See also `src/notes/BaseSIM_APEIRON/INTEGRATION_PLAN.md` for the full integration roadmap.
+
+---
 
 ## Files
 
 | File | Description |
-|---|---|
-| `model.py` | `MATEYHarness` -- adapts MATEY models/data to BaseSim's `BaseModelHarness` interface |
-| `matey.toml` | Experiment config |
-| `model_outer_loop.py` | Outer-loop drift harness with L2 placeholder model and noisy input stream |
-| `matey_outer_loop.toml` | Outer-loop experiment config |
-| `model_inference_drift.py` | Real ViT inference + baseline/shift domain stream toggle |
-| `matey_inference_drift.toml` | Inference drift experiment config |
-| `run_outer_loop.sh` | Convenience run script for `matey_outer_loop.toml` |
-| `run_inference_drift.sh` | Convenience run script for `matey_inference_drift.toml` |
-| `pyproject.toml` | Optional example dependency manifest |
+|------|-------------|
+| `model.py` | Real ViT harness — checkpoint-aware TurBT loading |
+| `model_outer_loop.py` | Placeholder L2 model + synthetic noise streams |
+| `model_inference_drift.py` | Real ViT + baseline/shift domain toggle |
+| `run_outer_loop.sh` | Run outer-loop drift demo |
+| `run_inference_drift.sh` | Run real ViT inference drift (sources matey-env, wandb, MIOpen cache) |
+| `stage_solps_shift.sh` | Stage a SOLPS2D shift domain under scratch |
+| `setup_wandb.sh` | Upgrade wandb in user site-packages for v1 API keys |
+| `matey.toml` / `matey_outer_loop.toml` / `matey_inference_drift.toml` | Experiment configs |

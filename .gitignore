@@ -18,6 +18,7 @@ examples/matey/data/
 
 # bash
 *.sh
+!examples/matey/*.sh
 
 
 # Files

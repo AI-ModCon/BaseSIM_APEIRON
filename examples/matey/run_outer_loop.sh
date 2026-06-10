@@ -7,17 +7,20 @@ set -euo pipefail
 MATEY_ENV="/lustre/orion/world-shared/stf218/junqi/forge/matey-env-rocm631.sh"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
-# Re-source matey-env if python is not the conda env (common after module load).
-if [[ ! "$(command -v python)" == *matey-env* ]]; then
-  unset PYTHONPATH
-  # shellcheck disable=SC1090
-  source "${MATEY_ENV}"
-fi
+# Always re-source: prompt can show matey-env while PYTHONPATH was cleared (e.g. unset PYTHONPATH).
+unset PYTHONPATH
+# shellcheck disable=SC1090
+source "${MATEY_ENV}"
 
 export PYTHONPATH="/lustre/orion/lrn097/proj-shared/fusionMT/MATEY:${ROOT}/src:${ROOT}:${PYTHONPATH:-}"
+export WANDB_MODE=disabled
+export WANDB_DISABLED=true
 
 python -c "import adios2, river, logger; print('env ok:', __import__('sys').executable)" || {
-  echo "ERROR: matey-env not active. Run: source ${MATEY_ENV}" >&2
+  echo "ERROR: env check failed after sourcing ${MATEY_ENV}" >&2
+  echo "  python: $(command -v python)" >&2
+  echo "  If adios2 is missing: pip install adios2==2.11.0.1012" >&2
+  echo "  If logger is missing: PYTHONPATH must include ${ROOT}/src" >&2
   exit 1
 }
 

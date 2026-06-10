@@ -69,6 +69,7 @@ class WandBLogger:
         if not self.enabled:
             return None
 
+        init_timeout = int(__import__("os").environ.get("WANDB_INIT_TIMEOUT", "120"))
         self.run = wandb.init(
             project=project,
             name=name,
@@ -76,7 +77,10 @@ class WandBLogger:
             tags=tags,
             notes=notes,
             group=group,
-            settings=wandb.Settings(silent=True),
+            settings=wandb.Settings(
+                silent=True,
+                init_timeout=init_timeout,
+            ),
             **kwargs,
         )
 
