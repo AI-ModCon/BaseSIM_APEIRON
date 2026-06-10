@@ -103,6 +103,8 @@ class TrainCfg:
 class DataCfg:
     name: str
     path: str
+    # Optional second SOLPS root for domain-shift demos (e.g. different tokamak/shots).
+    alt_path: str = ""
 
 
 @dataclass(frozen=True)

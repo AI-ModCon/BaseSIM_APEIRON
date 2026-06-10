@@ -52,6 +52,19 @@ poetry run python -m src.main --config examples/matey/matey_outer_loop.toml
 ./examples/matey/run_outer_loop.sh
 ```
 
+**Real ViT inference + cross-domain drift** (requires checkpoint + GPU for meaningful NRMSE):
+
+```bash
+./examples/matey/run_inference_drift.sh \
+  /path/to/baseline/solps \
+  /path/to/shift/solps \
+  /path/to/checkpoint.tar
+```
+
+Uses `matey_inference_drift.toml` — alternates `data.path` / `data.alt_path` on each
+stream reload to simulate drift between machines or shot sets. See
+`src/notes/BaseSIM_APEIRON/INTEGRATION_PLAN.md` for the full roadmap.
+
 ## Configuration
 
 Edit [matey.toml](matey.toml) to adjust training parameters, drift detection, and data paths.
@@ -79,6 +92,12 @@ For the outer-loop harness, use [matey_outer_loop.toml](matey_outer_loop.toml):
 - `continual_learning.update_mode = "none"` disables parameter updates.
 - `drift_detection.metric_index = 0` monitors the `input_l2` metric.
 
+For real ViT inference with domain shift, use [matey_inference_drift.toml](matey_inference_drift.toml):
+- `data.name = "matey_inference_drift"` selects `model_inference_drift.py`.
+- `data.path` — baseline SOLPS root; `data.alt_path` — shift domain (optional).
+- `model.pretrained_path` — MATEY checkpoint (required for meaningful metrics).
+- `drift_detection.metric_index = 0` monitors **NRMSE**.
+
 ## Files
 
 | File | Description |
@@ -87,5 +106,8 @@ For the outer-loop harness, use [matey_outer_loop.toml](matey_outer_loop.toml):
 | `matey.toml` | Experiment config |
 | `model_outer_loop.py` | Outer-loop drift harness with L2 placeholder model and noisy input stream |
 | `matey_outer_loop.toml` | Outer-loop experiment config |
+| `model_inference_drift.py` | Real ViT inference + baseline/shift domain stream toggle |
+| `matey_inference_drift.toml` | Inference drift experiment config |
 | `run_outer_loop.sh` | Convenience run script for `matey_outer_loop.toml` |
+| `run_inference_drift.sh` | Convenience run script for `matey_inference_drift.toml` |
 | `pyproject.toml` | Optional example dependency manifest |

@@ -23,6 +23,10 @@ def get_example(cfg: Config) -> BaseModelHarness:
         from examples.matey.model_outer_loop import MATEYHarness
 
         return MATEYHarness(cfg=cfg)
+    elif cfg.data.name == "matey_inference_drift":
+        from examples.matey.model_inference_drift import MATEYInferenceDriftHarness
+
+        return MATEYInferenceDriftHarness(cfg=cfg)
     else:
         raise NotImplementedError(
             f"Example for dataset {cfg.data.name} is not implemented."
