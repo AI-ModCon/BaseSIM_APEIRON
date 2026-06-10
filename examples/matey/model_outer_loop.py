@@ -5,7 +5,6 @@ import copy
 import gc
 import random
 import sys
-import types
 from contextlib import contextmanager
 from dataclasses import replace
 from pathlib import Path
@@ -21,6 +20,7 @@ from examples.matey.src.matey_batches import (
     MateyLoaderAdapter as _MateyLoaderAdapter,
     MateyTargetBatch,
     ensure_matey_dist_initialized,
+    install_matey_optional_import_shims,
 )
 from model.torch_model_harness import BaseModelHarness
 
@@ -234,7 +234,7 @@ class MATEYHarness(BaseModelHarness):
             )
 
     def _load_matey_modules(self) -> dict[str, Any]:
-        self._install_optional_import_shims()
+        install_matey_optional_import_shims()
         try:
             # Import netCDF4 before h5py to avoid HDF5 library collision.
             import netCDF4 as _netCDF4  # noqa: F401
@@ -255,37 +255,6 @@ class MATEYHarness(BaseModelHarness):
             "YParams": YParams,
             "get_data_loader": get_data_loader,
         }
-
-    @staticmethod
-    def _install_optional_import_shims() -> None:
-        """
-        MATEY's dataset registry imports graph/XGC modules eagerly.
-        For outer-loop SOLPS-only usage, provide a minimal xgc_reader shim so
-        optional graph dependencies do not block import.
-        """
-        if "xgc_reader" in sys.modules:
-            return
-
-        try:
-            import xgc_reader as _xgc_reader  # noqa: F401
-
-            return
-        except ModuleNotFoundError:
-            pass
-
-        shim_pkg = types.ModuleType("xgc_reader")
-        shim_base = types.ModuleType("xgc_reader.base")
-
-        def _missing_xgc1(*_args: Any, **_kwargs: Any) -> None:
-            raise RuntimeError(
-                "xgc_reader is not installed/available. "
-                "It is only required for graph/XGC datasets, not SOLPS outer-loop runs."
-            )
-
-        shim_base.xgc1 = _missing_xgc1
-        shim_pkg.base = shim_base
-        sys.modules["xgc_reader"] = shim_pkg
-        sys.modules["xgc_reader.base"] = shim_base
 
     def _build_matey_params(self, cfg: Config, yparams_cls: type[Any]) -> Any:
         params = yparams_cls(str(DEFAULT_MATEY_YAML), DEFAULT_MATEY_PROFILE)

@@ -2,12 +2,50 @@ from __future__ import annotations
 
 import copy
 import os
+import sys
+import types
 from dataclasses import dataclass
 from typing import Any, Callable, Optional, cast
 
 import torch
 import torch.distributed as dist
 from torch import Tensor, nn
+
+
+def install_matey_optional_import_shims() -> None:
+    """Stub optional MATEY deps (XGC/ADIOS2) so SOLPS-only harnesses can import.
+
+    MATEY's package ``__init__`` and ``datasets`` eagerly import graph/XGC modules.
+    On Frontier login nodes those libraries may be missing unless matey-env is active.
+    """
+    if "adios2" not in sys.modules:
+        try:
+            import adios2 as _adios2  # noqa: F401
+        except ModuleNotFoundError:
+            sys.modules["adios2"] = types.ModuleType("adios2")
+
+    if "xgc_reader" in sys.modules:
+        return
+
+    try:
+        import xgc_reader as _xgc_reader  # noqa: F401
+    except ModuleNotFoundError:
+        pass
+    else:
+        return
+
+    shim_pkg = types.ModuleType("xgc_reader")
+    shim_base = types.ModuleType("xgc_reader.base")
+
+    def _missing_xgc1(*_args: Any, **_kwargs: Any) -> None:
+        raise RuntimeError(
+            "xgc_reader is not installed. Required only for graph/XGC datasets."
+        )
+
+    shim_base.xgc1 = _missing_xgc1
+    shim_pkg.base = shim_base
+    sys.modules["xgc_reader"] = shim_pkg
+    sys.modules["xgc_reader.base"] = shim_base
 
 
 def ensure_matey_dist_initialized() -> None:

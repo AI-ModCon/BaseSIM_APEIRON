@@ -4,9 +4,24 @@
 
 set -euo pipefail
 
+MATEY_ENV="/lustre/orion/world-shared/stf218/junqi/forge/matey-env-rocm631.sh"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-cd "${ROOT}"
 
+# Re-source matey-env if python is not the conda env (common after module load).
+if [[ ! "$(command -v python)" == *matey-env* ]]; then
+  unset PYTHONPATH
+  # shellcheck disable=SC1090
+  source "${MATEY_ENV}"
+fi
+
+export PYTHONPATH="/lustre/orion/lrn097/proj-shared/fusionMT/MATEY:${ROOT}/src:${ROOT}:${PYTHONPATH:-}"
+
+python -c "import adios2, river, logger; print('env ok:', __import__('sys').executable)" || {
+  echo "ERROR: matey-env not active. Run: source ${MATEY_ENV}" >&2
+  exit 1
+}
+
+cd "${ROOT}"
 SOLPS="${1:-/lustre/orion/fus183/proj-shared/MATEY/Datasets_pretraining/solps/train}"
 
 python -m src.main \

@@ -20,6 +20,7 @@ from examples.matey.src.matey_batches import (
     MateyModelAdapter as _MateyModelAdapter,
     MateyTargetBatch,
     ensure_matey_dist_initialized,
+    install_matey_optional_import_shims,
 )
 from examples.matey.src.solps_split import SolpsStagedSplit, stage_solps_split
 from logger import get_logger
@@ -179,6 +180,7 @@ class MATEYHarness(BaseModelHarness):
             )
 
     def _load_matey_modules(self) -> dict[str, Any]:
+        install_matey_optional_import_shims()
         try:
             # Import netCDF4 before h5py to avoid HDF5 library collision.
             # Both ship their own libhdf5; whichever loads first wins.
