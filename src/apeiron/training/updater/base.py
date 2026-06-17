@@ -22,7 +22,15 @@ class BaseUpdater:
         cfg: Configuration object.
         criterion: Loss function for training.
         model: Neural network model to update.
+        uses_hist_batch: True iff fwd_bwd consumes hist_batch directly.
+            Read by the trainer to decide whether prioritizing the
+            *historical* loader has any effect. Default False — EWC / KFAC
+            receive their historical-data signal through mixing into the
+            current loader, not through the hist_batch argument, so
+            reweighting hist_train_loader for them would be wasted work.
     """
+
+    uses_hist_batch: bool = False
 
     def __init__(self, cfg: Config, modelHarness: BaseModelHarness) -> None:
         """Initialize updater with config and model harness."""
@@ -36,6 +44,7 @@ class BaseUpdater:
             for n, p in self.model.named_parameters()
             if p.requires_grad
         }
+
         self.importance_weighting: bool = False
         self.importance_alpha: float = 1.0
 
@@ -90,18 +99,22 @@ class BaseUpdater:
 
     @torch.no_grad()
     def cl_preprocessing(self) -> None:
-        """Hook called before before the training loop starts"""
-        pass
+        """Hook called before the training loop starts.
 
-    @torch.no_grad()
-    def cl_postprocessing(self) -> None:
-        """Hook called after the training loop ends.
-
-        Updates theta_star to current model parameters.
+        Snapshots current model parameters into theta_star. Runs AFTER
+        compute_sample_priorities in the outer CL loop, so theta_star ends
+        up one round behind the model — the lag the prioritized-sampling
+        delta `L(w_current, x) - L(theta_star, x)` needs to be non-zero
+        on the next round.
         """
         for n, p in self.model.named_parameters():
             if p.requires_grad and n in self.theta_star:
                 self.theta_star[n].copy_(p.detach())
+
+    @torch.no_grad()
+    def cl_postprocessing(self) -> None:
+        """Hook called after the training loop ends."""
+        pass
 
     @torch.no_grad()
     def update_pre_fwd_bwd(self) -> None:

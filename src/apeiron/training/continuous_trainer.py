@@ -61,6 +61,54 @@ class ContinuousTrainer:
                 # If we cannot inspect batch size, just accept the batch
                 return current_iter, [b.to(self.cfg.device) for b in batch]
 
+    def _rebuild_with_priorities(
+        self,
+        loader: DataLoader,
+        drift_event_id: int,
+        tag: str,
+    ) -> DataLoader:
+        """Rebuild a DataLoader so its sampler draws by per-sample priority.
+
+        Computes priorities = (L_current − L_anchor)^alpha over the loader's
+        dataset, logs the distribution, and returns a new DataLoader wired
+        to a WeightedRandomSampler.
+        """
+        logger = get_logger(__name__)
+        priorities = self.cl_updater.compute_sample_priorities(loader, self.cfg.device)
+
+        # Diagnostic: per-round priority distribution. Non-trivial std means
+        # theta_star has drifted from the model and prioritized sampling will
+        # actually re-weight samples. Near-zero std → sampling collapses to
+        # uniform (the bug-fix regression signal).
+        with torch.no_grad():
+            p = priorities.float()
+            p_mean = p.mean().item()
+            p_std = p.std().item()
+            p_min = p.min().item()
+            p_max = p.max().item()
+            # ESS = (sum w)^2 / sum w^2, ranges from 1 (degenerate) to N (uniform).
+            ess = (p.sum().item() ** 2) / (p.pow(2).sum().item() + 1e-30)
+            ess_frac = ess / p.numel()
+        logger.info(
+            f"[priority/{tag}] drift_event_id={drift_event_id} "
+            f"n={p.numel()} min={p_min:.3e} mean={p_mean:.3e} "
+            f"max={p_max:.3e} std={p_std:.3e} ess_frac={ess_frac:.3f}"
+        )
+
+        sampler = WeightedRandomSampler(
+            weights=priorities.tolist(),
+            num_samples=len(priorities),
+            replacement=True,
+        )
+
+        return DataLoader(
+            loader.dataset,
+            batch_size=loader.batch_size or self.cfg.train.batch_size,
+            sampler=sampler,
+            num_workers=loader.num_workers,
+            drop_last=loader.drop_last,
+        )
+
     def outer_cl_training_loop(
         self,
         drift_event_id: int = 0,
@@ -70,25 +118,28 @@ class ContinuousTrainer:
         cur_train_loader, cur_test_loader = self.modelHarness.get_train_dataloaders()
         hist_train_loader, hist_test_loader = self.modelHarness.get_hist_dataloaders()
 
-        # Prioritized sampling: rebuild loader with importance-based sampler
+        # Prioritized sampling. Always rebuild the current-task loader with
+        # importance-based weights when the gate is on. Additionally rebuild
+        # the historical loader for updaters that actually consume hist_batch
+        # in fwd_bwd (uses_hist_batch=True — jvp_reg). For EWC/KFAC the
+        # historical signal is expected to enter via mixing into the current
+        # loader, so reweighting hist_train_loader for them would be wasted
+        # work.
         if self.cl_updater.importance_weighting and self.cl_updater.theta_star:
-            priorities = self.cl_updater.compute_sample_priorities(
-                cur_train_loader, self.cfg.device
+            cur_train_loader = self._rebuild_with_priorities(
+                cur_train_loader,
+                drift_event_id=drift_event_id,
+                tag="cur",
             )
-            sampler = WeightedRandomSampler(
-                weights=priorities.tolist(),
-                num_samples=len(priorities),
-                replacement=True,
-            )
-            cur_train_loader = DataLoader(
-                cur_train_loader.dataset,
-                batch_size=cur_train_loader.batch_size or self.cfg.train.batch_size,
-                sampler=sampler,
-                num_workers=cur_train_loader.num_workers,
-                drop_last=cur_train_loader.drop_last,
-            )
+            if self.cl_updater.uses_hist_batch and hist_train_loader is not None:
+                hist_train_loader = self._rebuild_with_priorities(
+                    hist_train_loader,
+                    drift_event_id=drift_event_id,
+                    tag="hist",
+                )
 
         train_iter = iter(cur_train_loader)
+
         if hist_train_loader is not None:
             hist_train_iter = iter(hist_train_loader)
         else:
