@@ -47,7 +47,14 @@ class OnlineEWCUpdater(BaseUpdater):
 
     @torch.no_grad()
     def cl_preprocessing(self) -> None:
-        """Called once before the CL loop starts."""
+        """Called once before the CL loop starts.
+
+        Refreshes the EWC anchor θ* to the current model weights so that
+        the EWC quadratic penalty during this round pulls toward the
+        previous-task converged weights. Runs AFTER compute_sample_priorities
+        in the outer CL loop, so importance sampling sees the one-round
+        lag it needs.
+        """
         # Allocate CL accumulators directly on correct device
         self._cl_fisher_accum = {
             n: torch.zeros_like(p, device=self.device)
@@ -56,14 +63,22 @@ class OnlineEWCUpdater(BaseUpdater):
         }
         self._cl_steps = 0
 
+        # Refresh anchor θ* = current model weights (previous-task end)
+        for name, p in self.model.named_parameters():
+            if p.requires_grad and name in self.theta_star:
+                self.theta_star[name].copy_(p.detach())
+
     @torch.no_grad()
     def cl_postprocessing(self) -> None:
         """
         Called once after the CL loop finishes.
 
-        Commits the new prior:
+        Commits the new Fisher prior:
             F* <- fisher_decay * F* + F_cl_avg
-            θ* <- θ_final
+
+        Anchor θ* is NOT refreshed here — it is refreshed at the next
+        cl_preprocessing, after compute_sample_priorities has had a chance
+        to read the stale value.
         """
         if self._cl_steps == 0:
             return
@@ -74,12 +89,6 @@ class OnlineEWCUpdater(BaseUpdater):
         for name in self.fisher:
             self.fisher[name].mul_(self.fisher_decay)
             self.fisher[name].add_(self._cl_fisher_accum[name] / float(self._cl_steps))
-
-        # Update anchor θ*
-        with torch.no_grad():
-            for name, p in self.model.named_parameters():
-                if p.requires_grad:
-                    self.theta_star[name].copy_(p.detach())
 
         # cleanup
         self._cl_fisher_accum = None

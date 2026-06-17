@@ -199,21 +199,47 @@ class TestThetaStar:
         # KFAC theta_star uses module names, not parameter names
         assert len(updater.theta_star) > 0
 
-    def test_theta_star_updates_in_postprocessing(self, dummy_harness):
-        """cl_postprocessing should update theta_star to current params."""
+    def test_theta_star_updates_in_preprocessing(self, dummy_harness):
+        """cl_preprocessing should snapshot current params into theta_star."""
         updater = BaseUpdater(cfg=dummy_harness.cfg, modelHarness=dummy_harness)
 
-        # Modify model parameters
+        # Modify model parameters AFTER init so theta_star is stale.
+        with torch.no_grad():
+            for p in dummy_harness.model.parameters():
+                p.add_(1.0)
+
+        updater.cl_preprocessing()
+
+        # theta_star should now match current params.
+        for n, p in dummy_harness.model.named_parameters():
+            if p.requires_grad and n in updater.theta_star:
+                assert torch.allclose(updater.theta_star[n], p.detach())
+
+    def test_theta_star_lags_after_postprocessing(self, dummy_harness):
+        """cl_postprocessing must NOT refresh theta_star.
+
+        The prioritized-sampling delta L(w_current) - L(theta_star) is only
+        non-zero if theta_star lags the model by one CL round. Postprocessing
+        must therefore leave theta_star untouched; the refresh happens in
+        the NEXT round's cl_preprocessing (after priorities are computed).
+        """
+        updater = BaseUpdater(cfg=dummy_harness.cfg, modelHarness=dummy_harness)
+
+        # Snapshot theta_star as it stands right after init.
+        original = {n: t.detach().clone() for n, t in updater.theta_star.items()}
+
+        # Simulate a training round moving the model.
         with torch.no_grad():
             for p in dummy_harness.model.parameters():
                 p.add_(1.0)
 
         updater.cl_postprocessing()
 
-        # theta_star should now match current params
-        for n, p in dummy_harness.model.named_parameters():
-            if p.requires_grad and n in updater.theta_star:
-                assert torch.allclose(updater.theta_star[n], p.detach())
+        # theta_star must still equal the pre-training snapshot.
+        for n, t in updater.theta_star.items():
+            assert torch.allclose(t, original[n]), (
+                f"cl_postprocessing modified theta_star[{n}] — lifecycle bug"
+            )
 
 
 # ---------------------------------------------------------------------------
