@@ -78,7 +78,9 @@ class MATEYInferenceDriftHarness(MATEYHarness):
         # Force SOLPS split cache rebuild for the active domain root.
         self._solps_split = None
         self._configure_user_data_paths(self._params, self.cfg)
-        self._configure_solps_staged_pool(self._params, self.cfg)
+        eval_cfg = getattr(self.cfg, "eval", None)
+        if eval_cfg is None or not eval_cfg.use_step_inference:
+            self._configure_solps_staged_pool(self._params, self.cfg)
 
         logger = get_logger()
         logger.info(
