@@ -52,6 +52,11 @@ adwin_moderate_threshold = 0.6
 backend = "none"
 experiment_name = "matey-inference-drift"
 
+[eval]
+max_val_batches = 15
+leadtime = 1
+use_step_inference = true
+
 [eval_outputs]
 enabled = true
 dir = "output/matey_inference_drift_artifacts"

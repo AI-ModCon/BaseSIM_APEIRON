@@ -226,6 +226,7 @@ class MateyModelAdapter(nn.Module):
         rearrange_fn: Callable[..., Any],
         autoregressive_rollout_fn: Callable[..., Any],
         determine_turt_levels_fn: Callable[..., Any] | None = None,
+        use_step_inference: bool = False,
     ):
         super().__init__()
         self.matey_model = matey_model
@@ -234,6 +235,7 @@ class MateyModelAdapter(nn.Module):
         self._rearrange = rearrange_fn
         self._autoregressive_rollout = autoregressive_rollout_fn
         self._determine_turt_levels = determine_turt_levels_fn
+        self.use_step_inference = bool(use_step_inference)
         self.last_rollout_steps: int | None = None
 
     def forward(self, batch: MateyInputBatch) -> Tensor:
@@ -298,7 +300,10 @@ class MateyModelAdapter(nn.Module):
                 raise RuntimeError("Matey tensor input is missing.")
             inp = self._rearrange(batch.input, "b t c d h w -> t b c d h w")
 
-        if bool(getattr(self.params, "autoregressive", False)):
+        if (
+            bool(getattr(self.params, "autoregressive", False))
+            and not self.use_step_inference
+        ):
             output, rollout_steps = self._autoregressive_rollout(
                 self.matey_model,
                 inp,

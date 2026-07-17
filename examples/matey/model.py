@@ -14,6 +14,7 @@ from torch import Tensor, nn
 from torch.optim import Optimizer
 
 from config.configuration import Config
+from examples.matey.src.fusionbench_eval_hooks import patch_leadtime
 from examples.matey.src.matey_batches import (
     MateyInputBatch,
     MateyLoaderAdapter as _MateyLoaderAdapter,
@@ -55,6 +56,10 @@ class MATEYHarness(BaseModelHarness):
         self._apply_checkpoint_arch_hints(params, cfg.model.pretrained_path)
         matey_model = self._build_matey_model(cfg, params, modules)
 
+        eval_cfg = getattr(cfg, "eval", None)
+        use_step_inference = bool(
+            eval_cfg is not None and eval_cfg.use_step_inference
+        )
         self._adapter_model = _MateyModelAdapter(
             matey_model=matey_model,
             params=params,
@@ -62,8 +67,16 @@ class MATEYHarness(BaseModelHarness):
             rearrange_fn=modules["rearrange"],
             autoregressive_rollout_fn=modules["autoregressive_rollout"],
             determine_turt_levels_fn=modules["determine_turt_levels"],
+            use_step_inference=use_step_inference,
         )
         super().__init__(cfg=cfg, model=self._adapter_model)
+
+        if eval_cfg is not None and eval_cfg.leadtime > 0:
+            get_logger().info(
+                f"FusionBench eval hooks: leadtime={eval_cfg.leadtime}, "
+                f"use_step_inference={use_step_inference}",
+                level=0,
+            )
 
         self._modules = modules
         self._params = params
@@ -136,6 +149,11 @@ class MATEYHarness(BaseModelHarness):
         val_params = self._params_for_loader_split("val")
         train_loader, train_dataset, _ = self._build_loader(train_params, split="train")
         val_loader, val_dataset, _ = self._build_loader(val_params, split="val")
+
+        eval_cfg = getattr(self.cfg, "eval", None)
+        if eval_cfg is not None and int(eval_cfg.leadtime) > 0:
+            patch_leadtime(train_dataset, int(eval_cfg.leadtime))
+            patch_leadtime(val_dataset, int(eval_cfg.leadtime))
 
         self._cur_train_loader = _MateyLoaderAdapter(train_loader, train_dataset)
         self._cur_val_loader = _MateyLoaderAdapter(val_loader, val_dataset)
@@ -367,6 +385,13 @@ class MATEYHarness(BaseModelHarness):
             params.optimizer = "AdamW"
         if not hasattr(params, "embedding_offset"):
             params.embedding_offset = 0
+
+        eval_cfg = getattr(cfg, "eval", None)
+        if eval_cfg is not None and int(eval_cfg.leadtime) > 0:
+            params.leadtime_max = max(
+                int(getattr(params, "leadtime_max", 1)),
+                int(eval_cfg.leadtime),
+            )
 
         return params
 

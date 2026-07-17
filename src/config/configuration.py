@@ -155,6 +155,13 @@ class DriftDetectionCfg:
 
 
 @dataclass(frozen=True)
+class EvalCfg:
+    max_val_batches: int = 0
+    leadtime: int = 1
+    use_step_inference: bool = False
+
+
+@dataclass(frozen=True)
 class EvalOutputsCfg:
     enabled: bool = False
     dir: str = "output/matey_inference_drift_artifacts"
@@ -192,6 +199,7 @@ class Config:
     verbosity: str = "INFO"
     visualization: VisualizationCfg | None = None
     logging: LoggingCfg | None = None
+    eval: EvalCfg | None = None
     eval_outputs: EvalOutputsCfg | None = None
 
 
@@ -347,6 +355,7 @@ def build_config(argv=None) -> Config:
     cl = ContinualLearningCfg(**cfg.get("continual_learning", {}))
     viz = VisualizationCfg(**cfg["visualization"]) if "visualization" in cfg else None
     log_cfg = LoggingCfg(**cfg["logging"]) if "logging" in cfg else None
+    eval_cfg = EvalCfg(**cfg["eval"]) if "eval" in cfg else None
     eval_outputs = (
         EvalOutputsCfg(**cfg["eval_outputs"]) if "eval_outputs" in cfg else None
     )
@@ -373,6 +382,7 @@ def build_config(argv=None) -> Config:
         "drift_detection",
         "visualization",
         "logging",
+        "eval",
         "eval_outputs",
         "device",
         "multi_gpu",
@@ -389,6 +399,7 @@ def build_config(argv=None) -> Config:
         drift_detection=dd,
         visualization=viz,
         logging=log_cfg,
+        eval=eval_cfg,
         eval_outputs=eval_outputs,
         device=resolved_device,
         multi_gpu=multi_gpu_flag,

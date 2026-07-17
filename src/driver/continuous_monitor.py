@@ -80,6 +80,12 @@ class ContinuousMonitor:
         self.detection_interval = cfg.drift_detection.detection_interval
         self.max_stream_updates = cfg.drift_detection.max_stream_updates
         self.aggregation = cfg.drift_detection.aggregation
+        eval_cfg = getattr(cfg, "eval", None)
+        self.max_val_batches = (
+            int(eval_cfg.max_val_batches)
+            if eval_cfg is not None and int(eval_cfg.max_val_batches) > 0
+            else None
+        )
 
         # State tracking
         self.stream_update_count = 0
@@ -99,6 +105,11 @@ class ContinuousMonitor:
         )
         self.logger.info(f"\tAggregation method: {self.aggregation}", level=1)
         self.logger.info(f"\tMax stream updates: {self.max_stream_updates}", level=1)
+        if self.max_val_batches is not None:
+            self.logger.info(
+                f"\tMax val batches per stream: {self.max_val_batches}",
+                level=1,
+            )
 
     def run(self) -> None:
         """Main continuous monitoring loop.
@@ -165,6 +176,12 @@ class ContinuousMonitor:
 
                 if drift_signal.drift_detected:
                     self._handle_drift(drift_signal)
+
+            if (
+                self.max_val_batches is not None
+                and (batch_idx + 1) >= self.max_val_batches
+            ):
+                break
 
         raise StopIteration()
 
