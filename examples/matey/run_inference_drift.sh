@@ -81,6 +81,14 @@ python -c "import adios2, river, logger; print('env ok:', __import__('sys').exec
 
 cd "${ROOT}"
 
+# Trim whitespace and drop empty CLI overrides (fixes `\ --set` typo → " --set").
+USER_SETS=()
+for arg in "${@:4}"; do
+  arg="${arg#"${arg%%[![:space:]]*}"}"
+  arg="${arg%"${arg##*[![:space:]]}"}"
+  [[ -n "${arg}" ]] && USER_SETS+=("${arg}")
+done
+
 EXTRA=()
 if [[ -n "${BASELINE}" ]]; then
   EXTRA+=(--set "data.path=${BASELINE}")
@@ -101,6 +109,37 @@ if [[ "$(hostname)" == login* ]] && [[ "${DEVICE:-auto}" == "auto" ]]; then
   echo "      Or submit: srun --gpus=1 --time=1:00:00 ... ENABLE_WANDB=1 ./examples/matey/run_inference_drift.sh ..." >&2
 fi
 
+# Timestamped run directory under output/ (disable with TIMESTAMP_OUTPUT=0).
+RUN_SETS=()
+if [[ "${TIMESTAMP_OUTPUT:-1}" != "0" ]]; then
+  if [[ -n "${OUTPUT_RUN_DIR:-}" ]]; then
+    OUTPUT_RUN_DIR="$(cd "${OUTPUT_RUN_DIR}" 2>/dev/null && pwd || echo "${ROOT}/${OUTPUT_RUN_DIR}")"
+  else
+    RUN_STAMP="$(date +%Y%m%d_%H%M%S)"
+    OUTPUT_RUN_DIR="${ROOT}/output/matey_inference_drift_${RUN_STAMP}"
+  fi
+  mkdir -p "${OUTPUT_RUN_DIR}/artifacts"
+  ln -sfn "${OUTPUT_RUN_DIR}" "${ROOT}/output/matey_inference_drift_latest"
+  export OUTPUT_RUN_DIR
+  RUN_SETS+=(
+    --set "visualization.input=${OUTPUT_RUN_DIR}/matey_inference_drift.csv"
+    --set "visualization.output=${OUTPUT_RUN_DIR}/dashboard.png"
+    --set "eval_outputs.enabled=true"
+    --set "eval_outputs.dir=${OUTPUT_RUN_DIR}/artifacts"
+  )
+  {
+    echo "started_at=$(date -Iseconds)"
+    echo "output_run_dir=${OUTPUT_RUN_DIR}"
+    echo "baseline=${BASELINE:-}"
+    echo "shift=${SHIFT:-}"
+    echo "checkpoint=${CHECKPOINT:-}"
+    echo "hostname=$(hostname)"
+    echo "extra_args=$*"
+  } > "${OUTPUT_RUN_DIR}/run_info.txt"
+  echo "Run outputs -> ${OUTPUT_RUN_DIR}"
+  echo "Latest symlink -> output/matey_inference_drift_latest"
+fi
+
 python -m src.main \
   --config examples/matey/matey_inference_drift.toml \
   --set "logging.backend=${LOGGING_BACKEND}" \
@@ -110,4 +149,26 @@ python -m src.main \
   --set drift_detection.adwin_delta=0.01 \
   --set train.max_iter=50 \
   "${EXTRA[@]}" \
-  "${@:4}"
+  "${RUN_SETS[@]}" \
+  "${USER_SETS[@]}"
+
+if [[ -n "${OUTPUT_RUN_DIR:-}" ]]; then
+  echo "Done."
+  echo "  CSV:       ${OUTPUT_RUN_DIR}/matey_inference_drift.csv"
+  echo "  Artifacts: ${OUTPUT_RUN_DIR}/artifacts/manifest.jsonl"
+    if [[ "${AUTO_PLOT:-1}" != "0" ]]; then
+    NUM_STREAMS="${PLOT_NUM_STREAMS:-4}"
+    python3 examples/matey/plot_inference_drift_dashboard.py \
+      --csv "${OUTPUT_RUN_DIR}/matey_inference_drift.csv" \
+      --output "${OUTPUT_RUN_DIR}/dashboard.png" \
+      --num-streams "${NUM_STREAMS}" \
+      --metric-index 3
+    echo "  Dashboard: ${OUTPUT_RUN_DIR}/dashboard.png"
+    if [[ -f "${OUTPUT_RUN_DIR}/artifacts/manifest.jsonl" ]]; then
+      python3 examples/matey/plot_baseline_vs_shift_2d.py \
+        --run-dir "${OUTPUT_RUN_DIR}" \
+        --batch-idx 0
+      echo "  2D fields: ${OUTPUT_RUN_DIR}/baseline_vs_shift_2d.png"
+    fi
+  fi
+fi

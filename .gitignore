@@ -1,5 +1,9 @@
 # Data and configs
 *.toml
+!examples/matey/*.toml
+
+# Run artifacts
+output/
 
 # Logging files
 *.db

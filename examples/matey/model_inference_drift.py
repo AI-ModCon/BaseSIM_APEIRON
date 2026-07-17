@@ -77,8 +77,8 @@ class MATEYInferenceDriftHarness(MATEYHarness):
         self._data_root = self._active_data_root()
         # Force SOLPS split cache rebuild for the active domain root.
         self._solps_split = None
-        self._configure_user_data_paths(self._params)
-        self._configure_solps_staged_pool(self._params)
+        self._configure_user_data_paths(self._params, self.cfg)
+        self._configure_solps_staged_pool(self._params, self.cfg)
 
         logger = get_logger()
         logger.info(
@@ -88,4 +88,5 @@ class MATEYInferenceDriftHarness(MATEYHarness):
         )
         logger.info(f"\tData root: {self._data_root}", level=1)
 
+        self._current_stream_domain = domain
         super().update_data_stream()

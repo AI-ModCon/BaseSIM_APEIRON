@@ -22,6 +22,8 @@ name = "matey_inference_drift"
 path = "/path/to/baseline/solps"
 # Shift SOLPS root (different machine or shot set). Leave empty to disable toggle.
 alt_path = ""
+# SOLPS2D = kstar .nc (nt); SOLPS2DwION = D3D b2time.nc (ne2d/te2d/ti2d).
+dset_type = "SOLPS2DwION"
 
 [train]
 batch_size = 1
@@ -36,9 +38,9 @@ update_mode = "none"
 
 [drift_detection]
 detector_name = "ADWINDetector"
-detection_interval = 5
+detection_interval = 1
 aggregation = "last"
-metric_index = 0  # 0=nrmse, 1=rmse, 2=loss
+metric_index = 3  # 0=ne2d, 1=te2d, 2=ti2d, 3=nrmse_mean, 4=nrmse, 5=rmse, 6=loss
 reset_after_learning = false
 max_stream_updates = 10
 
@@ -49,6 +51,12 @@ adwin_moderate_threshold = 0.6
 [logging]
 backend = "none"
 experiment_name = "matey-inference-drift"
+
+[eval_outputs]
+enabled = true
+dir = "output/matey_inference_drift_artifacts"
+max_batches_per_stream = 15
+save_stride = 1
 
 [visualization]
 baseline = 0.0

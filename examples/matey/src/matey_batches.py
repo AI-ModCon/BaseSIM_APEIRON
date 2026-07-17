@@ -48,6 +48,16 @@ def install_matey_optional_import_shims() -> None:
     sys.modules["xgc_reader.base"] = shim_base
 
 
+def register_solps2dwion_dataset() -> None:
+    """Register SOLPS2DwION (b2time.nc) with MATEY's dataset factory."""
+    from matey.data_utils import datasets as matey_datasets
+
+    from examples.matey.src.solps2dwion_dataset import SOLPS2DwIONDataset
+
+    if "SOLPS2DwION" not in matey_datasets.DSET_NAME_TO_OBJECT:
+        matey_datasets.DSET_NAME_TO_OBJECT["SOLPS2DwION"] = SOLPS2DwIONDataset
+
+
 def ensure_matey_dist_initialized() -> None:
     """Initialize a single-process torch.distributed group for MATEY loaders.
 

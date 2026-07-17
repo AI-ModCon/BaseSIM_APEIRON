@@ -200,6 +200,8 @@ class ContinuousMonitor:
                     # Log all eval metrics in one call
                     self.logger.stage("eval")
                     self.logger.log(eval_metrics_log)
+
+                    self._save_eval_artifacts(y_hat, y, eval_metrics_log)
         else:
             # Skip profiling during warmup
             with torch.no_grad():
@@ -211,11 +213,26 @@ class ContinuousMonitor:
 
                 # Compute all metrics
                 metrics = []
+                eval_metrics_log = {}
                 for key, metric_fn in self.modelHarness.eval_metrics.items():
                     value = self.modelHarness._to_scalar(metric_fn(y_hat, y))
                     metrics.append(value)
+                    eval_metrics_log[key] = value
+
+                self._save_eval_artifacts(y_hat, y, eval_metrics_log)
 
         return metrics
+
+    def _save_eval_artifacts(
+        self,
+        y_hat: torch.Tensor,
+        y: torch.Tensor,
+        metrics: dict[str, float],
+    ) -> None:
+        save_fn = getattr(self.modelHarness, "save_eval_artifacts", None)
+        if save_fn is None:
+            return
+        save_fn(y_hat, y, metrics, self.batch_count)
 
     def _check_drift(self) -> DriftSignal:
         """Aggregate buffered metrics and check for drift.

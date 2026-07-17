@@ -21,7 +21,10 @@ from examples.matey.src.matey_batches import (
     MateyTargetBatch,
     ensure_matey_dist_initialized,
     install_matey_optional_import_shims,
+    register_solps2dwion_dataset,
 )
+from examples.matey.solps_field_maps import SOLPS_ION_FIELD_NAMES
+from examples.matey.src.eval_artifacts import EvalArtifactContext, MateyEvalArtifactWriter
 from examples.matey.src.solps_split import SolpsStagedSplit, stage_solps_split
 from logger import get_logger
 from model.torch_model_harness import BaseModelHarness
@@ -33,6 +36,7 @@ DEFAULT_SOLPS_CACHE_ROOT = Path("output/matey_split_cache")
 MATEY_GIT_COMMIT = "4e615bb5c86024632e386153bfbed028b38a8262"
 MATEY_GIT_URL = f"git+ssh://git@github.com/FusionFM/MATEY.git@{MATEY_GIT_COMMIT}"
 SUPPORTED_UPDATE_MODES = {"base", "none"}
+SUPPORTED_SOLPS_DSET_TYPES = frozenset({"SOLPS2D", "SOLPS2DwION"})
 
 
 class MATEYHarness(BaseModelHarness):
@@ -47,7 +51,7 @@ class MATEYHarness(BaseModelHarness):
 
         modules = self._load_matey_modules()
         params = self._build_matey_params(cfg, modules["YParams"])
-        self._configure_data_split(params)
+        self._configure_data_split(params, cfg)
         self._apply_checkpoint_arch_hints(params, cfg.model.pretrained_path)
         matey_model = self._build_matey_model(cfg, params, modules)
 
@@ -67,13 +71,31 @@ class MATEYHarness(BaseModelHarness):
         self.task_counter = 0
         self._cur_train_loader: _MateyLoaderAdapter | None = None
         self._cur_val_loader: _MateyLoaderAdapter | None = None
+        self._stream_batch_idx = 0
+        self._current_stream_domain = "baseline"
+        self._artifact_writer = self._build_artifact_writer(cfg)
+
+        eval_outputs = getattr(cfg, "eval_outputs", None)
+        if eval_outputs is not None and eval_outputs.enabled:
+            get_logger().info(
+                f"Eval artifacts enabled: up to {eval_outputs.max_batches_per_stream} "
+                f"batches/stream -> {eval_outputs.dir}",
+                level=0,
+            )
 
         self.eval_metrics = {
+            "nrmse_ne2d": self._make_nrmse_field_metric(0),
+            "nrmse_te2d": self._make_nrmse_field_metric(1),
+            "nrmse_ti2d": self._make_nrmse_field_metric(2),
+            "nrmse_mean": self._nrmse_mean_metric,
             "nrmse": self._nrmse_metric,
             "rmse": self._rmse_metric,
             "loss": self.get_criterion(),
         }
-        self.higher_is_better = {"nrmse": False, "rmse": False, "loss": False}
+        self.higher_is_better = {
+            name: False
+            for name in self.eval_metrics
+        }
 
     def get_optmizer(self) -> Optimizer:
         optimizer_name = str(getattr(self._params, "optimizer", "AdamW")).lower()
@@ -105,6 +127,9 @@ class MATEYHarness(BaseModelHarness):
     def update_data_stream(self) -> None:
         self._dispose_current_loaders()
         self._set_stream_seed(self.cfg.seed + self.task_counter)
+        self._stream_batch_idx = 0
+        if self._artifact_writer is not None:
+            self._artifact_writer.reset_stream()
         self._log_solps_split_details()
 
         train_params = self._params_for_loader_split("train")
@@ -140,6 +165,39 @@ class MATEYHarness(BaseModelHarness):
         self, batch: tuple[MateyInputBatch, MateyTargetBatch]
     ) -> tuple[MateyInputBatch, MateyTargetBatch]:
         return batch
+
+    @staticmethod
+    def _build_artifact_writer(cfg: Config) -> MateyEvalArtifactWriter | None:
+        eval_outputs = getattr(cfg, "eval_outputs", None)
+        if eval_outputs is None or not eval_outputs.enabled:
+            return None
+        return MateyEvalArtifactWriter(eval_outputs)
+
+    def save_eval_artifacts(
+        self,
+        y_hat: Tensor,
+        y: MateyTargetBatch,
+        metrics: dict[str, float],
+        global_batch_idx: int,
+    ) -> None:
+        if self._artifact_writer is None:
+            return
+
+        target = self._select_target_tensor(y, self._adapter_model.last_rollout_steps)
+        ctx = EvalArtifactContext(
+            stream_id=int(self.task_counter),
+            domain=self._current_stream_domain,
+            data_root=str(self._data_root),
+            stream_batch_idx=int(self._stream_batch_idx),
+            global_batch_idx=int(global_batch_idx),
+        )
+        self._artifact_writer.maybe_save(
+            pred=y_hat,
+            target=target,
+            metrics=metrics,
+            ctx=ctx,
+        )
+        self._stream_batch_idx += 1
 
     @staticmethod
     def _assert_supported_update_mode(cfg: Config) -> None:
@@ -182,6 +240,7 @@ class MATEYHarness(BaseModelHarness):
 
     def _load_matey_modules(self) -> dict[str, Any]:
         install_matey_optional_import_shims()
+        register_solps2dwion_dataset()
         try:
             # Import netCDF4 before h5py to avoid HDF5 library collision.
             # Both ship their own libhdf5; whichever loads first wins.
@@ -334,7 +393,18 @@ class MATEYHarness(BaseModelHarness):
         except ValueError:
             return str(path.resolve())
 
-    def _configure_solps_staged_pool(self, params: Any) -> None:
+    @staticmethod
+    def _solps_dset_type(cfg: Config) -> str:
+        raw = str(getattr(cfg.data, "dset_type", "SOLPS2D") or "SOLPS2D").strip()
+        if raw not in SUPPORTED_SOLPS_DSET_TYPES:
+            raise ValueError(
+                f"Unsupported [data].dset_type={raw!r}. "
+                f"Expected one of {sorted(SUPPORTED_SOLPS_DSET_TYPES)}."
+            )
+        return raw
+
+    def _configure_solps_staged_pool(self, params: Any, cfg: Config) -> None:
+        dset_type = self._solps_dset_type(cfg)
         train_paths = [
             self._normalize_path_entry(entry)
             for entry in getattr(params, "train_data_paths", [])
@@ -350,15 +420,15 @@ class MATEYHarness(BaseModelHarness):
                 "valid_data_paths."
             )
 
-        train_solps = [entry for entry in train_paths if str(entry[1]) == "SOLPS2D"]
-        val_solps = [entry for entry in val_paths if str(entry[1]) == "SOLPS2D"]
+        train_solps = [entry for entry in train_paths if str(entry[1]) == dset_type]
+        val_solps = [entry for entry in val_paths if str(entry[1]) == dset_type]
 
         if not train_solps and not val_solps:
             return
 
         if len(train_solps) != len(train_paths) or len(val_solps) != len(val_paths):
             raise ValueError(
-                "MATEY SOLPS split mode does not support mixing SOLPS2D with "
+                f"MATEY SOLPS split mode does not support mixing {dset_type} with "
                 "non-SOLPS datasets in train/valid data paths."
             )
 
@@ -385,7 +455,7 @@ class MATEYHarness(BaseModelHarness):
         params.train_data_paths = [copy.deepcopy(train_entry)]
         params.valid_data_paths = [copy.deepcopy(val_entry)]
 
-    def _configure_user_data_paths(self, params: Any) -> None:
+    def _configure_user_data_paths(self, params: Any, cfg: Config) -> None:
         train_dir = self._data_root / "train"
         val_dir = self._data_root / "valid"
 
@@ -399,13 +469,17 @@ class MATEYHarness(BaseModelHarness):
                 f"Missing paths: train={train_dir.exists()}, valid={val_dir.exists()}."
             )
 
-        params.train_data_paths = [[self._as_config_path(train_dir), "SOLPS2D", "", "tk-2D"]]
-        params.valid_data_paths = [[self._as_config_path(val_dir), "SOLPS2D", "", "tk-2D"]]
+        params.train_data_paths = [
+            [self._as_config_path(train_dir), self._solps_dset_type(cfg), "", "tk-2D"]
+        ]
+        params.valid_data_paths = [
+            [self._as_config_path(val_dir), self._solps_dset_type(cfg), "", "tk-2D"]
+        ]
 
-    def _configure_data_split(self, params: Any) -> None:
-        self._configure_user_data_paths(params)
+    def _configure_data_split(self, params: Any, cfg: Config) -> None:
+        self._configure_user_data_paths(params, cfg)
         params.train_val_test = list(DEFAULT_MATEY_TRAIN_VAL_TEST)
-        self._configure_solps_staged_pool(params)
+        self._configure_solps_staged_pool(params, cfg)
 
     def _log_solps_split_details(self) -> None:
         if self._solps_split is None or self._solps_split_logged:
@@ -639,6 +713,36 @@ class MATEYHarness(BaseModelHarness):
         return tar
 
     @staticmethod
+    def _compute_nrmse_per_field(pred: Tensor, target: Tensor) -> Tensor:
+        """Per-field NRMSE (FusionBench-style), one scalar per channel."""
+        eps = 1e-7
+        if pred.shape != target.shape:
+            raise ValueError(
+                f"pred shape {tuple(pred.shape)} != target shape {tuple(target.shape)}"
+            )
+
+        if pred.ndim == 2:
+            diff = pred - target
+            num = diff.pow(2).mean(dim=0)
+            den = target.pow(2).mean(dim=0) + eps
+            return torch.sqrt(num / den)
+
+        if pred.ndim < 3:
+            raise ValueError(
+                f"Expected pred/target with channel dim, got shape {tuple(pred.shape)}"
+            )
+
+        values: list[Tensor] = []
+        for idx in range(int(pred.shape[1])):
+            field_pred = pred[:, idx, ...]
+            field_target = target[:, idx, ...]
+            diff = field_pred - field_target
+            num = diff.pow(2).mean()
+            den = field_target.pow(2).mean() + eps
+            values.append(torch.sqrt(num / den))
+        return torch.stack(values)
+
+    @staticmethod
     def _compute_nrmse(pred: Tensor, target: Tensor) -> Tensor:
         eps = 1e-7
         if pred.ndim == 2:
@@ -658,6 +762,35 @@ class MATEYHarness(BaseModelHarness):
 
         spatial_dims = tuple(range(2, pred.ndim))
         return (pred - target).pow(2).mean(spatial_dims).sqrt().mean()
+
+    def _make_nrmse_field_metric(self, field_idx: int):
+        field_name = (
+            SOLPS_ION_FIELD_NAMES[field_idx]
+            if field_idx < len(SOLPS_ION_FIELD_NAMES)
+            else f"field_{field_idx}"
+        )
+
+        def _metric(y_hat: Tensor, y: MateyTargetBatch) -> Tensor:
+            target = self._select_target_tensor(
+                y, self._adapter_model.last_rollout_steps
+            )
+            per_field = self._compute_nrmse_per_field(y_hat, target)
+            if field_idx >= int(per_field.numel()):
+                raise IndexError(
+                    f"Field index {field_idx} ({field_name}) out of range for "
+                    f"{int(per_field.numel())} channels in model output."
+                )
+            return per_field[field_idx]
+
+        return _metric
+
+    def _nrmse_mean_metric(self, y_hat: Tensor, y: MateyTargetBatch) -> Tensor:
+        target = self._select_target_tensor(y, self._adapter_model.last_rollout_steps)
+        per_field = self._compute_nrmse_per_field(y_hat, target)
+        n_fields = min(len(SOLPS_ION_FIELD_NAMES), int(per_field.numel()))
+        if n_fields == 0:
+            raise RuntimeError("Cannot compute nrmse_mean: no output channels present.")
+        return per_field[:n_fields].mean()
 
     def _nrmse_metric(self, y_hat: Tensor, y: MateyTargetBatch) -> Tensor:
         target = self._select_target_tensor(y, self._adapter_model.last_rollout_steps)

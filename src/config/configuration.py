@@ -105,6 +105,8 @@ class DataCfg:
     path: str
     # Optional second SOLPS root for domain-shift demos (e.g. different tokamak/shots).
     alt_path: str = ""
+    # MATEY registry key: SOLPS2D (kstar .nc) or SOLPS2DwION (b2time.nc).
+    dset_type: str = "SOLPS2D"
 
 
 @dataclass(frozen=True)
@@ -153,6 +155,14 @@ class DriftDetectionCfg:
 
 
 @dataclass(frozen=True)
+class EvalOutputsCfg:
+    enabled: bool = False
+    dir: str = "output/matey_inference_drift_artifacts"
+    max_batches_per_stream: int = 15
+    save_stride: int = 1
+
+
+@dataclass(frozen=True)
 class VisualizationCfg:
     baseline: float = 95.0  # baseline accuracy threshold for drift detection
     input: str = "output/cl_only.csv"  # input CSV file path
@@ -182,6 +192,7 @@ class Config:
     verbosity: str = "INFO"
     visualization: VisualizationCfg | None = None
     logging: LoggingCfg | None = None
+    eval_outputs: EvalOutputsCfg | None = None
 
 
 def parse_args(argv=None):
@@ -336,6 +347,9 @@ def build_config(argv=None) -> Config:
     cl = ContinualLearningCfg(**cfg.get("continual_learning", {}))
     viz = VisualizationCfg(**cfg["visualization"]) if "visualization" in cfg else None
     log_cfg = LoggingCfg(**cfg["logging"]) if "logging" in cfg else None
+    eval_outputs = (
+        EvalOutputsCfg(**cfg["eval_outputs"]) if "eval_outputs" in cfg else None
+    )
 
     raw_device = str(
         cfg.get(
@@ -359,6 +373,7 @@ def build_config(argv=None) -> Config:
         "drift_detection",
         "visualization",
         "logging",
+        "eval_outputs",
         "device",
         "multi_gpu",
     }
@@ -374,6 +389,7 @@ def build_config(argv=None) -> Config:
         drift_detection=dd,
         visualization=viz,
         logging=log_cfg,
+        eval_outputs=eval_outputs,
         device=resolved_device,
         multi_gpu=multi_gpu_flag,
         **extras,
