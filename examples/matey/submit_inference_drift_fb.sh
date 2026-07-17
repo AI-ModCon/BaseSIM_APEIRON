@@ -32,7 +32,7 @@ unset PYTHONPATH
 # shellcheck disable=SC1090
 source "${MATEY_ENV}"
 USER_SITE="$(python -c 'import site; print(site.getusersitepackages())')"
-export PYTHONPATH="${USER_SITE}:/lustre/orion/lrn097/proj-shared/fusionMT/MATEY:${ROOT}/src:${ROOT}:${PYTHONPATH:-}"
+export PYTHONPATH="${USER_SITE}:${ROOT}/src:${ROOT}:/lustre/orion/lrn097/proj-shared/fusionMT/MATEY:${PYTHONPATH:-}"
 export WANDB_MODE=disabled
 export WANDB_DISABLED=true
 

@@ -22,7 +22,7 @@ unset PYTHONPATH
 source "${MATEY_ENV}"
 
 USER_SITE="$(python -c 'import site; print(site.getusersitepackages())')"
-export PYTHONPATH="${USER_SITE}:/lustre/orion/lrn097/proj-shared/fusionMT/MATEY:${ROOT}/src:${ROOT}:${PYTHONPATH:-}"
+export PYTHONPATH="${USER_SITE}:${ROOT}/src:${ROOT}:/lustre/orion/lrn097/proj-shared/fusionMT/MATEY:${PYTHONPATH:-}"
 
 LOGGING_BACKEND=none
 if [[ "${ENABLE_WANDB:-0}" == "1" ]]; then
