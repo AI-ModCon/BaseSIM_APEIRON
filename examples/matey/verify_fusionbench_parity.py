@@ -11,6 +11,9 @@ import torch
 
 ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "src"
+_script_dir = str(Path(__file__).resolve().parent)
+# Running as a file puts examples/matey/ on sys.path[0], shadowing src/model.
+sys.path = [p for p in sys.path if p not in ("", _script_dir)]
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 if str(ROOT) not in sys.path:
@@ -49,7 +52,6 @@ def _run_parity_eval(args: argparse.Namespace) -> tuple[float, list[float], dict
 
     cfg = build_config(
         [
-            "verify_fusionbench_parity",
             "--config",
             args.config,
             "--set",

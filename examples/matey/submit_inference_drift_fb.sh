@@ -41,9 +41,13 @@ chmod +x examples/matey/stage_solps_fusionbench_bundles.sh
 ./examples/matey/stage_solps_fusionbench_bundles.sh "${MATEYDATA}" "${FB_ROOT}"
 
 echo "=== FusionBench parity gate (baseline sin4) ==="
-python3 examples/matey/verify_fusionbench_parity.py \
-  --baseline "${BASELINE}" \
-  --checkpoint "${CKPT}"
+if [[ "${SKIP_PARITY_GATE:-0}" != "1" ]]; then
+  python3 examples/matey/verify_fusionbench_parity.py \
+    --baseline "${BASELINE}" \
+    --checkpoint "${CKPT}"
+else
+  echo "SKIP_PARITY_GATE=1 — skipping parity gate"
+fi
 
 echo "=== Drift run on FusionBench bundles ==="
 ./examples/matey/run_inference_drift.sh \

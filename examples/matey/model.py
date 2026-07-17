@@ -480,9 +480,15 @@ class MATEYHarness(BaseModelHarness):
         params.train_data_paths = [copy.deepcopy(train_entry)]
         params.valid_data_paths = [copy.deepcopy(val_entry)]
 
+    def _resolve_solps_shot_dir(self, split_root: Path) -> Path:
+        nested = split_root / "D3D" / "174310_D"
+        if nested.is_dir():
+            return nested
+        return split_root
+
     def _configure_user_data_paths(self, params: Any, cfg: Config) -> None:
-        train_dir = self._data_root / "train"
-        val_dir = self._data_root / "valid"
+        train_dir = self._resolve_solps_shot_dir(self._data_root / "train")
+        val_dir = self._resolve_solps_shot_dir(self._data_root / "valid")
 
         # Keep compatibility with non-SOLPS test fixtures that mock custom paths.
         if not train_dir.exists() and not val_dir.exists():
@@ -504,7 +510,9 @@ class MATEYHarness(BaseModelHarness):
     def _configure_data_split(self, params: Any, cfg: Config) -> None:
         self._configure_user_data_paths(params, cfg)
         params.train_val_test = list(DEFAULT_MATEY_TRAIN_VAL_TEST)
-        self._configure_solps_staged_pool(params, cfg)
+        eval_cfg = getattr(cfg, "eval", None)
+        if eval_cfg is None or not eval_cfg.use_step_inference:
+            self._configure_solps_staged_pool(params, cfg)
 
     def _log_solps_split_details(self) -> None:
         if self._solps_split is None or self._solps_split_logged:
@@ -526,9 +534,6 @@ class MATEYHarness(BaseModelHarness):
 
     def _params_for_loader_split(self, split: str) -> Any:
         loader_params = copy.deepcopy(self._params)
-        if self._solps_split is None:
-            return loader_params
-
         if split == "train":
             loader_params.train_val_test = [1.0, 0.0, 0.0]
         elif split == "val":
