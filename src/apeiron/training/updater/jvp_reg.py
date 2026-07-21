@@ -66,8 +66,11 @@ class JVPRegUpdater(BaseUpdater):
         """
 
         # Current gradients ###
+        # Deliberately current-only: base.fwd_bwd() mixes in hist_batch when
+        # given one, which would corrupt the tangent direction below and
+        # double-count hist_batch against the explicit backward pass further down.
         loss_cur = super().fwd_bwd(
-            batch, hist_batch
+            batch
         )  # fill the model gradients with the default grad info
 
         ### JVP gradients ###
@@ -78,7 +81,7 @@ class JVPRegUpdater(BaseUpdater):
 
         ### History gradients ####
         if hist_batch is None:
-            return super().fwd_bwd(batch)
+            return loss_cur
         x_mem, y_mem = hist_batch
 
         outputs_mem = self.model(x_mem)
