@@ -142,21 +142,29 @@ class MNIST_CNN(BaseModelHarness):
         self,
     ) -> Tuple[Optional[DataLoader], Optional[DataLoader]]:
         """
-        If no history yet: add current drift to history and return (None, None).
-        Else: return loaders over ConcatDataset of prior drifts, then append current drift to history.
-        Effective dataset length = len(aug_history) * len(full_split).
+        If no history yet: return (None, None).
+        Else: return loaders over a replay buffer spanning EVERY prior cumulative
+        regime (0 … k-1), not just the immediately-previous one. Each past regime
+        `i` is the composition ``FixedAffine(aug_history[:i])``, matching the data
+        that was actually streamed at window i-1. Concatenating all of them keeps
+        the model anchored to the earliest regimes so CL adaptation does not
+        specialise to the most recent drift alone.
+        Effective dataset length = (len(aug_history) - 1) * len(full_split).
         """
         if self.task_counter == 1:
             return None, None
 
-        # Concatenate FULL train/val views for each historical drift
+        # One FULL train/val view per prior cumulative regime: regimes 0 … k-1.
+        # aug_history[-1] is the current regime, so we stop before it.
         train_views = [
             TransformedView(
-                self.ds_train, x_transform=FixedAffine(self.aug_history[:-1])
+                self.ds_train, x_transform=FixedAffine(self.aug_history[:i])
             )
+            for i in range(1, len(self.aug_history))
         ]
         val_views = [
-            TransformedView(self.ds_val, x_transform=FixedAffine(self.aug_history[:-1]))
+            TransformedView(self.ds_val, x_transform=FixedAffine(self.aug_history[:i]))
+            for i in range(1, len(self.aug_history))
         ]
 
         ds_hist_train: ConcatDataset[Any] = ConcatDataset(train_views)
