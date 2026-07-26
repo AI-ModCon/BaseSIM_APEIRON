@@ -26,14 +26,29 @@ class BaseUpdater:
         self.cfg = cfg
         self.criterion: Callable[..., torch.Tensor] = modelHarness.get_criterion()
         self.model: nn.Module = modelHarness.model
+        self.mix_historic_data: bool = cfg.continual_learning.mix_historic_data
 
     def fwd_bwd(
         self,
         batch: tuple[torch.Tensor, torch.Tensor],
         hist_batch: Optional[tuple[torch.Tensor, torch.Tensor]] = None,
     ) -> float:
-        """Perform forward and backward pass on current batch."""
+        """Perform forward and backward pass.
+
+        When `continual_learning.mix_historic_data` is enabled and a historical
+        batch is supplied, half of each stream is taken so the total sample count
+        per step stays the same as in the un-mixed case. If the historical batch
+        is too small to supply its half, the remainder is taken from the current
+        batch rather than shrinking the step.
+        """
         x, y = batch
+        if self.mix_historic_data and hist_batch is not None:
+            x_hist, y_hist = hist_batch
+            n_total = x.shape[0]
+            n_hist = min(n_total // 2, x_hist.shape[0])
+            n_cur = n_total - n_hist
+            x = torch.cat([x[:n_cur], x_hist[:n_hist]], dim=0)
+            y = torch.cat([y[:n_cur], y_hist[:n_hist]], dim=0)
 
         outputs = self.model(x)
         loss = self.criterion(outputs, y)

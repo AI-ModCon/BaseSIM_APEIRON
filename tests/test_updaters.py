@@ -47,6 +47,73 @@ class TestBaseUpdater:
         updater.update_post_optimizer_call()
         updater.cl_postprocessing()
 
+    @staticmethod
+    def _grads(model):
+        return [p.grad.clone() for p in model.parameters() if p.grad is not None]
+
+    def _mixing_updater(self, default_cfg, make_harness, enabled: bool):
+        cfg = replace(
+            default_cfg,
+            continual_learning=ContinualLearningCfg(mix_historic_data=enabled),
+        )
+        harness = make_harness(cfg)
+        return BaseUpdater(cfg=cfg, modelHarness=harness), harness
+
+    def test_hist_batch_ignored_by_default(self, dummy_harness):
+        """mix_historic_data defaults to False, so hist_batch must not change grads."""
+        updater = BaseUpdater(cfg=dummy_harness.cfg, modelHarness=dummy_harness)
+        assert updater.mix_historic_data is False
+        batch = (torch.randn(4, 4), torch.randint(0, 3, (4,)))
+        hist = (torch.randn(4, 4), torch.randint(0, 3, (4,)))
+
+        dummy_harness.model.zero_grad()
+        updater.fwd_bwd(batch)
+        grad_cur_only = self._grads(dummy_harness.model)
+
+        dummy_harness.model.zero_grad()
+        updater.fwd_bwd(batch, hist)
+        grad_with_hist = self._grads(dummy_harness.model)
+
+        for a, b in zip(grad_cur_only, grad_with_hist):
+            assert torch.allclose(a, b, atol=1e-6)
+
+    def test_hist_batch_is_mixed_when_enabled(self, default_cfg, make_harness):
+        updater, harness = self._mixing_updater(default_cfg, make_harness, enabled=True)
+        batch = (torch.randn(4, 4), torch.randint(0, 3, (4,)))
+        hist = (torch.randn(4, 4), torch.randint(0, 3, (4,)))
+
+        harness.model.zero_grad()
+        updater.fwd_bwd(batch)
+        grad_cur_only = self._grads(harness.model)
+
+        harness.model.zero_grad()
+        updater.fwd_bwd(batch, hist)
+        grad_mixed = self._grads(harness.model)
+
+        assert any(
+            not torch.allclose(a, b) for a, b in zip(grad_cur_only, grad_mixed)
+        ), "hist_batch did not influence the gradients"
+
+    def test_hist_batch_matches_half_and_half_pass(self, default_cfg, make_harness):
+        """Mixing must equal one fwd/bwd over half the current plus half the hist batch."""
+        updater, harness = self._mixing_updater(default_cfg, make_harness, enabled=True)
+        batch = (torch.randn(8, 4), torch.randint(0, 3, (8,)))
+        hist = (torch.randn(8, 4), torch.randint(0, 3, (8,)))
+
+        harness.model.zero_grad()
+        updater.fwd_bwd(batch, hist)
+        grad_mixed = self._grads(harness.model)
+
+        harness.model.zero_grad()
+        x = torch.cat([batch[0][:4], hist[0][:4]], dim=0)
+        y = torch.cat([batch[1][:4], hist[1][:4]], dim=0)
+        loss = harness.get_criterion()(harness.model(x), y)
+        (loss / harness.cfg.train.grad_accumulation_steps).backward()
+        grad_ref = self._grads(harness.model)
+
+        for a, b in zip(grad_mixed, grad_ref):
+            assert torch.allclose(a, b, atol=1e-6)
+
     def test_grad_accumulation_scaling(self, default_cfg, make_harness):
         cfg2 = replace(
             default_cfg,

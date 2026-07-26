@@ -75,6 +75,16 @@ Note: `EnsembleDetector` is recognized by the loader but raises `NotImplementedE
 | `kfac_online` | KFAC approximation | kfac_lambda, kfac_ema_decay |
 | `none` | No-op (skip CL) | (none) |
 
+Replay of historical data is handled in `BaseUpdater.fwd_bwd()` and gated by
+`[continual_learning] mix_historic_data` (default `false`). When enabled and the
+harness supplies historical dataloaders, half of each stream is combined into a
+single forward/backward pass, so the sample count per step stays at
+`train.batch_size` whether or not mixing is on (an undersized historical batch is
+topped up from the current one). `base`, `ewc_online`, and `kfac_online` inherit this. `jvp_reg` ignores the flag: it
+overrides `fwd_bwd()` and mixes the two streams itself (it needs a current-only
+gradient as the JVP tangent direction), so it calls `super().fwd_bwd(batch)` without
+the historical batch. `none` skips training entirely.
+
 ### Coding Conventions
 - Python 3.13+, type hints everywhere
 - Formatting: ruff format, ruff check, mypy

@@ -112,6 +112,11 @@ class DataCfg:
 class ContinualLearningCfg:
     update_mode: str = "base"
 
+    # Replay: concatenate the historical batch onto the current one in
+    # BaseUpdater.fwd_bwd(). Has no effect when the harness provides no
+    # historical dataloaders, nor on jvp_reg, which mixes the two streams itself.
+    mix_historic_data: bool = False
+
     # For JVP regularization
     jvp_lambda: float = 0.001
     jvp_deltax_norm: float = 1
