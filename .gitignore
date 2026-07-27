@@ -19,6 +19,7 @@ data/*
 
 # Files
 *.png
+!docs/images/*.png
 *.txt
 *.csv
 !tests/references/*.csv
