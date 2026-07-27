@@ -33,7 +33,9 @@ class ContinuousTrainer:
         self.criterion = modelHarness.get_criterion()
         self.optimizer = modelHarness.get_optmizer()
 
-        self.cl_updater = create_updater(cfg=self.cfg, modelHarness=self.modelHarness)
+        self.cl_updater = create_updater(
+            cfg=self.cfg, modelHarness=self.modelHarness, optimizer=self.optimizer
+        )
 
     def _safe_next(
         self,

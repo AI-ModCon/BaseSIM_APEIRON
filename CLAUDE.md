@@ -73,6 +73,7 @@ Note: `EnsembleDetector` is recognized by the loader but raises `NotImplementedE
 | `jvp_reg` | JVP regularization | jvp_lambda, jvp_deltax_norm |
 | `ewc_online` | Elastic Weight Consolidation | ewc_lambda, ewc_ema_decay |
 | `kfac_online` | KFAC approximation | kfac_lambda, kfac_ema_decay |
+| `retrain` | Full retrain from scratch (re-inits weights + clears optimizer state) | (none) |
 | `none` | No-op (skip CL) | (none) |
 
 Replay of historical data is handled in `BaseUpdater.fwd_bwd()` and gated by
@@ -84,6 +85,14 @@ topped up from the current one). `base`, `ewc_online`, and `kfac_online` inherit
 overrides `fwd_bwd()` and mixes the two streams itself (it needs a current-only
 gradient as the JVP tangent direction), so it calls `super().fwd_bwd(batch)` without
 the historical batch. `none` skips training entirely.
+
+`retrain` is the escalation path for severe drift: in `cl_preprocessing()` it
+re-initializes every module via `reset_parameters()` and clears the optimizer
+state, then re-learns from scratch over `train.max_iter` steps using the base
+`fwd_bwd()`. It forces `mix_historic_data` on so the rebuild spans the full
+distribution (historical regimes + current stream); with no historical
+dataloaders it degrades to a from-scratch fit on the current stream. It receives
+the trainer's optimizer through `create_updater(..., optimizer=...)`.
 
 ### Coding Conventions
 - Python 3.13+, type hints everywhere
