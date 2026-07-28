@@ -6,6 +6,7 @@ This directory contains the detailed reference docs for the framework's three ma
 - `model_harness.md`: model + data-stream integration contract
 - `drift_detectors.md`: detector classes, detector config, and detector wiring
 - `continuous_learning.md`: continual-learning trainer, updater modes, and training config
+- `tracking.md`: enabling the W&B or MLflow backend, the logged metric namespace, and reading run charts
 
 ## Read Order
 
