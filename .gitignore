@@ -21,6 +21,7 @@ data/*
 *.png
 !docs/images/*.png
 *.txt
+!docs/requirements.txt
 *.csv
 !tests/references/*.csv
 *.pdf
@@ -162,6 +163,7 @@ celerybeat.pid
 .env
 .envrc
 .venv
+.venv-docs/
 env/
 venv/
 ENV/

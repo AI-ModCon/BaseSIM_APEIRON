@@ -1,0 +1,16 @@
+# Documentation build dependencies (used by Read the Docs and local builds).
+#
+# The heavy runtime dependencies (torch, river, evidently, wandb, ...) are NOT
+# installed here -- they are mocked in conf.py via `autodoc_mock_imports`, which
+# keeps the docs build fast and CPU/GPU agnostic.
+sphinx>=8.1
+myst-parser>=4.0
+furo>=2024.8.6
+sphinx-copybutton>=0.5.2
+sphinx-design>=0.6.1
+sphinxcontrib-mermaid>=1.0.0
+
+# Light imports that autodoc resolves for real rather than mocking.
+numpy>=2.3
+pandas>=2.3
+tqdm>=4.67

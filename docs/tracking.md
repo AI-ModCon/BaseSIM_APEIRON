@@ -209,4 +209,5 @@ than the auto-generated ones.
   tracker entirely. That is what the `examples/mnist/sweep/configs/` files use.
 - MNIST's committed `mnist.pth` is deliberately under-trained (~50% on clean
   MNIST), so absolute accuracy in these charts is lower than a converged MNIST
-  CNN would show. See [`../examples/mnist/README.md`](../examples/mnist/README.md).
+  CNN would show. See the
+  [MNIST example README](https://github.com/AI-ModCon/BaseSIM_APEIRON/blob/main/examples/mnist/README.md).
