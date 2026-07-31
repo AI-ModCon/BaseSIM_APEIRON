@@ -277,7 +277,6 @@ class TestJVPRegUpdater:
         updater.fwd_bwd(batch, hist_batch=hist)
         reg = updater.update_post_fwd_bwd()
         assert isinstance(reg, float)
-        assert updater.grad_dict is None
         assert updater.loss_mem == 0.0
 
 

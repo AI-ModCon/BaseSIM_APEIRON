@@ -117,7 +117,16 @@ class ContinualLearningCfg:
     # historical dataloaders, nor on jvp_reg, which mixes the two streams itself.
     mix_historic_data: bool = False
 
-    # For JVP regularization
+    # For JVP regularization -- now a SAM-based robust update (see jvp_reg.py).
+    # The update combines the current + historical batch into one loss and takes
+    # the gradient at a SAM parameter-perturbed point (first-order robustness).
+    jvp_rho_theta: float = 0.05  # SAM parameter-perturbation radius
+    jvp_rho_x: float = 1.0  # historical-input perturbation radius (0 = param-SAM only)
+    jvp_data_sign: float = (
+        1.0  # +1 perturb old inputs toward current dist, -1 toward old
+    )
+    # Legacy JVP fields, retained for backward compatibility with existing TOML
+    # configs; unused by the SAM-based updater.
     jvp_lambda: float = 0.001
     jvp_deltax_norm: float = 1
 
