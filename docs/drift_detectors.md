@@ -1,10 +1,10 @@
 # Drift Detectors
 
-This document describes detector classes under `src/drift_detection/`, the `drift_detection` config section, and how detector outputs drive continual learning.
+This document describes detector classes under `src/apeiron/drift_detection/`, the `drift_detection` config section, and how detector outputs drive continual learning.
 
 ## Core Types
 
-Defined in `src/drift_detection/detectors/base.py`:
+Defined in `src/apeiron/drift_detection/detectors/base.py`:
 
 - `LearningRegime`:
   - `stable`
@@ -23,7 +23,7 @@ Defined in `src/drift_detection/detectors/base.py`:
 
 ## Global Drift Config
 
-`src/config/configuration.py` defines `DriftDetectionCfg`:
+`src/apeiron/config/configuration.py` defines `DriftDetectionCfg`:
 
 | Key | Default | Meaning |
 | --- | --- | --- |
@@ -46,7 +46,7 @@ Defined in `src/drift_detection/detectors/base.py`:
 
 ## Detector Selection (`detector_name`)
 
-`src/drift_detection/load_drift_detector.py` currently supports:
+`src/apeiron/drift_detection/load_drift_detector.py` currently supports:
 
 - `ADWINDetector`
 - `KSWINDetector`
@@ -58,7 +58,7 @@ Defined in `src/drift_detection/detectors/base.py`:
 
 ## Detector Classes And Options
 
-### `ADWINDetector` (`src/drift_detection/detectors/statistical_detectors.py`)
+### `ADWINDetector` (`src/apeiron/drift_detection/detectors/statistical_detectors.py`)
 
 Brief Explanation:
 
@@ -118,7 +118,7 @@ Behavior:
 - Online mean-shift detector from `river`.
 - Score is recent drift frequency over up to 50 updates.
 
-### `ModelPerformanceDetector` (`src/drift_detection/detectors/model_performance_detector.py`)
+### `ModelPerformanceDetector` (`src/apeiron/drift_detection/detectors/model_performance_detector.py`)
 
 Brief Explanation:
 
@@ -183,7 +183,7 @@ Integration note:
 
 ## How Monitor Uses Detectors
 
-`src/driver/continuous_monitor.py` does:
+`src/apeiron/driver/continuous_monitor.py` does:
 
 1. Evaluate validation batches and buffer metric vectors.
 2. At every `detection_interval`, extract column `metric_index`.
