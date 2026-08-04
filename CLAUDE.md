@@ -63,8 +63,9 @@ The `detector_name` config value must be one of the strings the loader accepts
 | `PageHinkleyDetector` | Page-Hinkley test (river) | ph_min_instances, ph_delta, ph_threshold, ph_alpha |
 | `ModelPerformanceDetector` | evidently batch analysis | (uses evidently defaults) |
 | `EvalDetector` | Direct eval comparison (`ModelEvalDetector`) | metric_index |
+| `EnsembleDetector` | Voting over sub-detectors | ensemble_detectors, ensemble_voting |
 
-Note: `EnsembleDetector` is recognized by the loader but raises `NotImplementedError` (sub-detector configuration is not wired up yet) -- do not use it.
+`EnsembleDetector` builds each name in `ensemble_detectors` from the same `[drift_detection]` block (so a detector type can appear at most once) and combines their verdicts per `ensemble_voting`: `majority`, `any` (alias `or`), or `unanimous` (aliases `all`, `and`). An unknown voting name or an empty detector list raises `ValueError`.
 
 ### Available CL Update Modes
 | Mode | Strategy | Key Params |
