@@ -21,8 +21,9 @@ max_iter = 300
 
 [continual_learning]
 update_mode = "base"
-jvp_lambda = 10
-jvp_deltax_norm = 1
+jvp_rho_theta = 0.05
+jvp_rho_x = 1.0
+jvp_data_sign = 1.0
 
 # ewc hyperparameters
 ewc_lambda = 1000.0

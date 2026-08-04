@@ -34,7 +34,7 @@ The installable package lives under `src/apeiron/` (imported as `apeiron`; see `
 3. **Driver** (`src/apeiron/driver/continuous_monitor.py`): `ContinuousMonitor` orchestrates the monitoring loop -- evaluates batches, checks drift at intervals, dispatches CL training on drift.
 4. **Drift Detection** (`src/apeiron/drift_detection/`): `BaseDriftDetector` ABC with `update(value) -> DriftSignal`. Implementations: ADWINDetector, KSWINDetector, PageHinkleyDetector, ModelPerformanceDetector, ModelEvalDetector, EnsembleDetector.
 5. **Training** (`src/apeiron/training/continuous_trainer.py`): `ContinuousTrainer` runs outer/inner CL loops with gradient accumulation.
-6. **Updaters** (`src/apeiron/training/updater/`): `BaseUpdater` with hooks `cl_preprocessing()`, `fwd_bwd()`, `update_pre_fwd_bwd()`, `update_post_fwd_bwd()`, `update_post_optimizer_call()`, `cl_postprocessing()`. Implementations: base (vanilla), jvp_reg (JVP regularization), ewc_online (EWC), kfac_online (KFAC), none (no-op).
+6. **Updaters** (`src/apeiron/training/updater/`): `BaseUpdater` with hooks `cl_preprocessing()`, `fwd_bwd()`, `update_pre_fwd_bwd()`, `update_post_fwd_bwd()`, `update_post_optimizer_call()`, `cl_postprocessing()`. Implementations: base (vanilla), jvp_reg (JVP updater -- now a first-order SAM robust update), ewc_online (EWC), kfac_online (KFAC), none (no-op).
 7. **Evaluation** (`src/apeiron/evaluation/metrics.py`): `accuracy()` and `accuracy_topk()`.
 8. **Logger** (`src/apeiron/logger/`): `Logger` with pluggable metrics backends -- `WandBLogger` and `MLFlowLogger` (configured via `[logging] backend = "wandb"|"mlflow"|"none"`), plus console output. Stages: eval, drift, cl.
 9. **Profilers** (`src/apeiron/profilers/`): `FLOPSProfiler` (`count_flops.py`) using PyTorch FlopCounterMode.
@@ -70,7 +70,7 @@ Note: `EnsembleDetector` is recognized by the loader but raises `NotImplementedE
 | Mode | Strategy | Key Params |
 |---|---|---|
 | `base` | Vanilla gradient descent | (none) |
-| `jvp_reg` | JVP regularization | jvp_lambda, jvp_deltax_norm |
+| `jvp_reg` | JVP updater -- implements a first-order SAM / Bertsimas robust update | jvp_rho_theta, jvp_rho_x, jvp_data_sign |
 | `ewc_online` | Elastic Weight Consolidation | ewc_lambda, ewc_ema_decay |
 | `kfac_online` | KFAC approximation | kfac_lambda, kfac_ema_decay |
 | `none` | No-op (skip CL) | (none) |
@@ -82,8 +82,8 @@ single forward/backward pass, so the sample count per step stays at
 `train.batch_size` whether or not mixing is on (an undersized historical batch is
 topped up from the current one). `base`, `ewc_online`, and `kfac_online` inherit this. `jvp_reg` ignores the flag: it
 overrides `fwd_bwd()` and mixes the two streams itself (it needs a current-only
-gradient as the JVP tangent direction), so it calls `super().fwd_bwd(batch)` without
-the historical batch. `none` skips training entirely.
+gradient as the SAM parameter-perturbation direction before evaluating the combined
+loss). `none` skips training entirely.
 
 ### Coding Conventions
 - Python 3.13+, type hints everywhere
