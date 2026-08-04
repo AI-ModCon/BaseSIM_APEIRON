@@ -162,6 +162,20 @@ class DriftDetectionCfg:
     ph_threshold: float = 50
     ph_alpha: float = 0.9999
 
+    # Ensemble hyperparameters (used when detector_name = "EnsembleDetector")
+    ensemble_detectors: tuple[str, ...] = ()
+    # "majority" | "any" (alias "or") | "unanimous" (aliases "all", "and")
+    ensemble_voting: str = "majority"
+
+    def __post_init__(self) -> None:
+        # TOML arrays arrive as lists; keep the frozen config immutable.
+        # A bare string (e.g. an unquoted --set that failed JSON parsing) is a
+        # single detector name, not an iterable of characters.
+        names = self.ensemble_detectors
+        if isinstance(names, str):
+            names = (names,)
+        object.__setattr__(self, "ensemble_detectors", tuple(names))
+
 
 @dataclass(frozen=True)
 class VisualizationCfg:
