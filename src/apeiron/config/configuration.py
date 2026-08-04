@@ -125,10 +125,6 @@ class ContinualLearningCfg:
     jvp_data_sign: float = (
         1.0  # +1 perturb old inputs toward current dist, -1 toward old
     )
-    # Legacy JVP fields, retained for backward compatibility with existing TOML
-    # configs; unused by the SAM-based updater.
-    jvp_lambda: float = 0.001
-    jvp_deltax_norm: float = 1
 
     # For EWC method
     ewc_lambda: float = 1000.0
