@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 
 from apeiron.drift_detection.detectors.base import (
+    BaseDriftDetector,
     DriftSignal,
     LearningRegime,
 )
@@ -263,9 +264,32 @@ class TestModelEvalDetector:
 # ---------------------------------------------------------------------------
 # EnsembleDetector
 # ---------------------------------------------------------------------------
+class FakeDetector(BaseDriftDetector):
+    """Detector that always reports a fixed verdict, for voting tests."""
+
+    def __init__(self, detected: bool, name: str = "Fake"):
+        super().__init__(name)
+        self.detected = detected
+
+    def update(self, value: float, **kwargs) -> DriftSignal:
+        return DriftSignal(
+            regime=LearningRegime.CONTINUAL_LEARNING
+            if self.detected
+            else LearningRegime.STABLE,
+            drift_detected=self.detected,
+            drift_score=1.0 if self.detected else 0.0,
+        )
+
+    def reset(self) -> None:
+        pass
+
+
 class TestEnsembleDetector:
     def _make_detectors(self, n=3):
         return [ADWINDetector(delta=0.002) for _ in range(n)]
+
+    def _votes(self, *detected: bool):
+        return [FakeDetector(d) for d in detected]
 
     def test_majority_voting(self):
         detectors = self._make_detectors(3)
@@ -285,6 +309,40 @@ class TestEnsembleDetector:
         ensemble = EnsembleDetector(detectors, voting="unanimous")
         signal = ensemble.update(1.0)
         assert isinstance(signal, DriftSignal)
+
+    @pytest.mark.parametrize(
+        "voting,votes,expected",
+        [
+            ("majority", (True, True, False), True),
+            ("majority", (True, False, False), False),
+            ("any", (True, False, False), True),
+            ("any", (False, False, False), False),
+            ("unanimous", (True, True, True), True),
+            ("unanimous", (True, True, False), False),
+        ],
+    )
+    def test_voting_strategies(self, voting, votes, expected):
+        ensemble = EnsembleDetector(self._votes(*votes), voting=voting)
+        signal = ensemble.update(1.0)
+        assert signal.drift_detected is expected
+        assert signal.metadata["voting"] == voting
+        assert signal.metadata["n_votes"] == sum(votes)
+
+    @pytest.mark.parametrize(
+        "alias,canonical",
+        [("all", "unanimous"), ("and", "unanimous"), ("or", "any")],
+    )
+    def test_voting_aliases(self, alias, canonical):
+        ensemble = EnsembleDetector(self._votes(True, False), voting=alias)
+        assert ensemble.voting == canonical
+
+    def test_unknown_voting_raises(self):
+        with pytest.raises(ValueError, match="voting"):
+            EnsembleDetector(self._votes(True), voting="plurality")
+
+    def test_empty_detectors_raises(self):
+        with pytest.raises(ValueError, match="at least one"):
+            EnsembleDetector([], voting="any")
 
     def test_reset_resets_all(self):
         detectors = self._make_detectors(2)
@@ -350,14 +408,30 @@ class TestLoadDriftDetector:
         d = load_drift_detector(cfg)
         assert isinstance(d, ModelEvalDetector)
 
-    def test_ensemble_not_implemented(self, default_cfg):
+    def test_ensemble(self, default_cfg):
+        from dataclasses import replace
+
+        cfg = replace(
+            default_cfg,
+            drift_detection=DriftDetectionCfg(
+                detector_name="EnsembleDetector",
+                ensemble_detectors=["ADWINDetector", "KSWINDetector"],
+                ensemble_voting="any",
+            ),
+        )
+        d = load_drift_detector(cfg)
+        assert isinstance(d, EnsembleDetector)
+        assert d.voting == "any"
+        assert [type(sub) for sub in d.detectors] == [ADWINDetector, KSWINDetector]
+
+    def test_ensemble_without_sub_detectors_raises(self, default_cfg):
         from dataclasses import replace
 
         cfg = replace(
             default_cfg,
             drift_detection=DriftDetectionCfg(detector_name="EnsembleDetector"),
         )
-        with pytest.raises(NotImplementedError):
+        with pytest.raises(ValueError, match="ensemble_detectors"):
             load_drift_detector(cfg)
 
     def test_unknown_detector_raises(self, default_cfg):
