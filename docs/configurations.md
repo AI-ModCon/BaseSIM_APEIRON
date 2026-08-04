@@ -89,8 +89,9 @@ max_iter = 600
 [continual_learning]
 update_mode = "base"
 
-jvp_lambda = 0.001
-jvp_deltax_norm = 1
+jvp_rho_theta = 0.05
+jvp_rho_x = 1.0
+jvp_data_sign = 1.0
 
 ewc_lambda = 1000.0
 ewc_ema_decay = 0.95
@@ -101,9 +102,10 @@ kfac_ema_decay = 0.95
 
 | Option | Type | Description |
 |----------|------|-------------|
-| `update_mode` | str | Required, CL strategy to use (base, jvp_reg, ewc_online, kfac_online, none). |
-| `jvp_lambda` | float | Weight for JVP regularization term (`jvp_reg` mode). Default: 0.001. |
-| `jvp_deltax_norm` | float | Scale factor for JVP input perturbation direction. Default: 1. |
+| `update_mode` | str | Required, CL strategy to use (base, jvp_reg, ewc_online, kfac_online, none). The `jvp_reg` (JVP) updater now runs a first-order SAM robust update. |
+| `jvp_rho_theta` | float | SAM parameter-perturbation radius (`jvp_reg` mode). Default: 0.05. |
+| `jvp_rho_x` | float | Perturbation radius applied to the historical inputs along the drift direction. `0` reduces the mode to parameter-only SAM. Default: 1.0. |
+| `jvp_data_sign` | float | Sign of the historical-input perturbation: `+1` shifts old inputs toward the current distribution, `-1` away from it. Default: 1.0. |
 | `ewc_lambda` | float | EWC regularization strength (`ewc_online` mode). Default: 1000. |
 | `ewc_ema_decay` | float | EMA decay for online Fisher prior in EWC. Default: 0.95. |
 | `kfac_lambda` | float | KFAC penalty strength (`kfac_online` mode). Default: 0.01. |
