@@ -61,3 +61,70 @@ class TestHarnessAbstract:
     def test_cannot_instantiate_base(self):
         with pytest.raises(TypeError):
             BaseModelHarness(cfg=None, model=None)  # type: ignore[arg-type]
+
+
+class _StructuredTarget:
+    """Stand-in for a harness that yields a structured target rather than a Tensor.
+
+    Mirrors the duck type of MATEY's ``MateyTargetBatch``: it carries the target
+    alongside per-batch metadata, exposes ``.shape`` and ``.to()``, and
+    deliberately does *not* implement ``.size()``.
+    """
+
+    def __init__(self, tensor: torch.Tensor, leadtime: int = 1):
+        self.tensor = tensor
+        self.leadtime = leadtime
+
+    @property
+    def shape(self) -> torch.Size:
+        return self.tensor.shape
+
+    def to(self, device) -> "_StructuredTarget":
+        return _StructuredTarget(self.tensor.to(device), self.leadtime)
+
+
+class TestBatchSize:
+    def test_tensor_uses_leading_dimension(self):
+        assert BaseModelHarness._batch_size(torch.randn(7, 3, 3)) == 7
+
+    def test_zero_dim_tensor_counts_as_one(self):
+        assert BaseModelHarness._batch_size(torch.tensor(1.0)) == 1
+
+    def test_structured_target_uses_shape(self):
+        y = _StructuredTarget(torch.randn(5, 2))
+        assert not hasattr(y, "size")
+        assert BaseModelHarness._batch_size(y) == 5
+
+    def test_shapeless_target_counts_as_one(self):
+        assert BaseModelHarness._batch_size(object()) == 1
+
+    def test_empty_shape_counts_as_one(self):
+        class _Scalarish:
+            shape = ()
+
+        assert BaseModelHarness._batch_size(_Scalarish()) == 1
+
+
+class TestEvalWithStructuredTargets:
+    """Regression: ``eval`` used ``y.size(0)``, which crashed on non-Tensor targets.
+
+    The crash surfaced only once a detector fired and continual learning began,
+    so it is worth pinning both that the call survives and that the per-batch
+    weighting still uses the true batch size -- a wrong batch size would
+    silently mis-average across variable-sized batches instead of raising.
+    """
+
+    @staticmethod
+    def _run(harness) -> float:
+        batches = [
+            (torch.randn(5, 4), _StructuredTarget(torch.full((5,), 2.0))),
+            (torch.randn(3, 4), _StructuredTarget(torch.full((3,), 10.0))),
+        ]
+        harness.get_train_dataloaders = lambda: (None, batches)
+        harness.eval_metrics = {"mean_target": lambda y_hat, y: y.tensor.mean()}
+        (value,) = harness.eval()
+        return value
+
+    def test_does_not_crash_and_weights_by_batch_size(self, dummy_harness):
+        # (2.0 * 5 + 10.0 * 3) / 8 == 5.0; an unweighted mean would give 6.0.
+        assert self._run(dummy_harness) == pytest.approx(5.0)
