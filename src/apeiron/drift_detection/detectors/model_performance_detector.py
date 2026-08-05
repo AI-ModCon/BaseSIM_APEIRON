@@ -376,8 +376,10 @@ class EnsembleDetector(BaseDriftDetector):
             drift_detected = n_votes > len(signals) / 2
         elif self.voting == "unanimous":
             drift_detected = n_votes == len(signals)
-        else:  # any
+        elif self.voting == "any":
             drift_detected = n_votes > 0
+        else:
+            raise ValueError(f"unknown voting strategy: {self.voting!r}")
 
         # Determine regime by majority vote
         regime_votes = [s.regime for s in signals]
