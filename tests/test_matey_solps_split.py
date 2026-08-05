@@ -11,7 +11,7 @@ def _load_stage_fn():
     if str(project_root) not in sys.path:
         sys.path.append(str(project_root))
 
-    from examples.matey.src.solps_split import stage_solps_split
+    from examples.matey.solps.solps_split import stage_solps_split
 
     return stage_solps_split
 

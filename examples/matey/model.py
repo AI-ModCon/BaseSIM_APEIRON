@@ -14,8 +14,8 @@ from torch import Tensor, nn
 from torch.optim import Optimizer
 
 from apeiron.config.configuration import Config
-from examples.matey.src.fusionbench_eval_hooks import patch_leadtime
-from examples.matey.src.matey_batches import (
+from examples.matey.solps.fusionbench_eval_hooks import patch_leadtime
+from examples.matey.solps.matey_batches import (
     MateyInputBatch,
     MateyLoaderAdapter as _MateyLoaderAdapter,
     MateyModelAdapter as _MateyModelAdapter,
@@ -24,9 +24,9 @@ from examples.matey.src.matey_batches import (
     install_matey_optional_import_shims,
     register_solps2dwion_dataset,
 )
-from examples.matey.src.solps_field_maps import SOLPS_ION_FIELD_NAMES
-from examples.matey.src.settings import MateySettings
-from examples.matey.src.solps_split import SolpsStagedSplit, stage_solps_split
+from examples.matey.solps.solps_field_maps import SOLPS_ION_FIELD_NAMES
+from examples.matey.solps.settings import MateySettings
+from examples.matey.solps.solps_split import SolpsStagedSplit, stage_solps_split
 from apeiron.logger import get_logger
 from apeiron.model.torch_model_harness import BaseModelHarness
 

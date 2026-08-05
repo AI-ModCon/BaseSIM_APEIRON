@@ -13,7 +13,7 @@ root rather than in the config means this needs no new keys in
 ``apeiron.config.configuration`` -- the framework config is shared with other
 users of APEIRON and should not grow a SOLPS-specific vocabulary. The dataset
 type and field labels sit beside it in ``matey_settings.json``, for the same
-reason (see ``examples/matey/src/settings.py``).
+reason (see ``examples/matey/solps/settings.py``).
 
 What each stream update does:
 

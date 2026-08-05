@@ -1,10 +1,10 @@
-from examples.matey.src.matey_batches import (
+from examples.matey.solps.matey_batches import (
     MateyInputBatch,
     MateyLoaderAdapter,
     MateyModelAdapter,
     MateyTargetBatch,
 )
-from examples.matey.src.solps_split import SolpsStagedSplit, stage_solps_split
+from examples.matey.solps.solps_split import SolpsStagedSplit, stage_solps_split
 
 __all__ = [
     "MateyInputBatch",

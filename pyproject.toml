@@ -52,6 +52,18 @@ ignore = [
     "F811",  # Redefinition of unused name (often a false positive in PyTorch JIT overloading)
 ]
 
+[tool.mypy]
+# `apeiron` lives under src/, and the examples are packages rooted at the repo
+# top level. Without both bases declared, mypy resolves `import apeiron` to the
+# installed distribution -- which ships no py.typed -- and reports every
+# first-party import as an untyped third-party one. mypy reads MYPYPATH, not
+# PYTHONPATH, so the workflow's `PYTHONPATH: src` does not cover this.
+mypy_path = "src"
+explicit_package_bases = true
+# The mirror of the F811 exemption in [tool.ruff.lint] above, for the same
+# conditional redefinitions in the CIFAR example's model code.
+disable_error_code = ["no-redef"]
+
 [[tool.mypy.overrides]]
 module = "evidently.*"
 ignore_missing_imports = true

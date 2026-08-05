@@ -21,7 +21,7 @@ import pytest
 # access-restricted dependency. Skip rather than fail collection without it.
 pytest.importorskip("matey", reason="the MATEY package is not installed")
 
-from examples.matey.src.solps2dwion_dataset import (  # noqa: E402
+from examples.matey.solps.solps2dwion_dataset import (  # noqa: E402
     _CASE_MINMAX,
     SOLPS2DwIONDataset,
 )

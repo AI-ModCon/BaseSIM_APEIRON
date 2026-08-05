@@ -23,7 +23,7 @@ def _import_matey_symbols():
     if str(project_root) not in sys.path:
         sys.path.append(str(project_root))
 
-    from examples.matey.src.matey_batches import MateyInputBatch, MateyTargetBatch
+    from examples.matey.solps.matey_batches import MateyInputBatch, MateyTargetBatch
     from examples.matey.model import MATEYHarness
 
     return MATEYHarness, MateyInputBatch, MateyTargetBatch
