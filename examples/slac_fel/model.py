@@ -132,6 +132,7 @@ _HIST_RECENCY_DECAY: float = 0.5
 # Directory containing: input_scaler.pt, output_scaler.pt, feature_config.yml
 config_path = "examples/slac_fel/model"
 
+
 class SLAC_FEL(BaseModelHarness):
     """Continuous-learning harness for the LCLS FEL regression model.
 
