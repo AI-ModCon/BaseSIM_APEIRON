@@ -7,6 +7,7 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
+from apeiron.config.configuration import EvalCfg
 from apeiron.drift_detection.detectors.base import DriftSignal, LearningRegime
 from apeiron.driver.continuous_monitor import ContinuousMonitor
 
@@ -30,6 +31,7 @@ class TestContinuousMonitorInit:
         mon = ContinuousMonitor(cfg=default_cfg, modelHarness=dummy_harness)
         assert mon.stream_update_count == 0
         assert mon.batch_count == 0
+        assert mon.drift_check_count == 0
         assert mon.drift_event_count == 0
         assert mon.metric_buffer == []
         assert mon.detection_interval == default_cfg.drift_detection.detection_interval
@@ -126,6 +128,29 @@ class TestCheckDrift:
         assert mon.metric_buffer == []
         assert signal is mock_signal
 
+    def test_drift_detection_counter_increments(self, default_cfg, dummy_harness):
+        mon = ContinuousMonitor(cfg=default_cfg, modelHarness=dummy_harness)
+        mon.metric_buffer = [[0.1], [0.2]]
+        mock_signal = DriftSignal(
+            regime=LearningRegime.CONTINUAL_LEARNING,
+            drift_detected=True,
+            drift_score=0.5,
+        )
+        with patch.object(mon.detector, "update", return_value=mock_signal):
+            _ = mon._check_drift()
+        assert mon.drift_check_count == 1
+
+
+class TestRunSummary:
+    def test_logs_no_drift_summary_message(self, default_cfg, dummy_harness):
+        mon = ContinuousMonitor(cfg=default_cfg, modelHarness=dummy_harness)
+        with patch.object(mon, "_should_stop", side_effect=[True]):
+            mon.run()
+        mon.logger.info.assert_any_call(
+            "CL dispatch did not run because no drift was detected.",
+            level=0,
+        )
+
 
 class TestHandleDrift:
     def test_increments_drift_event_count(self, default_cfg, dummy_harness):
@@ -150,3 +175,42 @@ class TestEvaluateBatch:
         assert isinstance(metrics, list)
         assert len(metrics) == 1  # one eval metric (accuracy)
         # TODO: assert on the actual metric values, not just shape
+
+
+class TestMaxValBatches:
+    """``eval.max_val_batches`` caps the per-window evaluation.
+
+    Models whose validation pass costs far more than the drift decision it feeds
+    need to stop early; ``0`` keeps the historical behaviour of consuming the
+    whole loader.
+    """
+
+    def _run_window(self, default_cfg, dummy_harness, cap):
+        """Drive one window and report how many batches it consumed.
+
+        ``dummy_harness.get_stream_dataloader`` returns a 1-tuple, which
+        ``_process_stream`` does not expect, so point it at a real loader.
+        """
+        from torch.utils.data import DataLoader
+
+        cfg = replace(default_cfg, eval=EvalCfg(max_val_batches=cap))
+        mon = ContinuousMonitor(cfg=cfg, modelHarness=dummy_harness)
+        loader = DataLoader(dummy_harness._val_ds, batch_size=4)
+        with patch.object(dummy_harness, "get_stream_dataloader", return_value=loader):
+            with pytest.raises(StopIteration):
+                mon._process_stream()
+        return mon, len(loader)
+
+    def test_cap_stops_the_window_early(self, default_cfg, dummy_harness):
+        mon, total = self._run_window(default_cfg, dummy_harness, cap=2)
+        assert mon.batch_count == 2
+        assert total > 2, "fixture must have more batches than the cap to be a test"
+
+    def test_zero_consumes_the_whole_loader(self, default_cfg, dummy_harness):
+        mon, total = self._run_window(default_cfg, dummy_harness, cap=0)
+        assert mon.batch_count == total
+
+    def test_absent_eval_section_is_uncapped(self, default_cfg, dummy_harness):
+        assert default_cfg.eval is None
+        mon = ContinuousMonitor(cfg=default_cfg, modelHarness=dummy_harness)
+        assert mon.max_val_batches == 0

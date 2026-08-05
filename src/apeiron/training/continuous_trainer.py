@@ -61,6 +61,33 @@ class ContinuousTrainer:
                 # If we cannot inspect batch size, just accept the batch
                 return current_iter, [b.to(self.cfg.device) for b in batch]
 
+    def _log_validation(
+        self,
+        tag: str,
+        cur: Optional[list],
+        hist: Optional[list],
+        drift_event_id: int,
+    ) -> None:
+        """Record every named eval metric, current and historical domain.
+
+        The pre-existing ``test_curr_acc``/``test_hist_acc`` pair logs only
+        ``metrics[0]`` -- the *first* eval metric, which for the MATEY harness is
+        ``nrmse_ne2d``, not the metric the detector monitors. Logging the whole
+        vector by name means the before/after comparison can be made on the same
+        quantity the drift decision was made on.
+        """
+        logger = get_logger(__name__)
+        names = self.modelHarness.eval_metrics
+        payload: dict[str, float] = {"drift_event_id": drift_event_id}
+        for domain, values in (("cur", cur), ("hist", hist)):
+            for name, value in zip(names, values or ()):
+                payload[f"val_{tag}_{domain}_{name}"] = float(value)
+        logger.stage("eval")
+        # increment=False: this annotates the step the CL round starts from.
+        # Advancing the counter here would shift every downstream metric's step
+        # index by one and break consumers that join on it.
+        logger.log(payload, commit=False, increment=False)
+
     def outer_cl_training_loop(
         self,
         drift_event_id: int = 0,
@@ -76,9 +103,12 @@ class ContinuousTrainer:
         else:
             hist_train_iter = None
 
-        # TODO: need to find away to explicitly match the metrics to their name/label
         cur_validation_metrics = self.modelHarness.eval()
         hist_validation_metrics = self.modelHarness.history_eval()
+
+        self._log_validation(
+            "pre", cur_validation_metrics, hist_validation_metrics, drift_event_id
+        )
 
         logger.info("==== Continual Learning ====")
         logger.info("\tInitial test acc: {}".format(cur_validation_metrics[0]), level=1)
@@ -126,6 +156,9 @@ class ContinuousTrainer:
 
         cur_validation_metrics = self.modelHarness.eval()
         hist_validation_metrics = self.modelHarness.history_eval()
+        self._log_validation(
+            "post", cur_validation_metrics, hist_validation_metrics, drift_event_id
+        )
 
         logger.info(f"\tTest Accuracy: {cur_validation_metrics[0]:.1f}%", level=1)
         if hist_validation_metrics is not None:

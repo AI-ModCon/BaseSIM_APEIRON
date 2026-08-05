@@ -80,10 +80,13 @@ class ContinuousMonitor:
         self.detection_interval = cfg.drift_detection.detection_interval
         self.max_stream_updates = cfg.drift_detection.max_stream_updates
         self.aggregation = cfg.drift_detection.aggregation
+        # 0 = evaluate the whole loader.
+        self.max_val_batches = cfg.eval.max_val_batches if cfg.eval else 0
 
         # State tracking
         self.stream_update_count = 0
         self.batch_count = 0
+        self.drift_check_count = 0
         self.drift_event_count = 0
 
         # Metrics accumulation
@@ -97,6 +100,7 @@ class ContinuousMonitor:
         )
         self.logger.info(f"\tAggregation method: {self.aggregation}", level=1)
         self.logger.info(f"\tMax stream updates: {self.max_stream_updates}", level=1)
+        self.logger.info(f"\tMax val batches: {self.max_val_batches}", level=1)
 
     def run(self) -> None:
         """Main continuous monitoring loop.
@@ -121,6 +125,13 @@ class ContinuousMonitor:
         self.logger.info("==== Continuous Monitoring Complete ====", level=0)
         self.logger.info(f"\tTotal batches processed: {self.batch_count}", level=1)
         self.logger.info(f"\tTotal stream updates: {self.stream_update_count}", level=1)
+        self.logger.info(f"\tTotal drift checks: {self.drift_check_count}", level=1)
+        self.logger.info(f"\tTotal CL dispatches: {self.drift_event_count}", level=1)
+        if self.drift_event_count == 0:
+            self.logger.info(
+                "CL dispatch did not run because no drift was detected.",
+                level=0,
+            )
 
     def _process_stream(self) -> None:
         """Process batches from current data stream.
@@ -153,6 +164,9 @@ class ContinuousMonitor:
 
                 if drift_signal.drift_detected:
                     self._handle_drift(drift_signal)
+
+            if self.max_val_batches and batch_idx + 1 >= self.max_val_batches:
+                break
 
         raise StopIteration()
 
@@ -247,6 +261,7 @@ class ContinuousMonitor:
         else:
             drift_signal = self.detector.update(agg_metric)
 
+        self.drift_check_count += 1
         # Log drift metrics
         self._log_metrics(drift_signal, agg_metric)
 
@@ -313,8 +328,10 @@ class ContinuousMonitor:
         """
         self.stream_update_count += 1
 
+        # "Window complete" rather than "stream exhausted": with eval.max_val_batches
+        # set, the window ends at the cap and the loader may still have batches left.
         self.logger.info(
-            f"\tStream exhausted. Loading next data buffer. {self.stream_update_count}/{self.max_stream_updates}",
+            f"\tWindow complete. Loading next data buffer. {self.stream_update_count}/{self.max_stream_updates}",
             level=1,
         )
 

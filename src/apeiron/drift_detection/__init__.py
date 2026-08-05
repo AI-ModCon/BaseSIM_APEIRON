@@ -25,6 +25,7 @@ from apeiron.drift_detection.detectors.statistical_detectors import (
     KSWINDetector,
     PageHinkleyDetector,
 )
+
 from apeiron.drift_detection.detectors.model_performance_detector import (
     ModelPerformanceDetector,
     EnsembleDetector,
