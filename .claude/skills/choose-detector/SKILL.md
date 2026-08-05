@@ -3,7 +3,8 @@ name: choose-detector
 description: |
   Help the user pick a drift detector and tune its settings for an apeiron run.
   Use when the user asks which detector to use, how to configure drift detection,
-  what ADWIN/KSWIN/PageHinkley/threshold values to set, or wants a ready-to-use
+  what ADWIN/KSWIN/PageHinkley/threshold values to set, whether to combine
+  detectors into an ensemble and which voting rule to use, or wants a ready-to-use
   [drift_detection] config block. Asks a few questions about the monitored metric
   and drift shape, recommends a detector, writes a filled-in TOML block, and
   validates that it loads. Does NOT run a full experiment — for that use
@@ -31,19 +32,27 @@ it rather than restating numbers that may drift.
   user can paste into their config.
 
 ## Ground truth to respect (do not recommend around it)
-Only three detectors are plug-and-play in the current `ContinuousMonitor` flow,
-because `_check_drift()` calls `detector.update(agg_metric)` with a single
-aggregated scalar:
-- `ADWINDetector`, `KSWINDetector`, `PageHinkleyDetector`.
+`ContinuousMonitor._check_drift()` calls `detector.update(agg_metric)` with a
+single aggregated scalar and no kwargs. Anything that needs more than that scalar
+is not drop-in.
 
-The rest are **not** drop-in and must not be recommended as the default:
-- `ModelPerformanceDetector` needs reference data + batch DataFrames (not passed by the monitor).
-- `EvalDetector` (`ModelEvalDetector`) needs extra `update(...)` kwargs the monitor doesn't send.
-- `EnsembleDetector` raises `NotImplementedError` in `load_drift_detector`.
+Plug-and-play:
+- `ADWINDetector`, `KSWINDetector`, `PageHinkleyDetector` — take the scalar directly.
+- `EnsembleDetector` — its `update(value, **kwargs)` forwards the scalar to each
+  sub-detector, so it is drop-in **provided every name in `ensemble_detectors` is
+  one of the three scalar detectors above**. Listing a non-drop-in detector as a
+  sub-detector pushes the failure into the ensemble.
+
+**Not** drop-in; do not recommend as the default:
+- `ModelPerformanceDetector` needs reference data + batch DataFrames (not passed by
+  the monitor); `update()` raises `ValueError` unless `set_reference()` ran first.
+- `EvalDetector` (`ModelEvalDetector`) needs extra `update(...)` kwargs
+  (`modelHarness`, `reference_validation_metrics`, `higher_is_better`) the monitor
+  doesn't send.
 
 Confirm this is still true before relying on it:
 ```bash
-sed -n '1,80p' src/apeiron/drift_detection/load_drift_detector.py
+sed -n '1,100p' src/apeiron/drift_detection/load_drift_detector.py
 ```
 If a user specifically wants one of the non-wired detectors, be honest that it
 requires extra wiring and point them at the integration notes in the doc.
@@ -60,7 +69,8 @@ Ask the user (batch these with AskUserQuestion):
   - gradual/slow drift
   - distribution or variance change with little mean movement
 - **Sensitivity vs. false alarms**: react early and tolerate some false alarms,
-  or only fire on clear, sustained drift?
+  or only fire on clear, sustained drift? (A strong preference at either extreme,
+  or "I expect more than one kind of drift", is the cue to consider an ensemble.)
 - **Cadence**: roughly how many `update()` calls (i.e. `detection_interval`-sized
   checks) happen before they'd want a first detection, and how many batches per
   check. This sets warm-up expectations.
@@ -74,6 +84,16 @@ Map answers to a detector:
 - distribution / variance / shape change without mean movement → **KSWIN**
 - abrupt mean shift, want fast + cheap detection → **PageHinkley**
 - gradual, mixed, or "not sure / general default" → **ADWIN**
+- more than one drift shape expected, or an explicit sensitivity/false-alarm
+  preference a single detector can't express → **Ensemble** over two or three of
+  the above (see the voting rules in step 3)
+
+Prefer a single detector when one clearly fits — the ensemble costs an update on
+every sub-detector per check and makes tuning harder to reason about, since each
+sub-detector is still driven by its own hyperparameters in the same config block.
+Reach for it when the shapes genuinely differ (e.g. PageHinkley for abrupt jumps
+plus KSWIN for variance changes) or when the user wants a deliberate
+sensitivity/conservatism bias they can state as a voting rule.
 
 State the recommendation and the one-line reason. If it's a close call, name the
 runner-up and the tradeoff.
@@ -92,6 +112,21 @@ metric scale and the sensitivity preference:
   rarely fire, so start much smaller (order `1–10`) and tune; for larger-magnitude
   losses, larger thresholds are appropriate. `ph_delta` is the slack (min change
   treated as real); `ph_min_instances` is warm-up.
+- **Ensemble** — `ensemble_detectors` is the list of sub-detector names; each is
+  built from this same `[drift_detection]` block, so a detector type can appear at
+  most once and still needs its own hyperparameters set here. An empty list, a
+  nested `"EnsembleDetector"`, or an unknown voting name raises `ValueError` at
+  load. `ensemble_voting` sets the bias:
+  - `any` (alias `or`) — fires when any sub-detector fires. Most sensitive; use
+    when a missed drift costs more than a needless CL dispatch.
+  - `majority` (default) — strictly more than half. Balanced; needs 3+ detectors
+    to mean anything (with 2 it behaves like `unanimous`).
+  - `unanimous` (aliases `all`, `and`) — every detector must fire. Most
+    conservative; suppresses small/noisy changes at the cost of latency.
+  Note `drift_score` is the mean of sub-detector scores and the regime is a
+  plurality vote, both independent of the voting rule — so the
+  `adwin_minor_threshold` / `adwin_moderate_threshold` regime split gets diluted
+  by sub-detectors that report a score of 0.
 
 Set `detection_interval`, `aggregation` (`mean`/`median`/`last`), `metric_index`,
 and `max_stream_updates` from the cadence answers. Explain any value that
@@ -112,6 +147,24 @@ adwin_delta = 0.002
 adwin_minor_threshold = 0.3
 adwin_moderate_threshold = 0.6
 ```
+For an ensemble, list the sub-detectors and keep each one's hyperparameters in the
+same block:
+```toml
+[drift_detection]
+detector_name = "EnsembleDetector"
+ensemble_detectors = ["ADWINDetector", "PageHinkleyDetector"]
+ensemble_voting = "unanimous"
+detection_interval = 10
+aggregation = "mean"
+metric_index = 0
+reset_after_learning = false
+max_stream_updates = 20
+
+# Sub-detectors read their usual hyperparameters from this same block
+adwin_delta = 0.002
+ph_threshold = 30
+ph_delta = 0.5
+```
 If `$1` was given, patch that file's `[drift_detection]` section (Edit); keep the
 keys that don't belong to the chosen detector untouched or drop the unused
 detector-specific keys, matching the existing file style.
@@ -127,9 +180,14 @@ from apeiron.drift_detection.load_drift_detector import load_drift_detector
 cfg = build_config(['--config', '<config_path>'])
 d = load_drift_detector(cfg)
 print('OK:', type(d).__name__)
+print(getattr(d, 'voting', ''), [type(s).__name__ for s in getattr(d, 'detectors', [])])
 print(cfg.drift_detection)
 "
 ```
+For an ensemble this is worth more than a syntax check: it is where an empty
+`ensemble_detectors`, a nested `EnsembleDetector`, an unknown voting name, or an
+unknown sub-detector name surfaces as a `ValueError` instead of at run time. The
+second print confirms the resolved voting rule and that every sub-detector built.
 (`PYTHONPATH=src` is required so `import apeiron` resolves — the package lives
 under `src/apeiron` and `import apeiron` fails without it.)
 For a standalone block (no `$1`), write it to a temp file first and validate that
@@ -145,5 +203,9 @@ detection behavior, hand off to `explore-examples` or `custom-experiment`.
 ## Notes
 - Quick way to A/B a detector on a shipped example without editing files:
   `poetry run python -m src.main --config examples/mnist/mnist.toml --set drift_detection.detector_name=PageHinkleyDetector --set drift_detection.ph_threshold=5`
-- Keep `docs/drift_detectors.md` as the single source of truth; if you find this
-  skill and the doc disagree, fix the doc and follow it.
+- `--set` values go through `json.loads`, so a list needs JSON syntax and shell
+  quoting: `--set 'drift_detection.ensemble_detectors=["ADWINDetector","KSWINDetector"]'`
+- Precedence when sources disagree: the code in
+  `src/apeiron/drift_detection/` wins, then `docs/drift_detectors.md`, then this
+  skill. Fix whichever is stale rather than working around it — this file has
+  been wrong about detector wiring before.
