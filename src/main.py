@@ -10,15 +10,20 @@ from apeiron.driver.continuous_monitor import ContinuousMonitor
 
 def main(argv: list[str] | None = None) -> int:
     cfg: Config = build_config(argv)
-    modelHarness = get_example(cfg=cfg)
 
-    # Configure logger
+    # Configure the logger before building the harness. get_logger() returns any
+    # existing instance without applying its arguments, so a harness that logs
+    # from __init__ -- as one carrying its resolved settings does -- would
+    # otherwise create the singleton first and pin the default backend and a
+    # null CSV path, silently dropping visualization.input for the whole run.
     backend = configure_backend(cfg)
     logger = get_logger(
         verbosity=cfg.verbosity,
         backend=backend,
         csv_path=cfg.visualization.input if cfg.visualization else None,
     )
+
+    modelHarness = get_example(cfg=cfg)
 
     # Determine project/experiment name
     project_name = "basesim-framework"
