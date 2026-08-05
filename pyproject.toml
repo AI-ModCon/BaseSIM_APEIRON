@@ -64,6 +64,14 @@ explicit_package_bases = true
 # conditional redefinitions in the CIFAR example's model code.
 disable_error_code = ["no-redef"]
 
+# torch and torchvision ship no py.typed. The bundled MNIST/CIFAR/ImageNet
+# examples import them directly; declaring the package bases above is what makes
+# mypy resolve those example modules at all, which is how these long-standing
+# gaps became visible.
+[[tool.mypy.overrides]]
+module = ["torch.*", "torchvision.*"]
+ignore_missing_imports = true
+
 [[tool.mypy.overrides]]
 module = "evidently.*"
 ignore_missing_imports = true
