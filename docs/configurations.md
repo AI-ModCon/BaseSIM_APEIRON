@@ -183,6 +183,19 @@ ph_alpha = 0.9999
 | `ph_threshold` | float | Page-Hinkley trigger threshold. |
 | `ph_alpha` | float | Page-Hinkley forgetting factor. |
 
+Ensemble:
+
+```toml
+detector_name = "EnsembleDetector"
+ensemble_detectors = ["ADWINDetector", "KSWINDetector", "PageHinkleyDetector"]
+ensemble_voting = "majority"
+```
+
+| Option | Type | Description |
+|----------|------|-------------|
+| `ensemble_detectors` | list[str] | Sub-detectors to combine. Each is built from this same `[drift_detection]` block, so a detector type can appear at most once. |
+| `ensemble_voting` | str | How sub-detector verdicts combine: `majority` (more than half fire), `any`/`or` (at least one fires), `unanimous`/`all`/`and` (every one fires). |
+
 
 Details about the drift detection algorithms available can be found in [docs/drift_detectors.md](drift_detectors.md)
 
