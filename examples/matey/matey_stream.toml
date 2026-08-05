@@ -1,0 +1,88 @@
+# Figure 2: a sequence of SOLPS simulations arriving on one time axis, with
+# drift detection and continual learning running over them.
+#
+# data.path points at a stream root holding stream_manifest.json and one bundle
+# directory per arrival (see examples/matey/README.md). The layout below is the
+# 24-arrival stream the figure was produced from:
+#
+#   arrivals  0-7   DIII-D Sequence_sin4   same machine, in pre-training
+#   arrivals  8-15  DIII-D noLat_dribble   same machine, new scenario, HELD OUT
+#   arrivals 16-23  KSTAR linear ramp      different machine, in pre-training
+#
+# The machine changes at arrival 16. Only ood_d3d is genuinely unseen: the
+# checkpoint trains on the whole SOLPS2DwION tree, so the cross-machine arrivals
+# are "different machine, under-fit", not "never seen".
+#
+# Run:
+#   sbatch examples/matey/submit_stream_cl.sh
+
+seed = 1337
+device = "auto"
+multi_gpu = false
+verbosity = "INFO"
+
+[model]
+name = "matey_vit"
+# You provide this: a MATEY SOLPS checkpoint (best_ckpt.tar).
+pretrained_path = "/path/to/matey/models/leadtime_1/best_ckpt.tar"
+
+[data]
+name = "matey_stream"
+# Stream root: holds stream_manifest.json, matey_settings.json, and one bundle
+# directory per arrival. You provide this -- see examples/matey/README.md.
+path = "/path/to/solps_stream"
+
+[train]
+batch_size = 1
+num_workers = 0
+# Adaptation learning rate. get_optmizer() makes this win over the checkpoint's
+# own hyperparams.yaml, which otherwise silently supplies MATEY's pre-training
+# rate (0.001) and turns any lr sweep into a no-op.
+init_lr = 3e-6
+max_iter = 500
+grad_accumulation_steps = 1
+
+[continual_learning]
+# "base" = vanilla fine-tuning, the only mode the MATEY harness supports
+# besides "none" (SUPPORTED_UPDATE_MODES).
+update_mode = "base"
+mix_historic_data = false
+
+[drift_detection]
+# KSWIN is the detector that fires on this signal: the shift shows up as a
+# change in the error *distribution*, which mean-based detectors miss.
+detector_name = "KSWINDetector"
+detection_interval = 1
+aggregation = "last"
+metric_index = 3  # 0=ne2d, 1=te2d, 2=ti2d, 3=nrmse_mean
+reset_after_learning = true
+# Set to n_arrivals - 1. ContinuousMonitor calls update_data_stream() once
+# before its loop and once per extension, so it consumes max_stream_updates + 1
+# arrivals; setting this to n_arrivals requests one past the end. 23 covers the
+# 24-arrival stream exactly. submit_stream_cl.sh derives it from the manifest,
+# so this value only matters when running the config by hand.
+max_stream_updates = 23
+
+kswin_alpha = 0.005
+# 60/20 chosen by replaying the recorded control stream through candidate
+# configurations: it fires only on the held-out excursion (delay 18 windows)
+# with zero false alarms before onset and zero at either machine change. 20/8
+# fires 10 times including one in the in-pre-training baseline; 40/15 fires at a
+# machine change; ADWIN and Page-Hinkley at shipped settings never fire at all.
+kswin_window_size = 60
+kswin_stat_size = 20
+# KSWIN draws its reference window at random; without a seed the figure is not
+# reproducible.
+kswin_seed = 1337
+
+[logging]
+backend = "none"
+experiment_name = "matey-stream-cl"
+
+[eval]
+# Cap the per-window validation pass. A full SOLPS validation split costs far
+# more than the drift decision it feeds.
+max_val_batches = 15
+
+[visualization]
+input = "output/matey_stream.csv"
