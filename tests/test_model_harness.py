@@ -64,12 +64,7 @@ class TestHarnessAbstract:
 
 
 class _StructuredTarget:
-    """Stand-in for a harness that yields a structured target rather than a Tensor.
-
-    Mirrors the duck type of MATEY's ``MateyTargetBatch``: it carries the target
-    alongside per-batch metadata, exposes ``.shape`` and ``.to()``, and
-    deliberately does *not* implement ``.size()``.
-    """
+    """A target that exposes ``.shape`` but not ``.size()``."""
 
     def __init__(self, tensor: torch.Tensor, leadtime: int = 1):
         self.tensor = tensor
@@ -83,36 +78,27 @@ class _StructuredTarget:
         return _StructuredTarget(self.tensor.to(device), self.leadtime)
 
 
+class _Scalarish:
+    shape = ()
+
+
 class TestBatchSize:
-    def test_tensor_uses_leading_dimension(self):
-        assert BaseModelHarness._batch_size(torch.randn(7, 3, 3)) == 7
-
-    def test_zero_dim_tensor_counts_as_one(self):
-        assert BaseModelHarness._batch_size(torch.tensor(1.0)) == 1
-
-    def test_structured_target_uses_shape(self):
-        y = _StructuredTarget(torch.randn(5, 2))
-        assert not hasattr(y, "size")
-        assert BaseModelHarness._batch_size(y) == 5
-
-    def test_shapeless_target_counts_as_one(self):
-        assert BaseModelHarness._batch_size(object()) == 1
-
-    def test_empty_shape_counts_as_one(self):
-        class _Scalarish:
-            shape = ()
-
-        assert BaseModelHarness._batch_size(_Scalarish()) == 1
+    @pytest.mark.parametrize(
+        "target, expected",
+        [
+            (torch.randn(7, 3, 3), 7),
+            (torch.tensor(1.0), 1),
+            (_StructuredTarget(torch.randn(5, 2)), 5),
+            (object(), 1),
+            (_Scalarish(), 1),
+        ],
+    )
+    def test_leading_dimension(self, target, expected):
+        assert BaseModelHarness._batch_size(target) == expected
 
 
 class TestEvalWithStructuredTargets:
-    """Regression: ``eval`` used ``y.size(0)``, which crashed on non-Tensor targets.
-
-    The crash surfaced only once a detector fired and continual learning began,
-    so it is worth pinning both that the call survives and that the per-batch
-    weighting still uses the true batch size -- a wrong batch size would
-    silently mis-average across variable-sized batches instead of raising.
-    """
+    """Regression: ``eval`` used ``y.size(0)``, which crashed on non-Tensor targets."""
 
     @staticmethod
     def _run(harness) -> float:

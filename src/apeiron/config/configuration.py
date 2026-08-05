@@ -155,10 +155,7 @@ class DriftDetectionCfg:
     kswin_alpha: float = 0.005
     kswin_window_size: int = 100
     kswin_stat_size: int = 30
-    # KSWIN samples its reference window at random, so two runs over the same
-    # stream disagree on when drift fires unless this is set. None keeps the
-    # historical, unseeded behaviour.
-    kswin_seed: int | None = None
+    kswin_seed: int | None = None  # None = unseeded, as before
 
     # PageHinkley hyperparameters
     ph_min_instances: int = 30
@@ -185,11 +182,7 @@ class DriftDetectionCfg:
 class EvalCfg:
     """Settings for the per-window evaluation ContinuousMonitor runs."""
 
-    # Stop each stream window's evaluation after this many batches. 0 = evaluate
-    # the whole validation loader, which is the historical behaviour. A cap makes
-    # monitoring tractable for models whose validation pass is expensive relative
-    # to the drift decision it feeds.
-    max_val_batches: int = 0
+    max_val_batches: int = 0  # 0 = evaluate the whole loader
 
 
 @dataclass(frozen=True)

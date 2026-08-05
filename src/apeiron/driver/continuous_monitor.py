@@ -328,8 +328,7 @@ class ContinuousMonitor:
         """
         self.stream_update_count += 1
 
-        # "Window complete" rather than "stream exhausted": with eval.max_val_batches
-        # set, the window ends at the cap and the loader may still have batches left.
+        # Not necessarily exhausted: max_val_batches ends the window early.
         self.logger.info(
             f"\tWindow complete. Loading next data buffer. {self.stream_update_count}/{self.max_stream_updates}",
             level=1,

@@ -11,11 +11,8 @@ from apeiron.driver.continuous_monitor import ContinuousMonitor
 def main(argv: list[str] | None = None) -> int:
     cfg: Config = build_config(argv)
 
-    # Configure the logger before building the harness. get_logger() returns any
-    # existing instance without applying its arguments, so a harness that logs
-    # from __init__ -- as one carrying its resolved settings does -- would
-    # otherwise create the singleton first and pin the default backend and a
-    # null CSV path, silently dropping visualization.input for the whole run.
+    # Must precede get_example(): get_logger() ignores its arguments once an
+    # instance exists, so a harness that logs from __init__ would pin the config.
     backend = configure_backend(cfg)
     logger = get_logger(
         verbosity=cfg.verbosity,

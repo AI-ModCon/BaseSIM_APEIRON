@@ -107,12 +107,8 @@ class BaseModelHarness(ABC):
     def _batch_size(y: Any) -> int:
         """Leading-dimension size of a target, for metric weighting.
 
-        Targets are not always Tensors: a harness may yield a structured batch
-        (MATEY yields a ``MateyTargetBatch`` carrying the target plus leadtime
-        and a graph flag). Those types expose ``.shape`` but not ``.size()``,
-        so calling ``y.size(0)`` here crashed continual learning the moment a
-        detector fired. Going through ``.shape`` keeps the requirement on
-        custom batch types to a single attribute.
+        Uses ``.shape`` rather than ``.size(0)`` so a structured target only has
+        to expose one attribute, not Tensor's interface.
         """
         shape = getattr(y, "shape", None)
         return int(shape[0]) if shape else 1

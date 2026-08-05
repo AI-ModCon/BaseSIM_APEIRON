@@ -68,13 +68,10 @@ class ContinuousTrainer:
         hist: Optional[list],
         drift_event_id: int,
     ) -> None:
-        """Record every named eval metric, current and historical domain.
+        """Record every eval metric by name, for both domains.
 
-        The pre-existing ``test_curr_acc``/``test_hist_acc`` pair logs only
-        ``metrics[0]`` -- the *first* eval metric, which for the MATEY harness is
-        ``nrmse_ne2d``, not the metric the detector monitors. Logging the whole
-        vector by name means the before/after comparison can be made on the same
-        quantity the drift decision was made on.
+        ``eval()`` returns a positional list; ``eval_metrics`` holds the labels
+        in the same order.
         """
         logger = get_logger(__name__)
         names = self.modelHarness.eval_metrics
@@ -83,9 +80,7 @@ class ContinuousTrainer:
             for name, value in zip(names, values or ()):
                 payload[f"val_{tag}_{domain}_{name}"] = float(value)
         logger.stage("eval")
-        # increment=False: this annotates the step the CL round starts from.
-        # Advancing the counter here would shift every downstream metric's step
-        # index by one and break consumers that join on it.
+        # increment=False: annotate the CL round's step, do not advance it.
         logger.log(payload, commit=False, increment=False)
 
     def outer_cl_training_loop(
