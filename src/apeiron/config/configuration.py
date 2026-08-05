@@ -155,6 +155,10 @@ class DriftDetectionCfg:
     kswin_alpha: float = 0.005
     kswin_window_size: int = 100
     kswin_stat_size: int = 30
+    # KSWIN samples its reference window at random, so two runs over the same
+    # stream disagree on when drift fires unless this is set. None keeps the
+    # historical, unseeded behaviour.
+    kswin_seed: int | None = None
 
     # PageHinkley hyperparameters
     ph_min_instances: int = 30
@@ -175,6 +179,17 @@ class DriftDetectionCfg:
         if isinstance(names, str):
             names = (names,)
         object.__setattr__(self, "ensemble_detectors", tuple(names))
+
+
+@dataclass(frozen=True)
+class EvalCfg:
+    """Settings for the per-window evaluation ContinuousMonitor runs."""
+
+    # Stop each stream window's evaluation after this many batches. 0 = evaluate
+    # the whole validation loader, which is the historical behaviour. A cap makes
+    # monitoring tractable for models whose validation pass is expensive relative
+    # to the drift decision it feeds.
+    max_val_batches: int = 0
 
 
 @dataclass(frozen=True)
@@ -205,6 +220,7 @@ class Config:
     verbosity: str = "INFO"
     visualization: VisualizationCfg | None = None
     logging: LoggingCfg | None = None
+    eval: EvalCfg | None = None
 
 
 def parse_args(argv=None):
@@ -359,6 +375,7 @@ def build_config(argv=None) -> Config:
     cl = ContinualLearningCfg(**cfg.get("continual_learning", {}))
     viz = VisualizationCfg(**cfg["visualization"]) if "visualization" in cfg else None
     log_cfg = LoggingCfg(**cfg["logging"]) if "logging" in cfg else None
+    eval_cfg = EvalCfg(**cfg["eval"]) if "eval" in cfg else None
 
     raw_device = str(
         cfg.get(
@@ -382,6 +399,7 @@ def build_config(argv=None) -> Config:
         "drift_detection",
         "visualization",
         "logging",
+        "eval",
         "device",
         "multi_gpu",
     }
@@ -397,6 +415,7 @@ def build_config(argv=None) -> Config:
         drift_detection=dd,
         visualization=viz,
         logging=log_cfg,
+        eval=eval_cfg,
         device=resolved_device,
         multi_gpu=multi_gpu_flag,
         **extras,

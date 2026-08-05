@@ -159,6 +159,7 @@ KSWIN:
 kswin_alpha = 0.005
 kswin_window_size = 100
 kswin_stat_size = 30
+kswin_seed = 1337
 ```
 
 | Option | Type | Description |
@@ -166,6 +167,7 @@ kswin_stat_size = 30
 | `kswin_alpha` | float | KSWIN significance level. |
 | `kswin_window_size` | int | KSWIN reference window size. |
 | `kswin_stat_size` | int | KSWIN recent sample window size. |
+| `kswin_seed` | int | Seed for KSWIN's reference window sampling. Optional; leave unset for the historical non-reproducible behaviour. |
 
 Page-Hinkley:
 
@@ -198,6 +200,21 @@ ensemble_voting = "majority"
 
 
 Details about the drift detection algorithms available can be found in [docs/drift_detectors.md](drift_detectors.md)
+
+
+## [eval]
+
+Optional. Controls the per-window evaluation `ContinuousMonitor` runs to produce
+the scalar the detector monitors.
+
+```toml
+[eval]
+max_val_batches = 15
+```
+
+| Option | Type | Description |
+|----------|------|-------------|
+| `max_val_batches` | int | Stop each stream window's evaluation after this many batches. `0` (the default) evaluates the whole loader. Use it when a full validation pass costs far more than the drift decision it feeds. |
 
 
 ## [visualization]
