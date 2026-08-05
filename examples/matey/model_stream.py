@@ -135,6 +135,18 @@ class MATEYStreamHarness(MATEYHarness):
         arrival = self._arrivals[idx]
         self._current_arrival = arrival
         self._data_root = self._stream_root / arrival["dir"]
+        # _configure_user_data_paths() returns quietly when neither train/ nor
+        # valid/ is present, to stay usable with non-SOLPS fixtures. In stream
+        # mode that silence is dangerous: the loaders would keep pointing at the
+        # PREVIOUS arrival while the log announces this one, so a missing bundle
+        # reads as a flat regime rather than an error -- and those stale loaders
+        # would then be latched as the forgetting baseline.
+        if not any((self._data_root / sub).is_dir() for sub in ("train", "valid")):
+            raise FileNotFoundError(
+                f"Arrival {idx} ({arrival['dir']!r}) has no train/ or valid/ "
+                f"directory under {self._data_root}. Re-stage the stream; "
+                f"continuing would silently re-serve the previous arrival."
+            )
         # Force the SOLPS split cache to rebuild against the new root.
         self._solps_split = None
         self._configure_user_data_paths(self._params, self.cfg)

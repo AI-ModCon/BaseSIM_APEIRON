@@ -9,6 +9,8 @@ import torch
 
 from matey.data_utils.netcdf_datasets import BasenetCDFDirectoryDataset
 
+from apeiron.logger import get_logger
+
 SOLPS_SCALE2EV = 6.241509074460763e18
 
 
@@ -70,6 +72,10 @@ _CASE_MINMAX = {
 class SOLPS2DwIONDataset(BasenetCDFDirectoryDataset):
     """Loader for SOLPS-ITER b2time.nc exports (time, ny, nx)."""
 
+    #: Paths already reported as carrying no device token. Class-level so the
+    #: warning is emitted once per path rather than once per frame read.
+    _unlabelled_paths: set[str] = set()
+
     @staticmethod
     def _specifics():
         time_index = 0
@@ -92,10 +98,29 @@ class SOLPS2DwIONDataset(BasenetCDFDirectoryDataset):
     field_names = _specifics()[2]
 
     def _infer_case(self, filepath: str) -> str:
+        """Resolve the device from the path, defaulting to D3D.
+
+        The default is what makes _bounds_for()'s KeyError unreachable in
+        practice: an unrecognised path does not fail, it borrows the D3D
+        envelope. That is survivable for a genuinely-D3D tree whose device token
+        was stripped (the staged split cache does exactly this), and wrong for
+        anything else -- applying D3D bounds to KSTAR puts its summed tflux
+        entirely negative. Say so once per path rather than deciding silently.
+        """
         upper = filepath.upper()
         for token in ("D3D", "KSTAR"):
             if token in upper:
                 return f"SOLPS-{token}"
+
+        if filepath not in self._unlabelled_paths:
+            self._unlabelled_paths.add(filepath)
+            get_logger().info(
+                f"No device token (D3D/KSTAR) in {filepath!r}; assuming "
+                f"SOLPS-D3D normalisation. If this data is from another device "
+                f"its fields will be mis-scaled -- keep the device name in the "
+                f"path, or add an entry to _CASE_MINMAX.",
+                level=0,
+            )
         return "SOLPS-D3D"
 
     def _dataset_source_path(self, dat) -> str:

@@ -27,7 +27,12 @@ update_mode = "base"
 detector_name = "ADWINDetector"
 detection_interval = 5
 aggregation = "last"
-metric_index = 0  # MATEY metrics: 0=nrmse, 1=rmse, 2=loss
+# Index into MATEYHarness.eval_metrics, which is ordered:
+#   0=nrmse_ne2d  1=nrmse_te2d  2=nrmse_ti2d  3=nrmse_mean
+#   4=nrmse       5=rmse        6=loss
+# This said "0=nrmse" and so drove detection off electron density alone; 3 is the
+# across-field aggregate the comment meant, and matches matey_stream.toml.
+metric_index = 3
 reset_after_learning = false
 max_stream_updates = 10
 
