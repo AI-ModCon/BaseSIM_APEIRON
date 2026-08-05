@@ -221,9 +221,10 @@ class FLOPSProfiler:
                 }
             )
 
-        # Create DataFrame
-        df = pd.DataFrame(data)
+        if not data:
+            return 0
 
+        df = pd.DataFrame(data)
         # Multiply FLOPs per element by the number of times each operation was called
         df["est_flops_per_param"] = df.apply(
             lambda row: ATEN_FLOPS_PER_ELEMENT.get(row.operation, 0) * row["count"],
