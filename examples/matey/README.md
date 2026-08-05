@@ -132,6 +132,26 @@ An empty `model.pretrained_path` is **not** benign here. Unlike ImageNet there i
 no stock pretrained MATEY, so the ViT starts from random weights and every error
 number is meaningless; the stream harness warns when this happens.
 
+## Result
+
+![CL vs control across the stream](../../docs/images/matey-stream-adaptation.png)
+
+Two arms over the identical stream: `update_mode = "base"` against
+`update_mode = "none"` as the control. Panel (a) is per-arrival mean +/- sd of the
+monitored NRMSE; the dashed lines are the arrivals after which drift fired and
+adaptation ran. Panel (b) is the before/after error on each arriving bundle.
+
+Adaptation cuts error 35-45% on the bundle that triggered it, and the two arms
+separate clearly through the held-out excursion. They also cross back after
+arrival ~17: adapting to the held-out scenario costs accuracy on the later
+cross-machine block, which is negative transfer rather than noise -- the
+historical-domain metric rises over the same span and does not recover.
+Reproduce with:
+
+```bash
+python examples/matey/plot_stream_arms.py "$OUTDIR" --events-at 10 14 19 23
+```
+
 ## How the Drift Arises
 
 Nothing is synthesised. The 24-arrival stream the shipped config describes is
