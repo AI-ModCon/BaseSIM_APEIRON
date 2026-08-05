@@ -18,6 +18,7 @@ poetry run python -m src.main --config <path_to_toml>
 | [`mnist/`](mnist/README.md) | `mnist` | 3-layer CNN (`Cnn`, ~1M params) | Simulated: cumulative random affine per stream window | Auto-downloaded to `./data` | Yes — CPU is fine |
 | [`cifar/`](cifar/README.md) | `cifar10` | ViT-B/16 or VGG-11 (`VisionModelCifar`) | Simulated: random affine per stream window | Auto-downloaded to `./data` | GPU strongly recommended |
 | [`imagenet/`](imagenet/README.md) | `imagenet` | ViT-B/16 (`VisionModelImageNet`) | Simulated: cumulative random affine per stream window | **You provide** ILSVRC-2012 in `ImageFolder` layout | No — multi-GPU scale |
+| [`matey/`](matey/README.md) | `matey`, `matey_stream` | MATEY ViT surrogate (`MATEYHarness`) | **Real**: SOLPS simulations arriving from new scenarios and machines | **You provide** a SOLPS root and a MATEY checkpoint | No — multi-GPU scale, and needs the MATEY package |
 
 **Start with `mnist/`.** It is the only example that ships a pretrained
 checkpoint, downloads its own data, and finishes in minutes on CPU.
@@ -41,8 +42,12 @@ See [`docs/model_harness.md`](../docs/model_harness.md) for the full contract.
 
 ## How Drift Is Simulated
 
-None of these datasets drift on their own, so each harness manufactures drift the
-same way: `update_data_stream()` draws a seeded random affine transform
+`matey/` is the exception to everything in this section: its stream is a real
+sequence of simulations, so it needs no synthetic drift at all. See
+[`matey/README.md`](matey/README.md).
+
+None of the other datasets drift on their own, so each of those harnesses
+manufactures drift the same way: `update_data_stream()` draws a seeded random affine transform
 (rotation / scale / shear / translation) and rebuilds the train, validation, and
 stream loaders through it. Every time the stream is exhausted, another transform
 is drawn, so the input distribution keeps moving away from what the model was
