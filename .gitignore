@@ -18,6 +18,10 @@ data/*
 *.sh
 !examples/**/*.sh
 
+# Slurm job logs land in the submitting directory
+slurm-*.out
+slurm-*.err
+
 
 # Files
 *.png

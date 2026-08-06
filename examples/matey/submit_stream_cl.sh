@@ -25,6 +25,7 @@
 #SBATCH --ntasks=1
 #SBATCH --gpus=1
 #SBATCH --time=02:00:00
+# %j logs land in the submitting directory; keep them out of the tree.
 #SBATCH --output=slurm-matey-stream-%j.out
 #SBATCH --error=slurm-matey-stream-%j.err
 

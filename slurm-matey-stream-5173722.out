@@ -1,203 +1,0 @@
-stream has 32 arrivals -> max_stream_updates=23
-================ arm=nocl (update_mode=none) ================
-/lustre/orion/world-shared/stf218/junqi/forge/matey-env-rcom631/lib/python3.10/site-packages/torch_geometric/__init__.py:4: UserWarning: An issue occurred while importing 'pyg-lib'. Disabling its usage. Stacktrace: librocm_smi64.so.1: cannot open shared object file: No such file or directory
-  import torch_geometric.typing
-/lustre/orion/world-shared/stf218/junqi/forge/matey-env-rcom631/lib/python3.10/site-packages/torch_geometric/__init__.py:4: UserWarning: An issue occurred while importing 'torch-sparse'. Disabling its usage. Stacktrace: librocm_smi64.so.1: cannot open shared object file: No such file or directory
-  import torch_geometric.typing
-2026-08-05 23:24:05.149096: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-To enable the following instructions: SSE3 SSE4.1 SSE4.2 AVX AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
-AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
-AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
-AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
-AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
-log_to_screen True
-save_checkpoint True
-checkpoint_save_interval 5
-true_time False
-num_data_workers 4
-enable_amp False
-compile False
-gradient_checkpointing False
-exp_dir ./Dev_Fusion_MAY_AR
-log_interval 1
-pretrained False
-drop_path 0.1
-max_epochs 100
-scheduler_epochs -1
-epoch_size 200
-rescale_gradients False
-optimizer AdamW
-scheduler cosine
-warmup_steps 5
-learning_rate 0.001
-weight_decay 0.001
-n_states 15
-state_names ['Pressure', 'Vx', 'Vy', 'Density', 'Vx', 'Vy', 'Density', 'Pressure']
-dt 1
-leadtime_max 1
-autoregressive True
-supportdata [{'input_control_act': True}]
-n_steps 2
-enforce_max_steps False
-accum_grad 1
-model_type turbt
-tie_fields False
-embed_dim 192
-num_heads 3
-processor_blocks 12
-tokenizer_heads [{'head_name': 'tk-2D', 'patch_size': [[1, 2, 2]]}, {'head_name': 'tk-3D', 'patch_size': [[2, 2, 2]]}, {'head_name': 'tk-graph', 'patch_size': [[4, 4, 4]]}]
-hierarchical {'filtersize': 2, 'nlevels': 1, 'fixedupsample': False, 'linearupsample': False}
-notransposed False
-batch_size 1
-nbatchs_loc 50
-sts_model False
-sts_train False
-bias_type PositionAreaBias
-bias_MLP True
-train_val_test [0.8, 0.1, 0.1]
-augmentation False
-use_all_fields True
-tie_batches False
-extended_names False
-embedding_offset 0
-train_data_paths [['/lustre/orion/fus183/proj-shared/MATEY/Datasets_pretraining/solps/train/', 'SOLPS2D', '', 'tk-2D'], ['/lustre/orion/fus183/proj-shared/MATEY/Datasets_pretraining/solps/SOLPS2DwION/', 'SOLPS2DwION', '', 'tk-2D'], ['/lustre/orion/fus183/proj-shared/MATEY/Datasets_pretraining/gkeyll/', 'gkeylltcv', '', 'tk-3D'], ['/lustre/orion/fus183/proj-shared/fusiond-seed-xgc1-data/', 'graphxgc', '', 'tk-graph']]
-valid_data_paths [['/lustre/orion/fus183/proj-shared/MATEY/Datasets_pretraining/solps/valid/', 'SOLPS2D', '', 'tk-2D'], ['/lustre/orion/fus183/proj-shared/MATEY/Datasets_pretraining/gkeyll/', 'gkeylltcv', '', 'tk-3D'], ['/lustre/orion/fus183/proj-shared/fusiond-seed-xgc1-data/', 'graphxgc', '', 'tk-graph']]
-append_datasets []
-startEpoch 0
-old_exp_dir ./Dev_Fusion_MAY_AR/basic_config/demo_nbatchsloc100_lt1
-experiment_dir /lustre/orion/lrn037/scratch/zhangp/fy25/github/coderelease/MATEY/examples/Dev_Fusion_MAY_AR/basic_config/demo_nbatchsloc100_lt1
-checkpoint_path ./Dev_Fusion_MAY_AR/basic_config/demo_nbatchsloc100_lt1/training_checkpoints/ckpt.tar
-best_checkpoint_path ./Dev_Fusion_MAY_AR/basic_config/demo_nbatchsloc100_lt1/training_checkpoints/best_ckpt.tar
-old_checkpoint_path ./Dev_Fusion_MAY_AR/basic_config/demo_nbatchsloc100_lt1/training_checkpoints/best_ckpt.tar
-resuming True
-[32mINFO:0[0m | 23:24:15 | step=0 | model | Using MATEY hyperparams from checkpoint: /lustre/orion/lrn097/scratch/asvillar/mateydata/models/leadtime_1/hyperparams.yaml
-[32mINFO:0[0m | 23:24:16 | step=0 | model | Loaded MATEY pretrained weights: /lustre/orion/lrn097/scratch/asvillar/mateydata/models/leadtime_1/best_ckpt.tar
-[32mINFO:0[0m | 23:24:16 | step=0 | model | MATEY settings: dset_type=SOLPS2DwION, field_labels=[533, 534, 535], leadtime=1, step_inference=True, drop_cond_input=False
-[32mINFO:0[0m | 23:24:16 | step=0 | model_stream | ==== MATEY sequential simulation stream ====
-[32mINFO:0[0m | 23:24:16 | step=0 | continuous_monitor | ==== ContinuousMonitor initialized ====
-[32mINFO:0[0m | 23:24:16 | step=0 | continuous_monitor | ==== Starting Continuous Monitoring ====
-[32mINFO:0[0m | 23:24:16 | step=0 | model_stream | ==== arrival 1/32: baseline_d3d seg 0 [DIII-D] ====
-[W805 23:24:17.721207174 socket.cpp:755] [c10d] The client socket cannot be initialized to connect to [localhost.localdomain]:29500 (errno: 97 - Address family not supported by protocol).
-Using train/val/test split: [1.0, 0.0, 0.0]
-Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_000_baseline_d3d_00/train/D3D/174310_D',)
-Using train/val/test split: [0.0, 1.0, 0.0]
-Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_000_baseline_d3d_00/valid/D3D/174310_D',)
-Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:21, 21.49s/it]Processing batches: 3it [00:21,  5.62s/it]Processing batches: 5it [00:21,  2.78s/it]Processing batches: 7it [00:21,  1.64s/it]Processing batches: 9it [00:22,  1.06s/it]Processing batches: 11it [00:22,  1.39it/s]Processing batches: 13it [00:22,  1.96it/s]                                           [32mINFO:0[0m | 23:24:40 | step=28 | model_stream | ==== arrival 2/32: baseline_d3d seg 1 [DIII-D] ====
-Using train/val/test split: [1.0, 0.0, 0.0]
-Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_001_baseline_d3d_01/train/D3D/174310_D',)
-Using train/val/test split: [0.0, 1.0, 0.0]
-Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_001_baseline_d3d_01/valid/D3D/174310_D',)
-Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.31it/s]Processing batches: 3it [00:00, 10.39it/s]Processing batches: 5it [00:00, 10.64it/s]Processing batches: 7it [00:00, 10.77it/s]Processing batches: 9it [00:00, 10.86it/s]Processing batches: 11it [00:01, 10.89it/s]Processing batches: 13it [00:01, 10.92it/s]                                           [32mINFO:0[0m | 23:24:42 | step=58 | model_stream | ==== arrival 3/32: baseline_d3d seg 2 [DIII-D] ====
-Using train/val/test split: [1.0, 0.0, 0.0]
-Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_002_baseline_d3d_02/train/D3D/174310_D',)
-Using train/val/test split: [0.0, 1.0, 0.0]
-Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_002_baseline_d3d_02/valid/D3D/174310_D',)
-Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.37it/s]Processing batches: 3it [00:00, 10.39it/s]Processing batches: 5it [00:00, 10.63it/s]Processing batches: 7it [00:00, 10.77it/s]Processing batches: 9it [00:00, 10.85it/s]Processing batches: 11it [00:01, 10.89it/s]Processing batches: 13it [00:01, 10.92it/s]                                           [32mINFO:0[0m | 23:24:43 | step=88 | model_stream | ==== arrival 4/32: baseline_d3d seg 3 [DIII-D] ====
-Using train/val/test split: [1.0, 0.0, 0.0]
-Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_003_baseline_d3d_03/train/D3D/174310_D',)
-Using train/val/test split: [0.0, 1.0, 0.0]
-Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_003_baseline_d3d_03/valid/D3D/174310_D',)
-Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.41it/s]Processing batches: 3it [00:00, 10.44it/s]Processing batches: 5it [00:00, 10.70it/s]Processing batches: 7it [00:00, 10.82it/s]Processing batches: 9it [00:00, 10.90it/s]Processing batches: 11it [00:01, 10.94it/s]Processing batches: 13it [00:01, 10.97it/s]                                           [32mINFO:0[0m | 23:24:45 | step=118 | model_stream | ==== arrival 5/32: baseline_d3d seg 4 [DIII-D] ====
-Using train/val/test split: [1.0, 0.0, 0.0]
-Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_004_baseline_d3d_04/train/D3D/174310_D',)
-Using train/val/test split: [0.0, 1.0, 0.0]
-Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_004_baseline_d3d_04/valid/D3D/174310_D',)
-Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.39it/s]Processing batches: 3it [00:00, 10.43it/s]Processing batches: 5it [00:00, 10.69it/s]Processing batches: 7it [00:00, 10.84it/s]Processing batches: 9it [00:00, 10.92it/s]Processing batches: 11it [00:01, 10.95it/s]Processing batches: 13it [00:01, 10.97it/s]                                           [32mINFO:0[0m | 23:24:47 | step=148 | model_stream | ==== arrival 6/32: baseline_d3d seg 5 [DIII-D] ====
-Using train/val/test split: [1.0, 0.0, 0.0]
-Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_005_baseline_d3d_05/train/D3D/174310_D',)
-Using train/val/test split: [0.0, 1.0, 0.0]
-Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_005_baseline_d3d_05/valid/D3D/174310_D',)
-Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.41it/s]Processing batches: 3it [00:00, 10.44it/s]Processing batches: 5it [00:00, 10.69it/s]Processing batches: 7it [00:00, 10.82it/s]Processing batches: 9it [00:00, 10.91it/s]Processing batches: 11it [00:01, 10.95it/s]Processing batches: 13it [00:01, 10.98it/s]                                           [32mINFO:0[0m | 23:24:49 | step=178 | model_stream | ==== arrival 7/32: baseline_d3d seg 6 [DIII-D] ====
-Using train/val/test split: [1.0, 0.0, 0.0]
-Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_006_baseline_d3d_06/train/D3D/174310_D',)
-Using train/val/test split: [0.0, 1.0, 0.0]
-Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_006_baseline_d3d_06/valid/D3D/174310_D',)
-Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.39it/s]Processing batches: 3it [00:00, 10.42it/s]Processing batches: 5it [00:00, 10.69it/s]Processing batches: 7it [00:00, 10.83it/s]Processing batches: 9it [00:00, 10.91it/s]Processing batches: 11it [00:01, 10.94it/s]Processing batches: 13it [00:01, 10.98it/s]                                           [32mINFO:0[0m | 23:24:51 | step=208 | model_stream | ==== arrival 8/32: baseline_d3d seg 7 [DIII-D] ====
-Using train/val/test split: [1.0, 0.0, 0.0]
-Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_007_baseline_d3d_07/train/D3D/174310_D',)
-Using train/val/test split: [0.0, 1.0, 0.0]
-Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_007_baseline_d3d_07/valid/D3D/174310_D',)
-Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.37it/s]Processing batches: 3it [00:00, 10.41it/s]Processing batches: 5it [00:00, 10.67it/s]Processing batches: 7it [00:00, 10.80it/s]Processing batches: 9it [00:00, 10.89it/s]Processing batches: 11it [00:01, 10.93it/s]Processing batches: 13it [00:01, 10.96it/s]                                           [32mINFO:0[0m | 23:24:53 | step=238 | model_stream | ==== arrival 9/32: ood_d3d seg 0 [DIII-D] ====
-Using train/val/test split: [1.0, 0.0, 0.0]
-Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_008_ood_d3d_00/train/D3D/174310_D',)
-Using train/val/test split: [0.0, 1.0, 0.0]
-Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_008_ood_d3d_00/valid/D3D/174310_D',)
-Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.47it/s]Processing batches: 3it [00:00, 10.45it/s]Processing batches: 5it [00:00, 10.69it/s]Processing batches: 7it [00:00, 10.81it/s]Processing batches: 9it [00:00, 10.89it/s]Processing batches: 11it [00:01, 10.91it/s]Processing batches: 13it [00:01, 10.94it/s]                                           [32mINFO:0[0m | 23:24:55 | step=268 | model_stream | ==== arrival 10/32: ood_d3d seg 1 [DIII-D] ====
-Using train/val/test split: [1.0, 0.0, 0.0]
-Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_009_ood_d3d_01/train/D3D/174310_D',)
-Using train/val/test split: [0.0, 1.0, 0.0]
-Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_009_ood_d3d_01/valid/D3D/174310_D',)
-Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.41it/s]Processing batches: 3it [00:00, 10.44it/s]Processing batches: 5it [00:00, 10.67it/s]Processing batches: 7it [00:00, 10.79it/s]Processing batches: 9it [00:00, 10.86it/s]Processing batches: 11it [00:01, 10.89it/s]Processing batches: 13it [00:01, 10.92it/s]                                           [32mINFO:0[0m | 23:24:56 | step=298 | model_stream | ==== arrival 11/32: ood_d3d seg 2 [DIII-D] ====
-Using train/val/test split: [1.0, 0.0, 0.0]
-Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_010_ood_d3d_02/train/D3D/174310_D',)
-Using train/val/test split: [0.0, 1.0, 0.0]
-Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_010_ood_d3d_02/valid/D3D/174310_D',)
-Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.44it/s]Processing batches: 3it [00:00, 10.45it/s]Processing batches: 5it [00:00, 10.71it/s]Processing batches: 7it [00:00, 10.85it/s]Processing batches: 9it [00:00, 10.93it/s]Processing batches: 11it [00:01, 10.97it/s]Processing batches: 13it [00:01, 10.99it/s]                                           [32mINFO:0[0m | 23:24:58 | step=328 | model_stream | ==== arrival 12/32: ood_d3d seg 3 [DIII-D] ====
-Using train/val/test split: [1.0, 0.0, 0.0]
-Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_011_ood_d3d_03/train/D3D/174310_D',)
-Using train/val/test split: [0.0, 1.0, 0.0]
-Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_011_ood_d3d_03/valid/D3D/174310_D',)
-Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.50it/s]Processing batches: 3it [00:00, 10.49it/s]Processing batches: 5it [00:00, 10.72it/s]Processing batches: 7it [00:00, 10.85it/s]Processing batches: 9it [00:00, 10.92it/s]Processing batches: 11it [00:01, 10.95it/s]Processing batches: 13it [00:01, 10.98it/s]                                           [32mINFO:0[0m | 23:25:00 | step=358 | model_stream | ==== arrival 13/32: ood_d3d seg 4 [DIII-D] ====
-Using train/val/test split: [1.0, 0.0, 0.0]
-Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_012_ood_d3d_04/train/D3D/174310_D',)
-Using train/val/test split: [0.0, 1.0, 0.0]
-Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_012_ood_d3d_04/valid/D3D/174310_D',)
-Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.51it/s]Processing batches: 3it [00:00, 10.49it/s]Processing batches: 5it [00:00, 10.72it/s]Processing batches: 7it [00:00, 10.85it/s]Processing batches: 9it [00:00, 10.93it/s]Processing batches: 11it [00:01, 10.96it/s]Processing batches: 13it [00:01, 10.98it/s]                                           [32mINFO:0[0m | 23:25:02 | step=388 | model_stream | ==== arrival 14/32: ood_d3d seg 5 [DIII-D] ====
-Using train/val/test split: [1.0, 0.0, 0.0]
-Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_013_ood_d3d_05/train/D3D/174310_D',)
-Using train/val/test split: [0.0, 1.0, 0.0]
-Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_013_ood_d3d_05/valid/D3D/174310_D',)
-Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.44it/s]Processing batches: 3it [00:00, 10.46it/s]Processing batches: 5it [00:00, 10.70it/s]Processing batches: 7it [00:00, 10.85it/s]Processing batches: 9it [00:00, 10.93it/s]Processing batches: 11it [00:01, 10.97it/s]Processing batches: 13it [00:01, 10.99it/s]                                           [32mINFO:0[0m | 23:25:04 | step=418 | model_stream | ==== arrival 15/32: ood_d3d seg 6 [DIII-D] ====
-Using train/val/test split: [1.0, 0.0, 0.0]
-Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_014_ood_d3d_06/train/D3D/174310_D',)
-Using train/val/test split: [0.0, 1.0, 0.0]
-Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_014_ood_d3d_06/valid/D3D/174310_D',)
-Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.48it/s]Processing batches: 3it [00:00, 10.46it/s]Processing batches: 5it [00:00, 10.70it/s]Processing batches: 7it [00:00, 10.83it/s]Processing batches: 9it [00:00, 10.92it/s]Processing batches: 11it [00:01, 10.95it/s]Processing batches: 13it [00:01, 10.98it/s]                                           [32mINFO:0[0m | 23:25:06 | step=448 | model_stream | ==== arrival 16/32: ood_d3d seg 7 [DIII-D] ====
-Using train/val/test split: [1.0, 0.0, 0.0]
-Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_015_ood_d3d_07/train/D3D/174310_D',)
-Using train/val/test split: [0.0, 1.0, 0.0]
-Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_015_ood_d3d_07/valid/D3D/174310_D',)
-Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.44it/s]Processing batches: 3it [00:00, 10.45it/s]Processing batches: 5it [00:00, 10.70it/s]Processing batches: 7it [00:00, 10.84it/s]Processing batches: 9it [00:00, 10.92it/s]Processing batches: 11it [00:01, 10.94it/s]Processing batches: 13it [00:01, 10.97it/s]                                           [32mINFO:0[0m | 23:25:08 | step=478 | model_stream | ==== arrival 17/32: kstar seg 0 [KSTAR]  <-- MACHINE CHANGE ====
-Using train/val/test split: [1.0, 0.0, 0.0]
-Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_016_kstar_00/train/KSTAR/19077_D',)
-Using train/val/test split: [0.0, 1.0, 0.0]
-Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_016_kstar_00/valid/KSTAR/19077_D',)
-Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.36it/s]Processing batches: 3it [00:00, 10.35it/s]Processing batches: 5it [00:00, 10.60it/s]Processing batches: 7it [00:00, 10.77it/s]Processing batches: 9it [00:00, 10.87it/s]Processing batches: 11it [00:01, 10.90it/s]Processing batches: 13it [00:01, 10.94it/s]                                           [32mINFO:0[0m | 23:25:10 | step=508 | model_stream | ==== arrival 18/32: kstar seg 1 [KSTAR] ====
-Using train/val/test split: [1.0, 0.0, 0.0]
-Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_017_kstar_01/train/KSTAR/19077_D',)
-Using train/val/test split: [0.0, 1.0, 0.0]
-Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_017_kstar_01/valid/KSTAR/19077_D',)
-Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.35it/s]Processing batches: 3it [00:00, 10.35it/s]Processing batches: 5it [00:00, 10.59it/s]Processing batches: 7it [00:00, 10.76it/s]Processing batches: 9it [00:00, 10.87it/s]Processing batches: 11it [00:01, 10.90it/s]Processing batches: 13it [00:01, 10.93it/s]                                           [32mINFO:0[0m | 23:25:11 | step=538 | model_stream | ==== arrival 19/32: kstar seg 2 [KSTAR] ====
-Using train/val/test split: [1.0, 0.0, 0.0]
-Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_018_kstar_02/train/KSTAR/19077_D',)
-Using train/val/test split: [0.0, 1.0, 0.0]
-Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_018_kstar_02/valid/KSTAR/19077_D',)
-Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.36it/s]Processing batches: 3it [00:00, 10.35it/s]Processing batches: 5it [00:00, 10.60it/s]Processing batches: 7it [00:00, 10.77it/s]Processing batches: 9it [00:00, 10.84it/s]Processing batches: 11it [00:01, 10.84it/s]Processing batches: 13it [00:01, 10.85it/s]                                           [32mINFO:0[0m | 23:25:13 | step=568 | model_stream | ==== arrival 20/32: kstar seg 3 [KSTAR] ====
-Using train/val/test split: [1.0, 0.0, 0.0]
-Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_019_kstar_03/train/KSTAR/19077_D',)
-Using train/val/test split: [0.0, 1.0, 0.0]
-Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_019_kstar_03/valid/KSTAR/19077_D',)
-Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.28it/s]Processing batches: 3it [00:00, 10.28it/s]Processing batches: 5it [00:00, 10.56it/s]Processing batches: 7it [00:00, 10.74it/s]Processing batches: 9it [00:00, 10.86it/s]Processing batches: 11it [00:01, 10.87it/s]Processing batches: 13it [00:01, 10.86it/s]                                           [32mINFO:0[0m | 23:25:15 | step=598 | model_stream | ==== arrival 21/32: kstar seg 4 [KSTAR] ====
-Using train/val/test split: [1.0, 0.0, 0.0]
-Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_020_kstar_04/train/KSTAR/19077_D',)
-Using train/val/test split: [0.0, 1.0, 0.0]
-Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_020_kstar_04/valid/KSTAR/19077_D',)
-Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.33it/s]Processing batches: 3it [00:00, 10.34it/s]Processing batches: 5it [00:00, 10.59it/s]Processing batches: 7it [00:00, 10.75it/s]Processing batches: 9it [00:00, 10.86it/s]Processing batches: 11it [00:01, 10.89it/s]Processing batches: 13it [00:01, 10.88it/s]                                           [32mINFO:0[0m | 23:25:17 | step=628 | model_stream | ==== arrival 22/32: kstar seg 5 [KSTAR] ====
-Using train/val/test split: [1.0, 0.0, 0.0]
-Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_021_kstar_05/train/KSTAR/19077_D',)
-Using train/val/test split: [0.0, 1.0, 0.0]
-Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_021_kstar_05/valid/KSTAR/19077_D',)
-Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.31it/s]Processing batches: 3it [00:00, 10.24it/s]Processing batches: 5it [00:00, 10.52it/s]Processing batches: 7it [00:00, 10.72it/s]Processing batches: 9it [00:00, 10.84it/s]Processing batches: 11it [00:01, 10.89it/s]Processing batches: 13it [00:01, 10.91it/s]                                           [32mINFO:0[0m | 23:25:19 | step=658 | model_stream | ==== arrival 23/32: kstar seg 6 [KSTAR] ====
-Using train/val/test split: [1.0, 0.0, 0.0]
-Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_022_kstar_06/train/KSTAR/19077_D',)
-Using train/val/test split: [0.0, 1.0, 0.0]
-Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_022_kstar_06/valid/KSTAR/19077_D',)
-Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.37it/s]Processing batches: 3it [00:00, 10.36it/s]Processing batches: 5it [00:00, 10.62it/s]Processing batches: 7it [00:00, 10.77it/s]Processing batches: 9it [00:00, 10.83it/s]Processing batches: 11it [00:01, 10.83it/s]Processing batches: 13it [00:01, 10.85it/s]                                           [32mINFO:0[0m | 23:25:21 | step=688 | model_stream | ==== arrival 24/32: kstar seg 7 [KSTAR] ====
-Using train/val/test split: [1.0, 0.0, 0.0]
-Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_023_kstar_07/train/KSTAR/19077_D',)
-Using train/val/test split: [0.0, 1.0, 0.0]
-Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_023_kstar_07/valid/KSTAR/19077_D',)
-[32mINFO:0[0m | 23:25:22 | step=688 | continuous_monitor | ==== Continuous Monitoring Complete ====
-[32mINFO:0[0m | 23:25:22 | step=688 | continuous_monitor | CL dispatch did not run because no drift was detected.
-done: /lustre/orion/lrn097/scratch/asvillar/apeiron_pr/matey/output/detsweep_20260805_231227/stream_nocl_PageHinkleyDetector.csv
