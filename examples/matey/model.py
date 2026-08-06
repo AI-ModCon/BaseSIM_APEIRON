@@ -499,6 +499,14 @@ class MATEYHarness(BaseModelHarness):
 
         attempts = [
             ("raw", state_dict),
+            # BaseModelHarness.save_ckpt persists self.model, which here is the
+            # adapter wrapping the MATEY model, so APEIRON's own checkpoints come
+            # back prefixed. Without this the framework can write a checkpoint it
+            # cannot reload, and an adapted run cannot be replayed.
+            (
+                "strip_adapter_prefix",
+                MATEYHarness._strip_prefix(state_dict, "matey_model."),
+            ),
             ("strip_module_prefix", MATEYHarness._strip_prefix(state_dict, "module.")),
             (
                 "strip_orig_mod_prefix",

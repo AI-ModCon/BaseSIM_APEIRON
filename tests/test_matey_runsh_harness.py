@@ -228,8 +228,6 @@ def test_data_root_requires_train_and_valid_when_one_exists(
         MATEYHarness(cfg)
 
 
-
-
 def test_harness_builds_stream_and_loss_with_mocked_matey(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -269,8 +267,6 @@ def test_harness_builds_stream_and_loss_with_mocked_matey(
     assert harness.task_counter == 2
 
 
-
-
 def test_cfg_data_path_overrides_yaml_paths(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -296,12 +292,6 @@ def test_cfg_data_path_overrides_yaml_paths(
     assert train_root.name == "train"
     assert val_root.name == "val"
     assert train_root.parent == val_root.parent
-
-
-
-
-
-
 
 
 def test_examples_factory_dispatch_for_matey(monkeypatch: pytest.MonkeyPatch) -> None:

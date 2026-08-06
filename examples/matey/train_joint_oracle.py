@@ -71,20 +71,33 @@ def parse_args(argv: list[str]) -> tuple[argparse.Namespace, list[str]]:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     ap.add_argument("--config", required=True)
-    ap.add_argument("--out", required=True,
-                    help="directory for best_ckpt.tar + hyperparams.yaml")
-    ap.add_argument("--epochs", type=int, default=3,
-                    help="passes over the full set of arrivals")
-    ap.add_argument("--steps-per-arrival", type=int, default=40,
-                    help="gradient steps per arrival per epoch")
+    ap.add_argument(
+        "--out", required=True, help="directory for best_ckpt.tar + hyperparams.yaml"
+    )
+    ap.add_argument(
+        "--epochs", type=int, default=3, help="passes over the full set of arrivals"
+    )
+    ap.add_argument(
+        "--steps-per-arrival",
+        type=int,
+        default=40,
+        help="gradient steps per arrival per epoch",
+    )
     ap.add_argument("--seed", type=int, default=1337)
     ap.add_argument("--log-every", type=int, default=20)
-    ap.add_argument("--max-arrivals", type=int, default=0,
-                    help="debug: use only the first N arrivals (0 = all). A "
-                         "checkpoint written with this set is NOT an oracle")
-    ap.add_argument("--dry-run", action="store_true",
-                    help="debug: build everything and take a few steps, but do "
-                         "not write a checkpoint")
+    ap.add_argument(
+        "--max-arrivals",
+        type=int,
+        default=0,
+        help="debug: use only the first N arrivals (0 = all). A "
+        "checkpoint written with this set is NOT an oracle",
+    )
+    ap.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="debug: build everything and take a few steps, but do "
+        "not write a checkpoint",
+    )
     # Everything else is forwarded to build_config as --set overrides.
     return ap.parse_known_args(argv)
 
@@ -121,7 +134,8 @@ def main(argv: list[str] | None = None) -> int:
         )
     logger.info(
         f"All {n} arrivals have disjoint train/valid ranges "
-        f"(gap {arrivals[0].get('gap')} frames)", level=0,
+        f"(gap {arrivals[0].get('gap')} frames)",
+        level=0,
     )
 
     optimizer = harness.get_optmizer()
@@ -190,7 +204,9 @@ def main(argv: list[str] | None = None) -> int:
                 )
 
         mean_loss = epoch_loss / max(1, epoch_steps)
-        history.append({"epoch": epoch + 1, "steps": epoch_steps, "mean_loss": mean_loss})
+        history.append(
+            {"epoch": epoch + 1, "steps": epoch_steps, "mean_loss": mean_loss}
+        )
         logger.info(
             f"epoch {epoch + 1}/{args.epochs} done: {epoch_steps} steps, "
             f"mean loss {mean_loss:.5f}",
@@ -248,9 +264,7 @@ def main(argv: list[str] | None = None) -> int:
 
     logger.info(f"wrote {ckpt_path}", level=0)
     logger.info(f"wrote {out_dir / 'joint_oracle.json'}", level=0)
-    logger.info(
-        f"total {step_total} steps in {time.time() - t0:.0f}s", level=0
-    )
+    logger.info(f"total {step_total} steps in {time.time() - t0:.0f}s", level=0)
     return 0
 
 

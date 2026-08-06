@@ -657,7 +657,9 @@ def fig7(res: dict, det: dict, outdir: Path) -> dict:
     ax.set_yticks(range(len(names)))
     ax.set_yticklabels(
         [
-            n.replace(" library default", "\nlibrary default").replace(" tuned to stream", "\ntuned to stream")
+            n.replace(" library default", "\nlibrary default").replace(
+                " tuned to stream", "\ntuned to stream"
+            )
             for n in names
         ],
         fontsize=5.0,

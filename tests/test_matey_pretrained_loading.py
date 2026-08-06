@@ -111,3 +111,17 @@ def test_unsupported_checkpoint_format_raises(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="Unsupported MATEY checkpoint format"):
         MATEYHarness._load_pretrained_weights_if_available(target, str(bad_ckpt))
+
+
+def test_apeiron_checkpoint_round_trips(tmp_path):
+    """APEIRON's own checkpoints must load back into the harness.
+
+    BaseModelHarness.save_ckpt persists ``self.model`` -- the adapter, not the
+    MATEY model -- so every key comes back under a ``matey_model.`` prefix. A
+    checkpoint the framework writes but cannot read makes an adapted run
+    impossible to replay.
+    """
+    harness_cls = _import_harness()
+    inner = {"space_bag.0.weight": 1, "space_bag.0.bias": 2}
+    adapter_state = {f"matey_model.{k}": v for k, v in inner.items()}
+    assert harness_cls._strip_prefix(adapter_state, "matey_model.") == inner
