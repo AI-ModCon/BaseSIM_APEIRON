@@ -79,10 +79,5 @@ kswin_seed = 1337
 backend = "none"
 experiment_name = "matey-stream-cl"
 
-[eval]
-# Cap the per-window validation pass. A full SOLPS validation split costs far
-# more than the drift decision it feeds.
-max_val_batches = 15
-
 [visualization]
 input = "output/matey_stream.csv"

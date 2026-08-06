@@ -88,9 +88,9 @@ def _style(ax) -> None:
 def _per_arrival(values: list[float], n: int):
     """Mean and population sd within each arrival, by equal division.
 
-    Every arrival contributes the same number of evaluation windows, since
-    eval.max_val_batches caps each one identically, so boundaries are accurate
-    to within a window.
+    Every arrival stages the same number of validation frames, so each
+    contributes the same number of evaluation windows and the boundaries are
+    accurate to within a window.
     """
     step = len(values) / n
     means, sds = [], []

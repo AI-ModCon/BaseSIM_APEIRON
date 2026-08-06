@@ -295,7 +295,5 @@ worked example of the analysis, not as a benchmark.
 ### Cost
 
 Every window runs MATEY forward passes over a SOLPS validation split, and each
-drift event fine-tunes on the arriving bundle. `eval.max_val_batches` caps the
-per-window evaluation, since a full split costs far more than the drift decision
-it feeds. Expect a multi-GPU allocation for the full 24-arrival stream; the
+drift event fine-tunes on the arriving bundle. Expect a multi-GPU allocation for the full 24-arrival stream; the
 single-root smoke test above runs in minutes.
