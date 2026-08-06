@@ -148,7 +148,6 @@ class MATEYStreamHarness(MATEYHarness):
                 f"continuing would silently re-serve the previous arrival."
             )
         # Force the SOLPS split cache to rebuild against the new root.
-        self._solps_split = None
         self._configure_user_data_paths(self._params, self.cfg)
         if not self._settings.use_step_inference:
             self._configure_solps_staged_pool(self._params, self.cfg)

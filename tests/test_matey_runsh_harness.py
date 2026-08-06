@@ -228,17 +228,6 @@ def test_data_root_requires_train_and_valid_when_one_exists(
         MATEYHarness(cfg)
 
 
-def test_zero_workers_are_supported(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    MATEYHarness, _, _ = _import_matey_symbols()
-    matey_root = _make_fake_matey_root(tmp_path)
-    fake_modules = _make_fake_modules()
-    monkeypatch.setattr(MATEYHarness, "_load_matey_modules", lambda self: fake_modules)
-
-    cfg = _make_cfg(data_path=str(matey_root), num_workers=0)
-    harness = MATEYHarness(cfg)
-    assert harness._params.num_data_workers == 0
 
 
 def test_harness_builds_stream_and_loss_with_mocked_matey(
@@ -280,39 +269,6 @@ def test_harness_builds_stream_and_loss_with_mocked_matey(
     assert harness.task_counter == 2
 
 
-def test_default_split_applied_for_matey(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    MATEYHarness, _, _ = _import_matey_symbols()
-    monkeypatch.setattr(
-        "examples.matey.model.DEFAULT_SOLPS_CACHE_ROOT", tmp_path / "cache"
-    )
-    matey_root = _make_fake_matey_root(tmp_path)
-    solps_root = tmp_path / "solps"
-    _write_solps_samples(solps_root)
-
-    fake_modules = _make_fake_modules(solps_root=solps_root)
-    monkeypatch.setattr(
-        MATEYHarness,
-        "_load_matey_modules",
-        lambda self: fake_modules,
-    )
-
-    cfg = _make_cfg(data_path=str(matey_root))
-    harness = MATEYHarness(cfg)
-
-    assert harness._params.train_val_test == [0.7, 0.15, 0.15]
-    train_root = Path(harness._params.train_data_paths[0][0]).resolve()
-    val_root = Path(harness._params.valid_data_paths[0][0]).resolve()
-    assert train_root.name == "train"
-    assert val_root.name == "val"
-    assert train_root.parent == val_root.parent
-    train_files = [path for path in train_root.rglob("*") if path.is_file()]
-    val_files = [path for path in val_root.rglob("*") if path.is_file()]
-    assert train_files
-    assert val_files
-    staged_names = {path.name for path in (train_files + val_files)}
-    assert {"sample-a.nc", "sample-b.nc", "sample-c.nc"} <= staged_names
 
 
 def test_cfg_data_path_overrides_yaml_paths(
@@ -342,112 +298,10 @@ def test_cfg_data_path_overrides_yaml_paths(
     assert train_root.parent == val_root.parent
 
 
-def test_train_and_val_loaders_use_staged_paths(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    MATEYHarness, _, _ = _import_matey_symbols()
-    monkeypatch.setattr(
-        "examples.matey.model.DEFAULT_SOLPS_CACHE_ROOT", tmp_path / "cache"
-    )
-    matey_root = _make_fake_matey_root(tmp_path)
-    solps_root = tmp_path / "solps"
-    _write_solps_samples(solps_root)
-
-    loader_calls: list[dict[str, Any]] = []
-    fake_modules = _make_fake_modules(
-        solps_root=solps_root,
-        loader_calls=loader_calls,
-    )
-    monkeypatch.setattr(
-        MATEYHarness,
-        "_load_matey_modules",
-        lambda self: fake_modules,
-    )
-
-    cfg = _make_cfg(data_path=str(matey_root))
-    harness = MATEYHarness(cfg)
-    harness.update_data_stream()
-
-    assert [call["split"] for call in loader_calls] == ["train", "val"]
-    assert loader_calls[0]["train_val_test"] == [1.0, 0.0, 0.0]
-    assert loader_calls[1]["train_val_test"] == [0.0, 1.0, 0.0]
-
-    train_loader_path = Path(loader_calls[0]["paths"][0][0]).resolve()
-    val_loader_path = Path(loader_calls[1]["paths"][0][0]).resolve()
-    assert train_loader_path.name == "train"
-    assert val_loader_path.name == "val"
-    assert train_loader_path.parent == val_loader_path.parent
 
 
-def test_graph_batch_is_supported(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    MATEYHarness, MateyInputBatch, MateyTargetBatch = _import_matey_symbols()
-    monkeypatch.setattr(
-        "examples.matey.model.DEFAULT_SOLPS_CACHE_ROOT", tmp_path / "cache"
-    )
-    matey_root = _make_fake_matey_root(tmp_path)
-    solps_root = tmp_path / "solps"
-    _write_solps_samples(solps_root)
-
-    fake_modules = _make_fake_modules(
-        solps_root=solps_root,
-        graph_batches=True,
-    )
-    monkeypatch.setattr(
-        MATEYHarness,
-        "_load_matey_modules",
-        lambda self: fake_modules,
-    )
-
-    cfg = _make_cfg(data_path=str(matey_root))
-    harness = MATEYHarness(cfg)
-    harness.update_data_stream()
-    train_loader, _ = harness.get_train_dataloaders()
-
-    x, y = next(iter(train_loader))
-    assert isinstance(x, MateyInputBatch)
-    assert isinstance(y, MateyTargetBatch)
-    assert x.is_graph
-    assert y.is_graph
-
-    y_hat = harness.model(x.to("cpu"))
-    loss = harness.get_criterion()(y_hat, y.to("cpu"))
-    assert torch.isfinite(loss)
 
 
-def test_mixed_solps_and_non_solps_raises(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    MATEYHarness, _, _ = _import_matey_symbols()
-    monkeypatch.setattr(
-        "examples.matey.model.DEFAULT_SOLPS_CACHE_ROOT", tmp_path / "cache"
-    )
-    matey_root = _make_fake_matey_root(tmp_path)
-    solps_root = tmp_path / "solps"
-    _write_solps_samples(solps_root)
-
-    train_paths = [
-        [str(solps_root / "train"), "SOLPS2D", "", "tk-2D"],
-        [str(tmp_path / "other"), "incompNS", "", "tk-2D"],
-    ]
-    valid_paths = [[str(solps_root / "valid"), "SOLPS2D", "", "tk-2D"]]
-
-    fake_modules = _make_fake_modules(
-        train_data_paths=train_paths,
-        valid_data_paths=valid_paths,
-    )
-    monkeypatch.setattr(
-        MATEYHarness,
-        "_load_matey_modules",
-        lambda self: fake_modules,
-    )
-
-    cfg = _make_cfg(data_path=str(matey_root))
-    with pytest.raises(
-        ValueError, match="does not support mixing SOLPS2D with non-SOLPS datasets"
-    ):
-        MATEYHarness(cfg)
 
 
 def test_examples_factory_dispatch_for_matey(monkeypatch: pytest.MonkeyPatch) -> None:

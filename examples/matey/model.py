@@ -24,16 +24,14 @@ from examples.matey.solps.matey_batches import (
     install_matey_optional_import_shims,
     register_solps2dwion_dataset,
 )
-from examples.matey.solps.solps_field_maps import SOLPS_ION_FIELD_NAMES
 from examples.matey.solps.settings import MateySettings
-from examples.matey.solps.solps_split import SolpsStagedSplit, stage_solps_split
 from apeiron.logger import get_logger
 from apeiron.model.torch_model_harness import BaseModelHarness
 
 DEFAULT_MATEY_YAML = Path("examples/matey/Demo_SOLPS_vit.yaml")
 DEFAULT_MATEY_PROFILE = "basic_config"
 DEFAULT_MATEY_TRAIN_VAL_TEST = (0.7, 0.15, 0.15)
-DEFAULT_SOLPS_CACHE_ROOT = Path("output/matey_split_cache")
+SOLPS_ION_FIELD_NAMES = ("ne2d", "te2d", "ti2d")
 MATEY_GIT_COMMIT = "4e615bb5c86024632e386153bfbed028b38a8262"
 MATEY_GIT_URL = f"git+ssh://git@github.com/FusionFM/MATEY.git@{MATEY_GIT_COMMIT}"
 SUPPORTED_UPDATE_MODES = {"base", "none"}
@@ -42,8 +40,6 @@ SUPPORTED_UPDATE_MODES = {"base", "none"}
 class MATEYHarness(BaseModelHarness):
     def __init__(self, cfg: Config):
         self._assert_supported_update_mode(cfg)
-        self._solps_split: SolpsStagedSplit | None = None
-        self._solps_split_logged = False
         self._split_seed = int(cfg.seed)
 
         self._data_root = self._resolve_data_root(cfg)
@@ -134,7 +130,6 @@ class MATEYHarness(BaseModelHarness):
         self._dispose_current_loaders()
         self._set_stream_seed(self.cfg.seed + self.task_counter)
         self._stream_batch_idx = 0
-        self._log_solps_split_details()
 
         train_params = self._params_for_loader_split("train")
         val_params = self._params_for_loader_split("val")
@@ -372,21 +367,7 @@ class MATEYHarness(BaseModelHarness):
 
         return params
 
-    @staticmethod
-    def _normalize_path_entry(entry: Any) -> list[Any]:
-        if not isinstance(entry, (list, tuple)) or len(entry) < 2:
-            raise ValueError(
-                "MATEY data path entries must be list/tuple values with at least "
-                "[path, dataset_type, ...]."
-            )
-        return list(entry)
 
-    @staticmethod
-    def _to_abs_path(path_str: str) -> Path:
-        path = Path(path_str)
-        if not path.is_absolute():
-            path = Path.cwd() / path
-        return path.resolve()
 
     @staticmethod
     def _as_config_path(path: Path) -> str:
@@ -395,57 +376,6 @@ class MATEYHarness(BaseModelHarness):
         except ValueError:
             return str(path.resolve())
 
-    def _configure_solps_staged_pool(self, params: Any, cfg: Config) -> None:
-        dset_type = self._settings.dset_type
-        train_paths = [
-            self._normalize_path_entry(entry)
-            for entry in getattr(params, "train_data_paths", [])
-        ]
-        val_paths = [
-            self._normalize_path_entry(entry)
-            for entry in getattr(params, "valid_data_paths", [])
-        ]
-
-        if not train_paths or not val_paths:
-            raise ValueError(
-                "MATEY SOLPS split requires non-empty train_data_paths and "
-                "valid_data_paths."
-            )
-
-        train_solps = [entry for entry in train_paths if str(entry[1]) == dset_type]
-        val_solps = [entry for entry in val_paths if str(entry[1]) == dset_type]
-
-        if not train_solps and not val_solps:
-            return
-
-        if len(train_solps) != len(train_paths) or len(val_solps) != len(val_paths):
-            raise ValueError(
-                f"MATEY SOLPS split mode does not support mixing {dset_type} with "
-                "non-SOLPS datasets in train/valid data paths."
-            )
-
-        signatures = {tuple(entry[1:]) for entry in (train_solps + val_solps)}
-        if len(signatures) != 1:
-            raise ValueError(
-                "MATEY SOLPS split requires matching dataset metadata across "
-                "train_data_paths and valid_data_paths (dataset/include/tk-head)."
-            )
-
-        src_paths = [
-            self._to_abs_path(str(entry[0])) for entry in train_solps + val_solps
-        ]
-        split_view = stage_solps_split(
-            source_roots=src_paths,
-            ratios=DEFAULT_MATEY_TRAIN_VAL_TEST,
-            seed=self._split_seed,
-            cache_root=DEFAULT_SOLPS_CACHE_ROOT,
-        )
-        self._solps_split = split_view
-        signature = list(next(iter(signatures)))
-        train_entry = [self._as_config_path(split_view.train_dir), *signature]
-        val_entry = [self._as_config_path(split_view.val_dir), *signature]
-        params.train_data_paths = [copy.deepcopy(train_entry)]
-        params.valid_data_paths = [copy.deepcopy(val_entry)]
 
     def _resolve_solps_shot_dir(self, split_root: Path) -> Path:
         """Directory that actually holds the .nc files for a split.
@@ -506,23 +436,6 @@ class MATEYHarness(BaseModelHarness):
         if not self._settings.use_step_inference:
             self._configure_solps_staged_pool(params, cfg)
 
-    def _log_solps_split_details(self) -> None:
-        if self._solps_split is None or self._solps_split_logged:
-            return
-
-        logger = get_logger()
-        counts = self._solps_split.counts
-        logger.info("==== MATEY SOLPS staged split ready ====", level=0)
-        logger.info(f"\tCache dir: {self._solps_split.cache_dir}", level=1)
-        logger.info(
-            f"\tSplit counts train/val/test: {counts['train']}/{counts['val']}/{counts['test']}",
-            level=1,
-        )
-        logger.info(
-            f"\tSplit cache reused: {self._solps_split.reused_cache}",
-            level=1,
-        )
-        self._solps_split_logged = True
 
     def _params_for_loader_split(self, split: str) -> Any:
         loader_params = copy.deepcopy(self._params)

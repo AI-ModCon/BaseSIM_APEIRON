@@ -30,9 +30,9 @@
 
 set -euo pipefail
 
-# Two levels up from this script, so the job does not depend on the submitting
-# directory.
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# sbatch copies the script to a spool directory, so BASH_SOURCE does not point
+# into the repo. Use the submitting directory, which sbatch preserves.
+ROOT="${ROOT:-${SLURM_SUBMIT_DIR:-$PWD}}"
 
 # Site-specific; override in the environment rather than editing this file.
 MATEY_ENV="${MATEY_ENV:?set MATEY_ENV to the MATEY environment setup script}"
@@ -68,6 +68,12 @@ print(json.load(open('${STREAM}/stream_manifest.json'))['n_arrivals'])
 MAX_UPDATES="${MAX_UPDATES:-$((N_ARRIVALS - 1))}"
 echo "stream has ${N_ARRIVALS} arrivals -> max_stream_updates=${MAX_UPDATES}"
 
+# DETECTOR selects the drift detector; with EnsembleDetector, ENSEMBLE lists the
+# sub-detectors and VOTING is any|majority|unanimous.
+DETECTOR="${DETECTOR:-KSWINDetector}"
+ENSEMBLE="${ENSEMBLE:-[\"ADWINDetector\", \"KSWINDetector\", \"PageHinkleyDetector\"]}"
+VOTING="${VOTING:-any}"
+
 arm="${1:-${ARM:-cl}}"
 case "${arm}" in
   cl)   MODE="base" ;;
@@ -81,9 +87,12 @@ python3 -m src.main \
   --set "data.path=${STREAM}" \
   --set "model.pretrained_path=${CKPT}" \
   --set "continual_learning.update_mode=${MODE}" \
+  --set "drift_detection.detector_name=${DETECTOR}" \
+  --set "drift_detection.ensemble_detectors=${ENSEMBLE}" \
+  --set "drift_detection.ensemble_voting=${VOTING}" \
   --set "drift_detection.max_stream_updates=${MAX_UPDATES}" \
-  --set "visualization.input=${OUTDIR}/stream_${arm}.csv" \
-  2>&1 | tee "${OUTDIR}/run_${arm}.log"
+  --set "visualization.input=${OUTDIR}/stream_${arm}${TAG:-}.csv" \
+  2>&1 | tee "${OUTDIR}/run_${arm}${TAG:-}.log"
 
 cp "${STREAM}/stream_manifest.json" "${OUTDIR}/" 2>/dev/null || true
-echo "done: ${OUTDIR}/stream_${arm}.csv"
+echo "done: ${OUTDIR}/stream_${arm}${TAG:-}.csv"
