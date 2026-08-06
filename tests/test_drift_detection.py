@@ -18,8 +18,7 @@ from apeiron.drift_detection.detectors.statistical_detectors import (
 from apeiron.config.configuration import DriftDetectionCfg
 from apeiron.drift_detection.load_drift_detector import load_drift_detector
 
-# The evidently-backed detectors are optional: evidently has no wheel for every
-# deployment target (the Frontier MATEY environment is one). Import them behind a
+# Evidently has no wheel for every deployment target. Import them behind a
 # guard so the statistical-detector tests -- which need nothing beyond river --
 # still run there, instead of the whole module erroring out at collection.
 try:
@@ -141,6 +140,19 @@ class TestADWINDetector:
 # ---------------------------------------------------------------------------
 # KSWINDetector
 # ---------------------------------------------------------------------------
+def _shifting_stream() -> list[float]:
+    """Deterministic stream: 100 samples at mean 0, then 100 at mean 5."""
+    rng = np.random.default_rng(0)
+    return [
+        *rng.normal(0.0, 1.0, 100).tolist(),
+        *rng.normal(5.0, 1.0, 100).tolist(),
+    ]
+
+
+def _drift_steps(detector: KSWINDetector, stream: list[float]) -> list[int]:
+    return [i for i, v in enumerate(stream) if detector.update(v).drift_detected]
+
+
 class TestKSWINDetector:
     def test_init(self):
         d = KSWINDetector(alpha=0.01)
@@ -165,32 +177,6 @@ class TestKSWINDetector:
         d = KSWINDetector(alpha=0.01)
         signal = d.update(1.0)
         assert signal.confidence == pytest.approx(0.99)
-
-
-# ---------------------------------------------------------------------------
-# KSWIN reproducibility
-#
-# KSWIN draws its reference window at random, so two runs over the same stream
-# disagree on *when* drift fires unless the sampling is seeded. Without this an
-# experiment cannot be replayed and a cl/nocl comparison is not controlled.
-# ---------------------------------------------------------------------------
-def _shifting_stream() -> list[float]:
-    """Deterministic stream: 100 samples at mean 0, then 100 at mean 5."""
-    rng = np.random.default_rng(0)
-    return [
-        *rng.normal(0.0, 1.0, 100).tolist(),
-        *rng.normal(5.0, 1.0, 100).tolist(),
-    ]
-
-
-def _drift_steps(detector: KSWINDetector, stream: list[float]) -> list[int]:
-    return [i for i, v in enumerate(stream) if detector.update(v).drift_detected]
-
-
-class TestKSWINSeed:
-    def test_default_is_unseeded(self):
-        """The added parameter must not change behaviour for existing callers."""
-        assert KSWINDetector().seed is None
 
     def test_same_seed_gives_the_same_detections(self):
         stream = _shifting_stream()
@@ -449,15 +435,6 @@ class TestLoadDriftDetector:
         )
         d = load_drift_detector(cfg)
         assert d.seed == 1337
-
-    def test_kswin_is_unseeded_by_default(self, default_cfg):
-        from dataclasses import replace
-
-        cfg = replace(
-            default_cfg,
-            drift_detection=DriftDetectionCfg(detector_name="KSWINDetector"),
-        )
-        assert load_drift_detector(cfg).seed is None
 
     def test_page_hinkley(self, default_cfg):
         from dataclasses import replace

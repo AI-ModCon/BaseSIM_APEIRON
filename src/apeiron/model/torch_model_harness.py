@@ -103,16 +103,6 @@ class BaseModelHarness(ABC):
             return float(x.mean().item() if x.ndim > 0 else x.item())
         return float(x)
 
-    @staticmethod
-    def _batch_size(y: Any) -> int:
-        """Leading-dimension size of a target, for metric weighting.
-
-        Uses ``.shape`` rather than ``.size(0)`` so a structured target only has
-        to expose one attribute, not Tensor's interface.
-        """
-        shape = getattr(y, "shape", None)
-        return int(shape[0]) if shape else 1
-
     @torch.no_grad()
     def eval(self) -> List[float]:
         """Stream over batches; return mean(metric) over batches (order preserved)."""
@@ -137,7 +127,7 @@ class BaseModelHarness(ABC):
             # else:
             y_hat = self.model(x)
 
-            batch_size = self._batch_size(y)
+            batch_size = y.shape[0]
             for i, m in enumerate(self.eval_metrics.values()):
                 metric_value = self._to_scalar(m(y_hat, y))
                 # For metrics that return percentages (like accuracy), we need to
@@ -181,7 +171,7 @@ class BaseModelHarness(ABC):
             # else:
             y_hat = self.model(x)
 
-            batch_size = self._batch_size(y)
+            batch_size = y.shape[0]
             for i, m in enumerate(self.eval_metrics.values()):
                 metric_value = self._to_scalar(m(y_hat, y))
                 # For metrics that return percentages (like accuracy), we need to
