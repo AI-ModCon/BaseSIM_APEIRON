@@ -94,6 +94,8 @@ python3 -m src.main \
   --set "drift_detection.ensemble_detectors=${ENSEMBLE}" \
   --set "drift_detection.ensemble_voting=${VOTING}" \
   --set "drift_detection.max_stream_updates=${MAX_UPDATES}" \
+  --set "drift_detection.kswin_window_size=${KSWIN_WINDOW:-60}" \
+  --set "drift_detection.kswin_stat_size=${KSWIN_STAT:-20}" \
   --set "visualization.input=${OUTDIR}/stream_${arm}${TAG:-}.csv" \
   2>&1 | tee "${OUTDIR}/run_${arm}${TAG:-}.log"
 

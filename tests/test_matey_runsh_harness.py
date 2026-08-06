@@ -271,9 +271,6 @@ def test_cfg_data_path_overrides_yaml_paths(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     MATEYHarness, _, _ = _import_matey_symbols()
-    monkeypatch.setattr(
-        "examples.matey.model.DEFAULT_SOLPS_CACHE_ROOT", tmp_path / "cache"
-    )
     solps_root = tmp_path / "user-solps"
     _write_solps_samples(solps_root)
 
@@ -290,7 +287,7 @@ def test_cfg_data_path_overrides_yaml_paths(
     train_root = Path(harness._params.train_data_paths[0][0]).resolve()
     val_root = Path(harness._params.valid_data_paths[0][0]).resolve()
     assert train_root.name == "train"
-    assert val_root.name == "val"
+    assert val_root.name == "valid"
     assert train_root.parent == val_root.parent
 
 

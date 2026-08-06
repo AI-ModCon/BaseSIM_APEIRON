@@ -428,10 +428,6 @@ class MATEYHarness(BaseModelHarness):
     def _configure_data_split(self, params: Any, cfg: Config) -> None:
         self._configure_user_data_paths(params, cfg)
         params.train_val_test = list(DEFAULT_MATEY_TRAIN_VAL_TEST)
-        # Step inference scores each staged arrival on its own bundle, so the
-        # pooled train/valid split would just fight it.
-        if not self._settings.use_step_inference:
-            self._configure_solps_staged_pool(params, cfg)
 
     def _params_for_loader_split(self, split: str) -> Any:
         loader_params = copy.deepcopy(self._params)
