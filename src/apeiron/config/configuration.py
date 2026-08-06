@@ -179,13 +179,6 @@ class DriftDetectionCfg:
 
 
 @dataclass(frozen=True)
-class EvalCfg:
-    """Settings for the per-window evaluation ContinuousMonitor runs."""
-
-    max_val_batches: int = 0  # 0 = evaluate the whole loader
-
-
-@dataclass(frozen=True)
 class VisualizationCfg:
     input: str = "output/output.csv"  # CSV path where run metrics are written
 
@@ -213,7 +206,6 @@ class Config:
     verbosity: str = "INFO"
     visualization: VisualizationCfg | None = None
     logging: LoggingCfg | None = None
-    eval: EvalCfg | None = None
 
 
 def parse_args(argv=None):
@@ -368,7 +360,6 @@ def build_config(argv=None) -> Config:
     cl = ContinualLearningCfg(**cfg.get("continual_learning", {}))
     viz = VisualizationCfg(**cfg["visualization"]) if "visualization" in cfg else None
     log_cfg = LoggingCfg(**cfg["logging"]) if "logging" in cfg else None
-    eval_cfg = EvalCfg(**cfg["eval"]) if "eval" in cfg else None
 
     raw_device = str(
         cfg.get(
@@ -392,7 +383,6 @@ def build_config(argv=None) -> Config:
         "drift_detection",
         "visualization",
         "logging",
-        "eval",
         "device",
         "multi_gpu",
     }
@@ -408,7 +398,6 @@ def build_config(argv=None) -> Config:
         drift_detection=dd,
         visualization=viz,
         logging=log_cfg,
-        eval=eval_cfg,
         device=resolved_device,
         multi_gpu=multi_gpu_flag,
         **extras,

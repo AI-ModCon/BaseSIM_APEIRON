@@ -202,21 +202,6 @@ ensemble_voting = "majority"
 Details about the drift detection algorithms available can be found in [docs/drift_detectors.md](drift_detectors.md)
 
 
-## [eval]
-
-Optional. Controls the per-window evaluation `ContinuousMonitor` runs to produce
-the scalar the detector monitors.
-
-```toml
-[eval]
-max_val_batches = 15
-```
-
-| Option | Type | Description |
-|----------|------|-------------|
-| `max_val_batches` | int | Stop each stream window's evaluation after this many batches. `0` (the default) evaluates the whole loader. Use it when a full validation pass costs far more than the drift decision it feeds. |
-
-
 ## [visualization]
 
 The visualization configuration options are optional and are used to store the results of the metrics captured during the run.
