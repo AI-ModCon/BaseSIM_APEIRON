@@ -217,8 +217,7 @@ ASDEX-U at 17.5k.
 ![XGC detector response](../../docs/images/matey-xgc-detectors.png)
 
 The stream leaves the pre-training set at window 16 and the coverage score steps
-from ~0.03 to ~0.32. Page-Hinkley (resized) detects it 4 windows later, KSWIN
-(resized) 6, with no false alarms; at the shipped window sizes none of the three
+from ~0.03 to ~0.32. Page-Hinkley (tuned to stream) detects it 4 windows later, KSWIN (tuned to stream) 6, with no false alarms; at river's default window sizes none of the three
 fires at all. The control matters more than the detections: on a same-machine
 scenario change (DIII-D PT to DIII-D NT) **0 of 6 configurations fire**, so the
 detectors are responding to the device change rather than to any change.

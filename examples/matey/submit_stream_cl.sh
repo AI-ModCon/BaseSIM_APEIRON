@@ -88,6 +88,8 @@ python3 -m src.main \
   --set "data.path=${STREAM}" \
   --set "model.pretrained_path=${CKPT}" \
   --set "continual_learning.update_mode=${MODE}" \
+  --set "model.max_ckpts=${MAX_CKPTS:-0}" \
+  --set "model.ckpts_path=${CKPTS_PATH:-${OUTDIR}/ckpts}" \
   --set "drift_detection.detector_name=${DETECTOR}" \
   --set "drift_detection.ensemble_detectors=${ENSEMBLE}" \
   --set "drift_detection.ensemble_voting=${VOTING}" \

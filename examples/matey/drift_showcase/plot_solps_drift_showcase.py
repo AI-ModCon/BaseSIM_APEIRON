@@ -45,12 +45,12 @@ DIV = "RdBu_r"
 TEXTWIDTH = 6.3  # inches
 
 DETECTORS = [
-    ("ADWIN as-shipped", C_GREEN, "o"),
-    ("ADWIN resized", C_ORANGE, "s"),
-    ("KSWIN as-shipped", C_PINK, "^"),
-    ("KSWIN resized", C_SKY, "v"),
-    ("Page-Hinkley as-shipped", C_BLUE, "D"),
-    ("Page-Hinkley resized", C_VERM, "P"),
+    ("ADWIN library default", C_GREEN, "o"),
+    ("ADWIN tuned to stream", C_ORANGE, "s"),
+    ("KSWIN library default", C_PINK, "^"),
+    ("KSWIN tuned to stream", C_SKY, "v"),
+    ("Page-Hinkley library default", C_BLUE, "D"),
+    ("Page-Hinkley tuned to stream", C_VERM, "P"),
 ]
 
 

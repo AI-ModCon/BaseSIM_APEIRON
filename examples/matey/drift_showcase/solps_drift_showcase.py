@@ -186,27 +186,29 @@ def run_detector(detector, values: np.ndarray) -> dict:
 def detector_suite(short_stream: bool, seed: int = 0) -> dict:
     """Detector configurations, with identical names across cadences.
 
-    ``default`` mirrors the values currently shipped in APEIRON's config
-    defaults.  ``scaled`` rescales the window/threshold parameters to the number
-    of monitoring windows a scientific stream actually produces, which is
-    typically one to two orders of magnitude fewer than the sample counts these
-    detectors were designed for.
+    "library default" is river's own defaults, as shipped in APEIRON's config.
+    They assume streams of millions of samples. "tuned to stream" rescales the
+    window and threshold parameters to the few hundred monitoring windows a
+    scientific stream actually produces -- two orders of magnitude fewer. A
+    Page-Hinkley threshold of 50 simply never accumulates that far in 291
+    windows, so it never fires, which is a property of the stream length rather
+    than of the drift.
     """
     ks = (20, 8) if short_stream else (60, 20)
     ph_min, ph_thr = (10, 1.0) if short_stream else (30, 5.0)
     return {
-        "ADWIN as-shipped": lambda: ADWINDetector(delta=0.002),
-        "ADWIN resized": lambda: ADWINDetector(delta=0.05),
-        "KSWIN as-shipped": lambda: KSWINDetector(
+        "ADWIN library default": lambda: ADWINDetector(delta=0.002),
+        "ADWIN tuned to stream": lambda: ADWINDetector(delta=0.05),
+        "KSWIN library default": lambda: KSWINDetector(
             alpha=0.005, window_size=100, stat_size=30, seed=seed
         ),
-        "KSWIN resized": lambda: KSWINDetector(
+        "KSWIN tuned to stream": lambda: KSWINDetector(
             alpha=0.005, window_size=ks[0], stat_size=ks[1], seed=seed
         ),
-        "Page-Hinkley as-shipped": lambda: PageHinkleyDetector(
+        "Page-Hinkley library default": lambda: PageHinkleyDetector(
             min_instances=30, delta=0.005, threshold=50.0
         ),
-        "Page-Hinkley resized": lambda: PageHinkleyDetector(
+        "Page-Hinkley tuned to stream": lambda: PageHinkleyDetector(
             min_instances=ph_min, delta=0.005, threshold=ph_thr
         ),
     }
