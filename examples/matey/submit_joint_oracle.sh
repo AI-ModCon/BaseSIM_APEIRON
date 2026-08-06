@@ -65,7 +65,10 @@ N_ARRIVALS="$(python -c "
 import json
 print(json.load(open('${STREAM}/stream_manifest.json'))['n_arrivals'])
 ")"
-MAX_UPDATES=$((N_ARRIVALS - 1))
+# MAX_UPDATES caps the evaluated stream; MAX_ARRIVALS caps what the oracle
+# is trained on. They must agree, or the oracle sees data the arms do not.
+MAX_UPDATES="${MAX_UPDATES:-$((N_ARRIVALS - 1))}"
+MAX_ARRIVALS="${MAX_ARRIVALS:-0}"
 
 echo ""
 echo "================ stage 1: joint fine-tune ================"
@@ -74,6 +77,7 @@ python3 examples/matey/train_joint_oracle.py \
   --out "${ORACLE_DIR}" \
   --epochs "${EPOCHS}" \
   --steps-per-arrival "${STEPS_PER_ARRIVAL}" \
+  --max-arrivals "${MAX_ARRIVALS}" \
   --set "data.path=${STREAM}" \
   --set "model.pretrained_path=${CKPT}" \
   --set "continual_learning.update_mode=none" \
