@@ -1,16 +1,20 @@
 #!/usr/bin/env python3
-"""Plot the adaptation arm against the no-adaptation control.
+"""Plot the drift, its detection, and what adaptation does about it.
 
-    python examples/matey/plot_stream_arms.py <outdir> [-o figure.png]
+    python examples/matey/plot_stream_arms.py <outdir> [--fields showcase.npz]
 
-Reads the two CSVs written by submit_stream_cl.sh and draws:
+Reads the two CSVs written by submit_stream_cl.sh and draws the story in order:
 
-  (a) per-arrival mean +/- std of the monitored error, both arms, with the
-      arrivals at which drift fired marked;
-  (b) the before/after error on the arriving bundle at each drift event.
+  (a,b,c) the physics: the mean electron-density field in the baseline and the
+          held-out scenario, and the difference between them -- what "drift"
+          is here, before any model sees it;
+  (d)     the detector's view: the monitored error per window, and where KSWIN
+          fired;
+  (e)     the consequence: error across the stream for the adapting arm and the
+          no-adaptation control, with the drop at each adaptation.
 
-Panel (a) is what shows the control is not simply an easier stream; panel (b)
-is the adaptation itself.
+Panels (a-c) need field snapshots from a drift-showcase run (--fields); without
+that the figure is drawn from the stream CSVs alone.
 """
 
 from __future__ import annotations
@@ -23,6 +27,7 @@ from collections import defaultdict
 from pathlib import Path
 
 import matplotlib
+import numpy as np
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
@@ -30,11 +35,10 @@ import matplotlib.pyplot as plt  # noqa: E402
 MONITORED = "eval/nrmse_mean"
 PRE, POST = "eval/val_pre_cur_nrmse_mean", "eval/val_post_cur_nrmse_mean"
 
-# Categorical slots 1 and 2. Identity is carried by marker shape as well as hue,
-# so the panels survive greyscale printing and colour-vision deficiency.
+# Categorical slots 1 and 2; identity is also carried by marker shape, so the
+# panels survive greyscale printing and colour-vision deficiency.
 CONTROL, ADAPTED = "#2a78d6", "#eb6834"
-GRID = "#d8d8d5"
-INK, MUTED = "#1a1a19", "#6b6b68"
+GRID, INK, MUTED, SURFACE = "#d8d8d5", "#1a1a19", "#6b6b68", "#fcfcfb"
 
 
 def _series(path: Path) -> dict[str, list[float]]:
@@ -50,34 +54,66 @@ def _series(path: Path) -> dict[str, list[float]]:
     return out
 
 
-def _per_arrival(values: list[float], n_arrivals: int):
-    """Mean and population std within each arrival.
+def _style(ax) -> None:
+    ax.set_facecolor(SURFACE)
+    ax.grid(True, color=GRID, linewidth=0.8, alpha=0.9)
+    ax.set_axisbelow(True)
+    for side in ("top", "right"):
+        ax.spines[side].set_visible(False)
+    for side in ("left", "bottom"):
+        ax.spines[side].set_color(GRID)
+    ax.tick_params(colors=MUTED, labelsize=9)
 
-    Window-to-arrival assignment is by equal division: every arrival contributes
-    the same number of evaluation windows, since eval.max_val_batches caps each
-    one identically. Boundaries are therefore accurate to within a window.
+
+def _per_arrival(values: list[float], n: int):
+    """Mean and population sd within each arrival, by equal division.
+
+    Every arrival contributes the same number of evaluation windows, since
+    eval.max_val_batches caps each one identically, so boundaries are accurate
+    to within a window.
     """
-    step = len(values) / n_arrivals
+    step = len(values) / n
     means, sds = [], []
-    for i in range(n_arrivals):
+    for i in range(n):
         chunk = values[round(i * step) : round((i + 1) * step)]
         means.append(statistics.mean(chunk))
         sds.append(statistics.pstdev(chunk) if len(chunk) > 1 else 0.0)
     return means, sds
 
 
+def _draw_fields(fig, gs, npz_path: Path) -> None:
+    z = np.load(npz_path, allow_pickle=True)
+    base, ood = z["base_ne_mean"], z["ood_ne_mean"]
+    floor = base.max() * 1e-3  # ignore the near-vacuum region, where % blows up
+    rel = np.where(base > floor, 100.0 * (ood - base) / np.maximum(base, floor), 0.0)
+    lim = float(np.percentile(np.abs(rel), 99))
+    vmax = float(max(base.max(), ood.max()))
+
+    panels = (
+        (base, "(a) baseline scenario", "viridis", dict(vmin=0, vmax=vmax)),
+        (ood, "(b) held-out scenario", "viridis", dict(vmin=0, vmax=vmax)),
+        (rel, "(c) change, % of baseline", "RdBu_r", dict(vmin=-lim, vmax=lim)),
+    )
+    for col, (data, title, cmap, kw) in enumerate(panels):
+        ax = fig.add_subplot(gs[0, col])
+        im = ax.imshow(data, aspect="auto", cmap=cmap, **kw)
+        ax.set_title(title, color=INK, fontsize=10, loc="left", pad=6)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        cb = fig.colorbar(im, ax=ax, fraction=0.045, pad=0.02)
+        cb.ax.tick_params(colors=MUTED, labelsize=7)
+        cb.outline.set_visible(False)
+        if col == 0:
+            ax.set_ylabel("mean $n_e$ field", color=INK, fontsize=9)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("outdir", type=Path)
     ap.add_argument("-o", "--output", type=Path, default=None)
+    ap.add_argument("--fields", type=Path, default=None)
+    ap.add_argument("--events-at", type=int, nargs="*", default=None)
     ap.add_argument("--arrivals", type=int, default=24)
-    ap.add_argument(
-        "--events-at",
-        type=int,
-        nargs="*",
-        default=None,
-        help="arrivals after which adaptation ran (1-based)",
-    )
     args = ap.parse_args()
 
     cl = _series(args.outdir / "stream_cl.csv")
@@ -85,110 +121,96 @@ def main() -> int:
     if not cl[MONITORED] or not nocl[MONITORED]:
         sys.exit(f"no {MONITORED} rows found; did the run finish?")
 
-    width = min(len(cl[MONITORED]), len(nocl[MONITORED]))
+    fields = args.fields if args.fields and args.fields.exists() else None
+    rows = 3 if fields else 2
+    heights = [0.85, 1.0, 1.15] if fields else [1.0, 1.15]
+
+    fig = plt.figure(figsize=(12, 3.2 * rows))
+    fig.patch.set_facecolor(SURFACE)
+    gs = fig.add_gridspec(rows, 3, height_ratios=heights, hspace=0.5, wspace=0.25)
+    if fields:
+        _draw_fields(fig, gs, fields)
+
+    base_row = 1 if fields else 0
     n = args.arrivals
-    cl_m, cl_s = _per_arrival(cl[MONITORED][:width], n)
-    no_m, no_s = _per_arrival(nocl[MONITORED][:width], n)
-    x = range(1, n + 1)
+    width = min(len(cl[MONITORED]), len(nocl[MONITORED]))
 
-    fig, (ax, bx) = plt.subplots(
-        1, 2, figsize=(12.5, 4.4), gridspec_kw={"width_ratios": [1.75, 1]}
+    # -- what the detector sees ---------------------------------------------
+    ax = fig.add_subplot(gs[base_row, :])
+    _style(ax)
+    ax.plot(
+        np.linspace(1, n, width),
+        cl[MONITORED][:width],
+        color=MUTED,
+        linewidth=1.1,
+        label="monitored error per window",
     )
-    fig.patch.set_facecolor("#fcfcfb")
+    for k, arrival in enumerate(args.events_at or []):
+        ax.axvline(
+            arrival,
+            color=ADAPTED,
+            linewidth=1.4,
+            linestyle=(0, (4, 3)),
+            label="KSWIN fires → adapt" if k == 0 else None,
+        )
+    ax.set_xlim(0.5, n + 0.5)
+    ax.set_ylabel("NRMSE", color=INK, fontsize=10)
+    ax.set_title(
+        f"({'d' if fields else 'a'}) what the detector sees",
+        color=INK,
+        fontsize=11,
+        loc="left",
+        pad=8,
+    )
+    ax.legend(frameon=False, fontsize=9, labelcolor=INK, loc="upper right")
 
-    for a in (ax, bx):
-        a.set_facecolor("#fcfcfb")
-        a.grid(True, color=GRID, linewidth=0.8, alpha=0.9)
-        a.set_axisbelow(True)
-        for side in ("top", "right"):
-            a.spines[side].set_visible(False)
-        for side in ("left", "bottom"):
-            a.spines[side].set_color(GRID)
-        a.tick_params(colors=MUTED, labelsize=9)
-
-    # -- (a) per-arrival error, both arms -----------------------------------
-    for series, sd, colour, marker, label in (
-        (no_m, no_s, CONTROL, "o", "no adaptation (control)"),
-        (cl_m, cl_s, ADAPTED, "s", "continual learning"),
+    # -- what adaptation does ------------------------------------------------
+    bx = fig.add_subplot(gs[base_row + 1, :])
+    _style(bx)
+    for vals, colour, marker, label in (
+        (nocl[MONITORED][:width], CONTROL, "o", "no adaptation (control)"),
+        (cl[MONITORED][:width], ADAPTED, "s", "continual learning"),
     ):
-        ax.errorbar(
-            x,
-            series,
-            yerr=sd,
+        m, s = _per_arrival(vals, n)
+        bx.errorbar(
+            range(1, n + 1),
+            m,
+            yerr=s,
             color=colour,
             marker=marker,
             markersize=4.5,
             linewidth=2,
             elinewidth=1,
             capsize=2.5,
-            alpha=0.95,
             label=label,
         )
 
-    if args.events_at:
-        for i, arrival in enumerate(args.events_at):
-            ax.axvline(arrival, color=MUTED, linestyle=(0, (4, 3)), linewidth=1)
-            ax.text(
-                arrival,
-                ax.get_ylim()[1],
-                " adapt" if i == 0 else "",
-                color=MUTED,
-                fontsize=8,
-                va="top",
-                ha="left",
-            )
+    for arrival, before, after in zip(args.events_at or [], cl[PRE], cl[POST]):
+        bx.annotate(
+            f"−{100 * (before - after) / before:.0f}%",
+            xy=(arrival, after),
+            xytext=(arrival, before * 1.02),
+            arrowprops=dict(arrowstyle="->", color=INK, linewidth=1.1),
+            color=INK,
+            fontsize=9,
+            ha="center",
+            va="bottom",
+        )
 
-    ax.set_xlabel("simulation arrival", color=INK, fontsize=10)
-    ax.set_ylabel("NRMSE  (mean ± sd within arrival)", color=INK, fontsize=10)
-    ax.set_title(
-        "(a) error across the stream", color=INK, fontsize=11, loc="left", pad=8
-    )
-    ax.legend(frameon=False, fontsize=9, labelcolor=INK)
-
-    # -- (b) before / after at each drift event -----------------------------
-    pre, post = cl[PRE], cl[POST]
-    idx = range(1, len(pre) + 1)
-    bar = 0.36
-    bx.bar(
-        [i - bar / 2 for i in idx],
-        pre,
-        bar,
-        color=CONTROL,
-        label="before adaptation",
-        zorder=3,
-    )
-    bx.bar(
-        [i + bar / 2 for i in idx],
-        post,
-        bar,
-        color=ADAPTED,
-        label="after adaptation",
-        zorder=3,
-    )
-
-    for i, (a_val, b_val) in zip(idx, zip(pre, post)):
-        if a_val:
-            bx.text(
-                i,
-                max(a_val, b_val) * 1.04,
-                f"−{100 * (a_val - b_val) / a_val:.0f}%",
-                ha="center",
-                color=INK,
-                fontsize=9,
-            )
-
-    bx.set_xticks(list(idx))
-    bx.set_xlabel("drift event", color=INK, fontsize=10)
-    bx.set_ylabel("NRMSE on the arriving bundle", color=INK, fontsize=10)
+    bx.set_xlim(0.5, n + 0.5)
+    bx.set_ylabel("NRMSE  (mean ± sd)", color=INK, fontsize=10)
+    bx.set_xlabel("simulation arrival", color=INK, fontsize=10)
     bx.set_title(
-        "(b) adaptation at each detection", color=INK, fontsize=11, loc="left", pad=8
+        f"({'e' if fields else 'b'}) what adaptation does",
+        color=INK,
+        fontsize=11,
+        loc="left",
+        pad=8,
     )
-    bx.set_ylim(0, max(pre + post) * 1.22)
     bx.legend(frameon=False, fontsize=9, labelcolor=INK)
 
-    fig.tight_layout()
     out = args.output or (args.outdir / "stream_arms.png")
-    fig.savefig(out, dpi=200, facecolor=fig.get_facecolor())
+    fig.savefig(out, dpi=200, facecolor=SURFACE, bbox_inches="tight")
     print(f"wrote {out}")
     return 0
 

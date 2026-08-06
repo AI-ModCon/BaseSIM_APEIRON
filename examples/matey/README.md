@@ -134,23 +134,36 @@ number is meaningless; the stream harness warns when this happens.
 
 ## Result
 
-![CL vs control across the stream](../../docs/images/matey-stream-adaptation.png)
+![drift, detection and adaptation](../../docs/images/matey-stream-adaptation.png)
 
-Two arms over the identical stream: `update_mode = "base"` against
-`update_mode = "none"` as the control. Panel (a) is per-arrival mean +/- sd of the
-monitored NRMSE; the dashed lines are the arrivals after which drift fired and
-adaptation ran. Panel (b) is the before/after error on each arriving bundle.
+Read left to right, top to bottom:
 
-Adaptation cuts error 35-45% on the bundle that triggered it, and the two arms
-separate clearly through the held-out excursion. They also cross back after
-arrival ~17: adapting to the held-out scenario costs accuracy on the later
-cross-machine block, which is negative transfer rather than noise -- the
-historical-domain metric rises over the same span and does not recover.
-Reproduce with:
+- **(a-c)** the physics. Mean electron-density field in the baseline scenario and
+  in the held-out one, and the change between them as a percentage of baseline:
+  a 20-30% depletion over most of the domain, deepest at the divertor legs. This
+  is the drift, before any model is involved.
+- **(d)** what the detector sees. Per-window NRMSE across the 24 arrivals. It sits
+  flat near 0.010 for the eight in-pre-training arrivals, then steps up sharply
+  when the held-out scenario arrives. Dashed lines are the four checks at which
+  KSWIN fired and adaptation ran.
+- **(e)** what adaptation buys. Per-arrival mean ± sd for the adapting arm against
+  the no-adaptation control, with the drop on the arriving bundle at each event.
+
+Adaptation cuts error 35-45% on the bundle that triggered it, and the arms
+separate through the held-out excursion. They also cross back after arrival ~17:
+adapting to the held-out scenario costs accuracy on the later cross-machine
+block. That is negative transfer, not noise -- the historical-domain metric rises
+over the same span and does not recover.
+
+Regenerate with:
 
 ```bash
-python examples/matey/plot_stream_arms.py "$OUTDIR" --events-at 10 14 19 23
+python examples/matey/plot_stream_arms.py "$OUTDIR" --events-at 10 14 19 23 \
+    --fields path/to/drift_showcase.npz
 ```
+
+Panels (a-c) need the field snapshots; without `--fields` the figure is drawn
+from the stream CSVs alone.
 
 ## How the Drift Arises
 
