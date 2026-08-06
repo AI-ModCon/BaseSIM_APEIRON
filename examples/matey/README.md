@@ -20,12 +20,12 @@ a checkpoint, and the SOLPS data.**
 |---|---|
 | `model.py` | `MATEYHarness` — builds the MATEY model from a checkpoint, adapts its loaders and batch types to `BaseModelHarness`, defines the NRMSE metrics |
 | `model_stream.py` | `MATEYStreamHarness` — walks an ordered sequence of arriving simulations instead of one static root |
-| `src/settings.py` | `MateySettings` — the MATEY-side knobs, read from the data root (see below) |
-| `src/matey_batches.py` | Adapters between MATEY's dataclass batches and the framework's `(x, y)` contract |
-| `src/solps_split.py` | Deterministic, cached train/valid staging of a SOLPS root |
-| `src/solps2dwion_dataset.py` | `SOLPS2DwIONDataset` — a `b2time.nc` reader registered into MATEY's dataset registry |
-| `src/solps_field_maps.py` | SOLPS field names and map squeezing |
-| `src/fusionbench_eval_hooks.py` | `patch_leadtime`, so evaluation matches the checkpoint's rollout horizon |
+| `solps/settings.py` | `MateySettings` — the MATEY-side knobs, read from the data root (see below) |
+| `solps/matey_batches.py` | Adapters between MATEY's dataclass batches and the framework's `(x, y)` contract |
+| `solps/solps_split.py` | Deterministic, cached train/valid staging of a SOLPS root |
+| `solps/solps2dwion_dataset.py` | `SOLPS2DwIONDataset` — a `b2time.nc` reader registered into MATEY's dataset registry |
+| `solps/solps_field_maps.py` | SOLPS field names and map squeezing |
+| `solps/fusionbench_eval_hooks.py` | `patch_leadtime`, so evaluation matches the checkpoint's rollout horizon |
 | `matey.toml` | Single-root config — ADWIN, `base` updater |
 | `matey_stream.toml` | Sequential-arrival config — KSWIN; this is the one that produces the drift result below |
 | `Demo_SOLPS_vit.yaml` | Fallback MATEY architecture params, used when the checkpoint ships no `hyperparams.yaml` |
@@ -93,7 +93,7 @@ checkpoint rather than the continual-learning run:
 
 These deliberately live here rather than in the TOML. `apeiron.config` is shared
 with every other user of the framework, and a key like `field_labels` means
-nothing to the MNIST example; `src/settings.py` has the full rationale and the
+nothing to the MNIST example; `solps/settings.py` has the full rationale and the
 defaults. Every field is optional.
 
 **Read about `field_labels` before trusting any number.** MATEY assigns each
@@ -162,8 +162,9 @@ python examples/matey/plot_stream_arms.py "$OUTDIR" --events-at 10 14 19 23 \
     --fields path/to/drift_showcase.npz
 ```
 
-Panels (a-c) need the field snapshots; without `--fields` the figure is drawn
-from the stream CSVs alone.
+Panels (d) and (e) come from the stream CSVs. Panels (a-c) need field snapshots
+from a separate drift-showcase run, which is **not part of this PR** -- omit
+`--fields` and the figure is drawn from the CSVs alone.
 
 ## How the Drift Arises
 
