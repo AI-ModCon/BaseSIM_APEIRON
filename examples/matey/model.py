@@ -367,15 +367,12 @@ class MATEYHarness(BaseModelHarness):
 
         return params
 
-
-
     @staticmethod
     def _as_config_path(path: Path) -> str:
         try:
             return str(path.resolve().relative_to(Path.cwd()))
         except ValueError:
             return str(path.resolve())
-
 
     def _resolve_solps_shot_dir(self, split_root: Path) -> Path:
         """Directory that actually holds the .nc files for a split.
@@ -435,7 +432,6 @@ class MATEYHarness(BaseModelHarness):
         # pooled train/valid split would just fight it.
         if not self._settings.use_step_inference:
             self._configure_solps_staged_pool(params, cfg)
-
 
     def _params_for_loader_split(self, split: str) -> Any:
         loader_params = copy.deepcopy(self._params)

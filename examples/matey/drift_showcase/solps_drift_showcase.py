@@ -19,9 +19,8 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -117,8 +116,11 @@ def load_case(name: str, path: str, keep_fields: bool = True) -> CaseData:
 
 
 def ks_drift_score(
-    fields: dict[str, np.ndarray], ref_pool: dict[str, np.ndarray],
-    w: int, n_sample: int, seed: int
+    fields: dict[str, np.ndarray],
+    ref_pool: dict[str, np.ndarray],
+    w: int,
+    n_sample: int,
+    seed: int,
 ) -> tuple[np.ndarray, np.ndarray, list[str]]:
     """Data-based drift score: per-field two-sample Kolmogorov-Smirnov statistic
     of each monitoring window against a pooled pre-training reference.
@@ -220,7 +222,9 @@ def main() -> int:
     ap.add_argument(
         "--n-ref", type=int, default=150, help="baseline frames defining the envelope"
     )
-    ap.add_argument("--window", type=int, default=5, help="frames per monitoring window")
+    ap.add_argument(
+        "--window", type=int, default=5, help="frames per monitoring window"
+    )
     ap.add_argument(
         "--short-window",
         type=int,
@@ -242,13 +246,15 @@ def main() -> int:
     print(f"       baseline nt={len(base.time)}  ood nt={len(ood.time)}")
 
     # Envelope from the first n_ref frames of the in-pre-training case.
-    ref_desc = base.desc[: args.n_ref]
     # Pooled per-field reference drawn from the in-pre-training case.
     _rng = np.random.default_rng(args.seed)
     FIELDS = ("ne", "te", "ti")
     ref_pool = {
-        n: _rng.choice(getattr(base, n)[: args.n_ref].ravel(),
-                       size=args.ks_samples * 3, replace=False)
+        n: _rng.choice(
+            getattr(base, n)[: args.n_ref].ravel(),
+            size=args.ks_samples * 3,
+            replace=False,
+        )
         for n in FIELDS
     }
     stream_fields = {
@@ -267,7 +273,10 @@ def main() -> int:
     # is measured rather than assumed.
     ref_score, _, _ = ks_drift_score(
         {n: getattr(base, n)[: args.n_ref] for n in FIELDS},
-        ref_pool, args.window, args.ks_samples, args.seed
+        ref_pool,
+        args.window,
+        args.ks_samples,
+        args.seed,
     )
 
     results = {

@@ -91,7 +91,7 @@ def set_style() -> None:
 def save(fig, outdir: Path, name: str) -> None:
     for ext in ("pdf", "png"):
         fig.savefig(outdir / f"{name}.{ext}")
-    print(f"  wrote {outdir/name}.pdf / .png")
+    print(f"  wrote {outdir / name}.pdf / .png")
     plt.close(fig)
 
 
@@ -116,8 +116,14 @@ def panel_tag(ax, txt, x=0.008, y=0.88):
 def corner_tag(ax, txt, dx=-0.02):
     """Panel tag placed outside the axes, clear of titles and legends."""
     ax.text(
-        dx, 1.02, txt, transform=ax.transAxes, fontsize=8.5,
-        fontweight="bold", va="bottom", ha="right",
+        dx,
+        1.02,
+        txt,
+        transform=ax.transAxes,
+        fontsize=8.5,
+        fontweight="bold",
+        va="bottom",
+        ha="right",
     )
 
 
@@ -149,7 +155,11 @@ def fig1(res: dict, npz, outdir: Path) -> dict:
     ref_tflux = npz["base_desc"][: meta["n_ref_frames"], 0] / 1e23
 
     fig, axes = plt.subplots(
-        4, 1, figsize=(TEXTWIDTH, 6.1), sharex=True, height_ratios=[1.0, 1.35, 0.8, 0.95]
+        4,
+        1,
+        figsize=(TEXTWIDTH, 6.1),
+        sharex=True,
+        height_ratios=[1.0, 1.35, 0.8, 0.95],
     )
     fig.subplots_adjust(hspace=0.13)
     x = np.arange(n)
@@ -162,7 +172,9 @@ def fig1(res: dict, npz, outdir: Path) -> dict:
     # (a) actuator
     ax = axes[0]
     bg(ax)
-    ax.fill_between([0, n], ref_tflux.min(), ref_tflux.max(), color=C_BLUE, alpha=0.18, lw=0)
+    ax.fill_between(
+        [0, n], ref_tflux.min(), ref_tflux.max(), color=C_BLUE, alpha=0.18, lw=0
+    )
     ax.plot(x[: bnd + 1], tflux[: bnd + 1], color=C_BLUE, lw=1.5)
     ax.plot(x[bnd:], tflux[bnd:], color=C_VERM, lw=1.5)
     ax.set_ylabel("gas puff $\\Gamma$\n[$10^{23}\\,$s$^{-1}$]")
@@ -210,10 +222,12 @@ def fig1(res: dict, npz, outdir: Path) -> dict:
     ax.set_ylim(0, min(1.0, score.max() * 1.45))
     ax.annotate(
         f"peak KS = {score.max():.2f}  "
-        f"($\\times${score[bnd:].max()/score[:bnd].mean():.1f} the in-distribution level)",
+        f"($\\times${score[bnd:].max() / score[:bnd].mean():.1f} the in-distribution level)",
         xy=(int(np.argmax(score)), score.max()),
         xytext=(int(np.argmax(score)) - 8, min(0.99, score.max() * 1.30)),
-        fontsize=6.8, color=C_VERM, ha="right",
+        fontsize=6.8,
+        color=C_VERM,
+        ha="right",
         arrowprops=dict(arrowstyle="->", color=C_VERM, lw=0.7),
     )
     panel_tag(ax, "(b)")
@@ -225,13 +239,18 @@ def fig1(res: dict, npz, outdir: Path) -> dict:
     order = dense["field_order"]
     pretty = {"ne": "$n_e$", "te": "$T_e$", "ti": "$T_i$"}
     for j, nm in enumerate(order):
-        ax.plot(np.arange(len(pf)), pf[:, j], lw=1.3,
-                color=[C_VERM, C_GREEN, C_ORANGE][j % 3],
-                label=pretty.get(nm, nm))
+        ax.plot(
+            np.arange(len(pf)),
+            pf[:, j],
+            lw=1.3,
+            color=[C_VERM, C_GREEN, C_ORANGE][j % 3],
+            label=pretty.get(nm, nm),
+        )
     ax.set_ylabel("per-field KS\nvs. pre-training")
     ax.set_ylim(0, pf.max() * 1.35)
-    ax.legend(loc="upper left", ncol=3, fontsize=6.4, columnspacing=1.0,
-              handlelength=1.4)
+    ax.legend(
+        loc="upper left", ncol=3, fontsize=6.4, columnspacing=1.0, handlelength=1.4
+    )
     panel_tag(ax, "(c)")
 
     # (d) detector event strip
@@ -248,12 +267,21 @@ def fig1(res: dict, npz, outdir: Path) -> dict:
         ax.hlines(i, 0, n, color=GRID, lw=0.6, zorder=1)
         if f0 is None:
             ax.plot([n * 0.5], [i], marker="x", ms=6, mew=1.6, color=MUTED, zorder=4)
-            ax.text(n * 0.5 + 4, i, "never fires", va="center", fontsize=6.2, color=MUTED)
+            ax.text(
+                n * 0.5 + 4, i, "never fires", va="center", fontsize=6.2, color=MUTED
+            )
         else:
             ax.hlines(i, bnd, f0, color=col, lw=2.4, alpha=0.55, zorder=3)
-            ax.plot([f0], [i], marker=mk, ms=5.5, color=col, mec="white", mew=0.8, zorder=5)
+            ax.plot(
+                [f0], [i], marker=mk, ms=5.5, color=col, mec="white", mew=0.8, zorder=5
+            )
             ax.text(
-                f0 + 3, i, f"+{(f0-bnd)*w} frames", va="center", fontsize=6.2, color=col
+                f0 + 3,
+                i,
+                f"+{(f0 - bnd) * w} frames",
+                va="center",
+                fontsize=6.2,
+                color=col,
             )
     ax.set_xlabel(f"monitoring window   (1 window = {w} SOLPS frames)")
     ax.set_xlim(0, n)
@@ -270,10 +298,14 @@ def fig1(res: dict, npz, outdir: Path) -> dict:
         "ood_score_mean": float(score[bnd:].mean()),
         "ood_score_max": float(score[bnd:].max()),
         "peak_excursion_x": float(score[bnd:].max() / score[:bnd].mean()),
-        "per_field_ks_baseline": {n: float(np.array(dense["per_field_ks"])[:bnd, j].mean())
-                                  for j, n in enumerate(dense["field_order"])},
-        "per_field_ks_ood": {n: float(np.array(dense["per_field_ks"])[bnd:, j].mean())
-                             for j, n in enumerate(dense["field_order"])},
+        "per_field_ks_baseline": {
+            n: float(np.array(dense["per_field_ks"])[:bnd, j].mean())
+            for j, n in enumerate(dense["field_order"])
+        },
+        "per_field_ks_ood": {
+            n: float(np.array(dense["per_field_ks"])[bnd:, j].mean())
+            for j, n in enumerate(dense["field_order"])
+        },
         "first_fire_windows": {k: v for k, v in fires.items()},
     }
 
@@ -306,9 +338,24 @@ def fig2(res: dict, outdir: Path) -> dict:
     ax.set_title(f"Coarse cadence ({len(s)} windows)", fontsize=8, pad=4)
     ax.legend(
         handles=[
-            Line2D([], [], color=C_BLUE, lw=1.5, marker="o", ms=3.2, label="in pre-training"),
+            Line2D(
+                [],
+                [],
+                color=C_BLUE,
+                lw=1.5,
+                marker="o",
+                ms=3.2,
+                label="in pre-training",
+            ),
             Line2D([], [], color=C_VERM, lw=1.5, marker="o", ms=3.2, label="held out"),
-            Line2D([], [], color=MUTED, ls=(0, (1.5, 1.5)), lw=1.0, label="in-distribution $p_{99}$"),
+            Line2D(
+                [],
+                [],
+                color=MUTED,
+                ls=(0, (1.5, 1.5)),
+                lw=1.0,
+                label="in-distribution $p_{99}$",
+            ),
         ],
         loc="upper left",
         fontsize=6.4,
@@ -319,7 +366,12 @@ def fig2(res: dict, outdir: Path) -> dict:
     ax = fig.add_subplot(gs[0, 1])
     names = [d[0] for d in DETECTORS]
     cadences = [
-        ("fine", dense, C_BLUE, f"fine: {dense['n_windows']} win ({dense['window_frames']} fr)"),
+        (
+            "fine",
+            dense,
+            C_BLUE,
+            f"fine: {dense['n_windows']} win ({dense['window_frames']} fr)",
+        ),
         ("coarse", short, C_ORANGE, f"coarse: {short['n_windows']} win ({w} fr)"),
     ]
     vals = {}
@@ -328,7 +380,9 @@ def fig2(res: dict, outdir: Path) -> dict:
             d = run["detectors"][nm]
             f0 = first_fire(d, run["boundary_window"])
             vals[(tag, nm)] = (
-                (f0 - run["boundary_window"]) * run["window_frames"] if f0 is not None else None
+                (f0 - run["boundary_window"]) * run["window_frames"]
+                if f0 is not None
+                else None
             )
             vals[(tag, nm, "fa")] = d["false_alarms_before_boundary"]
 
@@ -342,18 +396,47 @@ def fig2(res: dict, outdir: Path) -> dict:
             fa = vals[(tag, nm, "fa")]
             xx = xpos[i] + (j - 0.5) * (bw + 0.02)
             if v is None:
-                ax.bar(xx, cap, bw, color="white", edgecolor=MUTED, hatch="///", lw=0.9, zorder=3)
-                ax.text(xx, cap * 0.5, "never\nfires", ha="center", va="center",
-                        fontsize=6.0, color=INK2, rotation=90, linespacing=0.9)
+                ax.bar(
+                    xx,
+                    cap,
+                    bw,
+                    color="white",
+                    edgecolor=MUTED,
+                    hatch="///",
+                    lw=0.9,
+                    zorder=3,
+                )
+                ax.text(
+                    xx,
+                    cap * 0.5,
+                    "never\nfires",
+                    ha="center",
+                    va="center",
+                    fontsize=6.0,
+                    color=INK2,
+                    rotation=90,
+                    linespacing=0.9,
+                )
             else:
                 ax.bar(xx, v, bw, color=col, edgecolor="white", lw=0.7, zorder=3)
                 lbl = f"{v}" + (f"$^{{{fa}}}$" if fa else "")
-                ax.text(xx, v + cap * 0.025, lbl, ha="center", va="bottom",
-                        fontsize=6.2, color=INK2)
+                ax.text(
+                    xx,
+                    v + cap * 0.025,
+                    lbl,
+                    ha="center",
+                    va="bottom",
+                    fontsize=6.2,
+                    color=INK2,
+                )
     ax.set_xticks(xpos)
     ax.set_xticklabels(
-        [n.replace("Page-Hinkley", "Page-\nHinkley").replace(" ", "\n", 1) if "Page" not in n
-         else n.replace("Page-Hinkley ", "Page-\nHinkley\n") for n in names],
+        [
+            n.replace("Page-Hinkley", "Page-\nHinkley").replace(" ", "\n", 1)
+            if "Page" not in n
+            else n.replace("Page-Hinkley ", "Page-\nHinkley\n")
+            for n in names
+        ],
         fontsize=6.2,
     )
     ax.set_ylabel("detection delay [SOLPS frames]")
@@ -361,7 +444,11 @@ def fig2(res: dict, outdir: Path) -> dict:
     ax.set_title("Detection delay after the change point", fontsize=8, pad=4)
     ax.legend(
         handles=[mpatches.Patch(color=c, label=lab) for _, _, c, lab in cadences]
-        + [mpatches.Patch(facecolor="white", edgecolor=MUTED, hatch="///", label="no detection")],
+        + [
+            mpatches.Patch(
+                facecolor="white", edgecolor=MUTED, hatch="///", label="no detection"
+            )
+        ],
         loc="upper center",
         ncol=3,
         fontsize=6.0,
@@ -370,8 +457,14 @@ def fig2(res: dict, outdir: Path) -> dict:
         borderpad=0.3,
     )
     ax.text(
-        0.995, 0.845, "superscript = false alarms before the change point",
-        transform=ax.transAxes, ha="right", va="top", fontsize=5.8, color=MUTED,
+        0.995,
+        0.845,
+        "superscript = false alarms before the change point",
+        transform=ax.transAxes,
+        ha="right",
+        va="top",
+        fontsize=5.8,
+        color=MUTED,
     )
     corner_tag(ax, "(b)", dx=-0.10)
 
@@ -409,8 +502,15 @@ def fig3(matey_run: Path, base_nc: str, outdir: Path) -> dict:
         ax.plot(x, nr[f], color=col, marker=mk, ms=3.0, lw=1.3, label=f)
     ax.plot(x, nmean, color=INK, lw=1.7, ls="--", label="mean (monitored)")
     ax.axhline(0.011, color=MUTED, lw=1.0, ls=(0, (1.5, 1.5)))
-    ax.text(len(x) - 0.8, 0.05, "FusionBench reference NRMSE = 0.011",
-            va="bottom", ha="right", fontsize=6.4, color=MUTED)
+    ax.text(
+        len(x) - 0.8,
+        0.05,
+        "FusionBench reference NRMSE = 0.011",
+        va="bottom",
+        ha="right",
+        fontsize=6.4,
+        color=MUTED,
+    )
     ax.set_ylim(0, 1.30)
     ax.set_xlim(-0.5, len(x) - 0.5)
     ax.set_ylabel("NRMSE")
@@ -418,11 +518,14 @@ def fig3(matey_run: Path, base_nc: str, outdir: Path) -> dict:
     ax.set_title(
         "Performance-based monitoring of MATEY is blind to the regime change:\n"
         "the surrogate is already at no-skill error on data it was trained on",
-        fontsize=8.2, pad=4,
+        fontsize=8.2,
+        pad=4,
     )
     ax.text(nb * 0.5, 1.20, "in pre-training", ha="center", fontsize=7.0, color=C_BLUE)
     ax.text(nb * 1.5, 1.20, "held out", ha="center", fontsize=7.0, color=C_VERM)
-    ax.legend(loc="lower left", ncol=4, fontsize=6.4, columnspacing=1.0, handlelength=1.6)
+    ax.legend(
+        loc="lower left", ncol=4, fontsize=6.4, columnspacing=1.0, handlelength=1.6
+    )
     corner_tag(ax, "(a)", dx=-0.055)
 
     # (b,c) predicted vs ground truth
@@ -446,9 +549,13 @@ def fig3(matey_run: Path, base_nc: str, outdir: Path) -> dict:
             ax.set_ylabel("MATEY prediction (norm.)")
         ax.set_title(f, fontsize=8)
         ax.text(
-            0.96, 0.06,
-            f"$r$ = {r:+.2f}\n$\\sigma_{{\\rm pred}}/\\sigma_{{\\rm true}}$ = {p.std()/t.std():.2f}",
-            transform=ax.transAxes, ha="right", va="bottom", fontsize=6.8,
+            0.96,
+            0.06,
+            f"$r$ = {r:+.2f}\n$\\sigma_{{\\rm pred}}/\\sigma_{{\\rm true}}$ = {p.std() / t.std():.2f}",
+            transform=ax.transAxes,
+            ha="right",
+            va="bottom",
+            fontsize=6.8,
             bbox=dict(fc="white", ec=GRID, alpha=0.9, pad=2.0),
         )
         corner_tag(ax, f"({'bc'[j]})", dx=-0.16)
@@ -465,8 +572,22 @@ def fig3(matey_run: Path, base_nc: str, outdir: Path) -> dict:
         / (np.log10(NE[1]) - np.log10(NE[0]))
     ).ravel()
     bins = np.linspace(0, 1, 55)
-    ax.hist(lin, bins=bins, color=C_VERM, alpha=0.8, density=True, label="linear min-max\n(current loader)")
-    ax.hist(lg, bins=bins, color=C_BLUE, alpha=0.65, density=True, label="log$_{10}$ min-max")
+    ax.hist(
+        lin,
+        bins=bins,
+        color=C_VERM,
+        alpha=0.8,
+        density=True,
+        label="linear min-max\n(current loader)",
+    )
+    ax.hist(
+        lg,
+        bins=bins,
+        color=C_BLUE,
+        alpha=0.65,
+        density=True,
+        label="log$_{10}$ min-max",
+    )
     ax.set_yscale("log")
     ax.set_xlabel("normalised $n_e$ input")
     ax.set_ylabel("density")
@@ -503,8 +624,12 @@ def fig4(npz, outdir: Path) -> dict:
             ax = axes[row, col]
             im = ax.imshow(
                 np.clip(arr, vmin, None) if uselog else arr,
-                origin="lower", aspect="auto", cmap=SEQ, norm=norm,
-                vmin=None if uselog else 0, vmax=None if uselog else vmax,
+                origin="lower",
+                aspect="auto",
+                cmap=SEQ,
+                norm=norm,
+                vmin=None if uselog else 0,
+                vmax=None if uselog else vmax,
             )
             if row == 0:
                 ax.set_title(ttl, fontsize=7.2, pad=4)
@@ -520,9 +645,13 @@ def fig4(npz, outdir: Path) -> dict:
         ax = axes[row, 2]
         rel = 100.0 * (o - b) / np.maximum(b, 1e-30)
         lim = float(np.percentile(np.abs(rel), 99))
-        im = ax.imshow(rel, origin="lower", aspect="auto", cmap=DIV, vmin=-lim, vmax=lim)
+        im = ax.imshow(
+            rel, origin="lower", aspect="auto", cmap=DIV, vmin=-lim, vmax=lim
+        )
         if row == 0:
-            ax.set_title("relative change\n(held out $-$ pre-training)", fontsize=7.2, pad=4)
+            ax.set_title(
+                "relative change\n(held out $-$ pre-training)", fontsize=7.2, pad=4
+            )
         if row == 1:
             ax.set_xlabel("poloidal index", fontsize=7.5)
         ax.tick_params(labelsize=6.2)
@@ -538,7 +667,8 @@ def fig4(npz, outdir: Path) -> dict:
         }
     fig.suptitle(
         "Time-averaged plasma state: where the held-out case leaves the pre-training domain",
-        fontsize=8.5, y=1.02,
+        fontsize=8.5,
+        y=1.02,
     )
     fig.tight_layout(h_pad=0.7, w_pad=1.0)
     save(fig, outdir, "fig4_field_maps")
@@ -548,7 +678,9 @@ def fig4(npz, outdir: Path) -> dict:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--showcase", required=True)
-    ap.add_argument("--matey-run", default="output/matey_inference_drift_20260717_191534")
+    ap.add_argument(
+        "--matey-run", default="output/matey_inference_drift_20260717_191534"
+    )
     ap.add_argument(
         "--baseline-nc",
         default="/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_drift/baseline/valid/d3d_sequence_sin4.nc",
@@ -574,7 +706,9 @@ def main() -> int:
     s4 = fig4(npz, outdir)
 
     with open(outdir / "figure_stats.json", "w") as fh:
-        json.dump({"fig1": s1, "fig2": s2, "fig3": s3, "fig4": s4}, fh, indent=2, default=str)
+        json.dump(
+            {"fig1": s1, "fig2": s2, "fig3": s3, "fig4": s4}, fh, indent=2, default=str
+        )
     print(f"[done] figures + stats in {outdir}")
     return 0
 

@@ -62,15 +62,38 @@ PROC_ROOT = RAW_ROOT + "/processed"
 
 # Column layout of Data.x as actually written (11 columns).
 COL = {
-    "pos_r": 0, "pos_z": 1, "pos_phi": 2,
-    "e_den": 3, "e_T_perp": 4, "e_T_para": 5, "e_u_para": 6,
-    "i_T_perp": 7, "i_T_para": 8, "i_u_para": 9, "dpot": 10,
+    "pos_r": 0,
+    "pos_z": 1,
+    "pos_phi": 2,
+    "e_den": 3,
+    "e_T_perp": 4,
+    "e_T_para": 5,
+    "e_u_para": 6,
+    "i_T_perp": 7,
+    "i_T_para": 8,
+    "i_u_para": 9,
+    "dpot": 10,
 }
-FIELDS = ["e_den", "e_T_perp", "e_T_para", "e_u_para",
-          "i_T_perp", "i_T_para", "i_u_para", "dpot"]
-UNITS = {"e_den": "m$^{-3}$", "e_T_perp": "eV", "e_T_para": "eV",
-         "e_u_para": "m s$^{-1}$", "i_T_perp": "eV", "i_T_para": "eV",
-         "i_u_para": "m s$^{-1}$", "dpot": "V"}
+FIELDS = [
+    "e_den",
+    "e_T_perp",
+    "e_T_para",
+    "e_u_para",
+    "i_T_perp",
+    "i_T_para",
+    "i_u_para",
+    "dpot",
+]
+UNITS = {
+    "e_den": "m$^{-3}$",
+    "e_T_perp": "eV",
+    "e_T_para": "eV",
+    "e_u_para": "m s$^{-1}$",
+    "i_T_perp": "eV",
+    "i_T_para": "eV",
+    "i_u_para": "m s$^{-1}$",
+    "dpot": "V",
+}
 
 # (case dir, short label, device, in pre-training?, frame budget)
 # Frame budgets track file size: one ITER graphdata_*.pt is ~6.9 GB
@@ -111,14 +134,27 @@ def read_mesh(case: str, root: str) -> dict:
     if wall_idx.min() >= 1 and wall_idx.max() >= rz.shape[0]:
         wall_idx = wall_idx - 1
     return {
-        "rz": rz, "tri": tri, "psi_n": psi / x_psi, "node_vol": node_vol,
-        "wall": rz[wall_idx], "x_psi": x_psi, "axis": (axis_r, axis_z),
-        "nnodes": int(rz.shape[0]), "ntri": int(tri.shape[0]),
+        "rz": rz,
+        "tri": tri,
+        "psi_n": psi / x_psi,
+        "node_vol": node_vol,
+        "wall": rz[wall_idx],
+        "x_psi": x_psi,
+        "axis": (axis_r, axis_z),
+        "nnodes": int(rz.shape[0]),
+        "ntri": int(tri.shape[0]),
     }
 
 
-def load_case(case: str, n_frames: int, n_nodes: int, seed: int,
-              mesh: dict, proc_root: str, skip_frac: float = 0.1):
+def load_case(
+    case: str,
+    n_frames: int,
+    n_nodes: int,
+    seed: int,
+    mesh: dict,
+    proc_root: str,
+    skip_frac: float = 0.1,
+):
     """Plane-0 physical fields per frame, volume- and uniform-weighted samples.
 
     Returns (samples_vol, samples_uni, node_idx_vol, snapshot, times) where the
@@ -157,8 +193,9 @@ def load_case(case: str, n_frames: int, n_nodes: int, seed: int,
         if x.shape[1] != 11:
             raise ValueError(f"{case}: expected 11 feature columns, got {x.shape[1]}")
         if x.shape[0] % nn != 0:
-            raise ValueError(f"{case}: {x.shape[0]} rows not a multiple of "
-                             f"{nn} mesh nodes")
+            raise ValueError(
+                f"{case}: {x.shape[0]} rows not a multiple of {nn} mesh nodes"
+            )
         plane0 = x[:nn]  # graph node i of plane 0 == mesh node i
         out_v.append(plane0[idx_vol][:, cols].astype(np.float64))
         out_u.append(plane0[idx_uni][:, cols].astype(np.float64))
@@ -172,8 +209,7 @@ def load_case(case: str, n_frames: int, n_nodes: int, seed: int,
 
 def ks_mean(a: np.ndarray, b: np.ndarray) -> tuple[float, np.ndarray]:
     """Mean and per-field two-sample KS between two [N, n_fields] samples."""
-    per = np.array([ks_2samp(a[:, j], b[:, j]).statistic
-                    for j in range(a.shape[1])])
+    per = np.array([ks_2samp(a[:, j], b[:, j]).statistic for j in range(a.shape[1])])
     return float(per.mean()), per
 
 
@@ -184,11 +220,16 @@ def main() -> int:
     ap.add_argument("--frames", type=int, default=12, help="max frames per case")
     ap.add_argument("--nodes", type=int, default=20000, help="nodes sampled per frame")
     ap.add_argument("--psi-bins", type=int, default=24)
-    ap.add_argument("--skip-frac", type=float, default=0.1,
-                    help="fraction of each run discarded as initial transient")
+    ap.add_argument(
+        "--skip-frac",
+        type=float,
+        default=0.1,
+        help="fraction of each run discarded as initial transient",
+    )
     ap.add_argument("--seed", type=int, default=0)
-    ap.add_argument("--only", default=None,
-                    help="comma-separated case labels, for smoke tests")
+    ap.add_argument(
+        "--only", default=None, help="comma-separated case labels, for smoke tests"
+    )
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
 
@@ -205,21 +246,32 @@ def main() -> int:
         print(f"[load] {lab:14} ({dev:8}) frames={nf}", flush=True)
         try:
             mesh = read_mesh(case, args.raw_root)
-            v, u, idx, snap, ts = load_case(case, nf, args.nodes, args.seed,
-                                            mesh, args.proc_root, args.skip_frac)
+            v, u, idx, snap, ts = load_case(
+                case, nf, args.nodes, args.seed, mesh, args.proc_root, args.skip_frac
+            )
         except Exception as exc:  # noqa: BLE001
             print(f"   SKIPPED: {exc}", flush=True)
             continue
         meshes[lab], sam_v[lab], sam_u[lab] = mesh, v, u
         snaps[lab], times[lab] = snap, ts
         psin_s[lab] = mesh["psi_n"][idx]
-        meta[lab] = {"case": case, "device": dev, "in_pretraining": in_pre,
-                     "n_frames": int(v.shape[0]), "n_nodes_sampled": int(v.shape[1]),
-                     "mesh_nodes": mesh["nnodes"], "mesh_tri": mesh["ntri"],
-                     "n_planes": None, "times": ts,
-                     "has_snapshot": snap is not None}
-        print(f"   mesh {mesh['nnodes']:,} nodes / {mesh['ntri']:,} tri   "
-              f"psi_n max {mesh['psi_n'].max():.2f}", flush=True)
+        meta[lab] = {
+            "case": case,
+            "device": dev,
+            "in_pretraining": in_pre,
+            "n_frames": int(v.shape[0]),
+            "n_nodes_sampled": int(v.shape[1]),
+            "mesh_nodes": mesh["nnodes"],
+            "mesh_tri": mesh["ntri"],
+            "n_planes": None,
+            "times": ts,
+            "has_snapshot": snap is not None,
+        }
+        print(
+            f"   mesh {mesh['nnodes']:,} nodes / {mesh['ntri']:,} tri   "
+            f"psi_n max {mesh['psi_n'].max():.2f}",
+            flush=True,
+        )
 
     labs = [lab for _, lab, _, _, _ in CASES if lab in sam_v]
     dev_of = {lab: meta[lab]["device"] for lab in labs}
@@ -235,12 +287,17 @@ def main() -> int:
         a = sam_v[lab][0]
         perm = rng.permutation(a.shape[0])
         h = a.shape[0] // 2
-        floor_sampling[lab] = ks_mean(a[perm[:h]], a[perm[h:2 * h]])[0]
-        tv = [ks_mean(sam_v[lab][t], sam_v[lab][0])[0]
-              for t in range(1, sam_v[lab].shape[0])]
+        floor_sampling[lab] = ks_mean(a[perm[:h]], a[perm[h : 2 * h]])[0]
+        tv = [
+            ks_mean(sam_v[lab][t], sam_v[lab][0])[0]
+            for t in range(1, sam_v[lab].shape[0])
+        ]
         floor_temporal[lab] = tv
-        print(f"[L0 ] {lab:14} sampling={floor_sampling[lab]:.4f}  "
-              f"temporal={np.mean(tv) if tv else float('nan'):.4f}", flush=True)
+        print(
+            f"[L0 ] {lab:14} sampling={floor_sampling[lab]:.4f}  "
+            f"temporal={np.mean(tv) if tv else float('nan'):.4f}",
+            flush=True,
+        )
 
     # ---- L1/L2: pairwise ------------------------------------------------
     # Two views of the same comparison, and they answer different questions.
@@ -293,8 +350,10 @@ def main() -> int:
     # L0 restated in the windowed form, so it shares units with L1/L2.
     floor_window = {lab: windowed(lab, lab) for lab in labs}
     for lab in labs:
-        print(f"[L0w] {lab:14} frame-vs-own-pool="
-              f"{np.mean(floor_window[lab]):.4f}", flush=True)
+        print(
+            f"[L0w] {lab:14} frame-vs-own-pool={np.mean(floor_window[lab]):.4f}",
+            flush=True,
+        )
 
     same_machine, cross_machine = [], []
     for i, a in enumerate(labs):
@@ -302,13 +361,18 @@ def main() -> int:
             if j <= i:
                 continue
             wab, wba = windowed(a, b), windowed(b, a)
-            rec = {"a": a, "b": b, "ks_pooled": float(mat_v[i, j]),
-                   "ks_pooled_uniform": float(mat_u[i, j]),
-                   "ks_windowed": float(np.mean(wab + wba)),
-                   "ks_windowed_ab": [float(x) for x in wab],
-                   "ks_windowed_ba": [float(x) for x in wba],
-                   "per_field": {f: float(mat_field[i, j, k])
-                                 for k, f in enumerate(FIELDS)}}
+            rec = {
+                "a": a,
+                "b": b,
+                "ks_pooled": float(mat_v[i, j]),
+                "ks_pooled_uniform": float(mat_u[i, j]),
+                "ks_windowed": float(np.mean(wab + wba)),
+                "ks_windowed_ab": [float(x) for x in wab],
+                "ks_windowed_ba": [float(x) for x in wba],
+                "per_field": {
+                    f: float(mat_field[i, j, k]) for k, f in enumerate(FIELDS)
+                },
+            }
             (same_machine if dev_of[a] == dev_of[b] else cross_machine).append(rec)
 
     # ---- coverage vs. the pre-trained devices --------------------------
@@ -322,8 +386,10 @@ def main() -> int:
         if not others:
             coverage[lab] = []
             continue
-        coverage[lab] = [min(ks_mean(sam_v[lab][t], pool_v[r])[0] for r in others)
-                         for t in range(sam_v[lab].shape[0])]
+        coverage[lab] = [
+            min(ks_mean(sam_v[lab][t], pool_v[r])[0] for r in others)
+            for t in range(sam_v[lab].shape[0])
+        ]
         print(f"[cov] {lab:14} {np.mean(coverage[lab]):.4f}", flush=True)
 
     # ---- radial structure: psi_n-binned profiles and per-bin KS --------
@@ -356,7 +422,9 @@ def main() -> int:
 
     radial_pairs = {}
     for rec in same_machine:
-        radial_pairs[f"{rec['a']} | {rec['b']}"] = radial_ks(rec["a"], rec["b"]).tolist()
+        radial_pairs[f"{rec['a']} | {rec['b']}"] = radial_ks(
+            rec["a"], rec["b"]
+        ).tolist()
     # one representative cross-machine pair per held-out device vs each reference
     for lab in labs:
         for r in refs:
@@ -367,11 +435,13 @@ def main() -> int:
 
     # ---- save -----------------------------------------------------------
     arrays = {
-        "pair_matrix": mat_v, "pair_matrix_uniform": mat_u,
+        "pair_matrix": mat_v,
+        "pair_matrix_uniform": mat_u,
         "pair_matrix_field": mat_field,
         "pair_labels": np.array(labs, dtype=object),
         "fields": np.array(FIELDS, dtype=object),
-        "psi_edges": edges, "psi_centres": centres,
+        "psi_edges": edges,
+        "psi_centres": centres,
     }
     for lab in labs:
         k = key(lab)
@@ -401,41 +471,58 @@ def main() -> int:
         "cross_machine_pairs": cross_machine,
         "levels": {
             "L0_sampling_floor": floor_sampling,
-            "L0_temporal_vs_frame0": {k: [float(x) for x in v]
-                                      for k, v in floor_temporal.items()},
-            "L0_temporal_windowed": {k: [float(x) for x in v]
-                                     for k, v in floor_window.items()},
+            "L0_temporal_vs_frame0": {
+                k: [float(x) for x in v] for k, v in floor_temporal.items()
+            },
+            "L0_temporal_windowed": {
+                k: [float(x) for x in v] for k, v in floor_window.items()
+            },
             "L0_sampling_floor_mean": float(np.mean(list(floor_sampling.values()))),
             "L0_temporal_windowed_mean": float(
-                np.mean([x for v in floor_window.values() for x in v])),
-            "L1_same_machine_mean": float(np.mean([r["ks_windowed"]
-                                                   for r in same_machine]))
-            if same_machine else None,
-            "L2_cross_machine_mean": float(np.mean([r["ks_windowed"]
-                                                    for r in cross_machine]))
-            if cross_machine else None,
-            "L1_same_machine_pooled": float(np.mean([r["ks_pooled"]
-                                                     for r in same_machine]))
-            if same_machine else None,
-            "L2_cross_machine_pooled": float(np.mean([r["ks_pooled"]
-                                                      for r in cross_machine]))
-            if cross_machine else None,
+                np.mean([x for v in floor_window.values() for x in v])
+            ),
+            "L1_same_machine_mean": float(
+                np.mean([r["ks_windowed"] for r in same_machine])
+            )
+            if same_machine
+            else None,
+            "L2_cross_machine_mean": float(
+                np.mean([r["ks_windowed"] for r in cross_machine])
+            )
+            if cross_machine
+            else None,
+            "L1_same_machine_pooled": float(
+                np.mean([r["ks_pooled"] for r in same_machine])
+            )
+            if same_machine
+            else None,
+            "L2_cross_machine_pooled": float(
+                np.mean([r["ks_pooled"] for r in cross_machine])
+            )
+            if cross_machine
+            else None,
         },
         "coverage": {k: [float(x) for x in v] for k, v in coverage.items()},
         "coverage_mean": {k: float(np.mean(v)) for k, v in coverage.items()},
         "radial_pairs": radial_pairs,
         "psi_centres": centres.tolist(),
-        "settings": {"frames": args.frames, "nodes": args.nodes,
-                     "seed": args.seed, "psi_bins": args.psi_bins,
-                     "skip_frac": args.skip_frac},
+        "settings": {
+            "frames": args.frames,
+            "nodes": args.nodes,
+            "seed": args.seed,
+            "psi_bins": args.psi_bins,
+            "skip_frac": args.skip_frac,
+        },
     }
     lv = summary["levels"]
     if lv["L1_same_machine_mean"] and lv["L2_cross_machine_mean"]:
         lv["cross_over_same"] = lv["L2_cross_machine_mean"] / lv["L1_same_machine_mean"]
-        lv["same_over_temporal"] = (lv["L1_same_machine_mean"]
-                                    / lv["L0_temporal_windowed_mean"])
-        lv["cross_over_temporal"] = (lv["L2_cross_machine_mean"]
-                                     / lv["L0_temporal_windowed_mean"])
+        lv["same_over_temporal"] = (
+            lv["L1_same_machine_mean"] / lv["L0_temporal_windowed_mean"]
+        )
+        lv["cross_over_temporal"] = (
+            lv["L2_cross_machine_mean"] / lv["L0_temporal_windowed_mean"]
+        )
     with open(outdir / "xgc_mesh_drift.json", "w") as fh:
         json.dump(summary, fh, indent=2)
 
