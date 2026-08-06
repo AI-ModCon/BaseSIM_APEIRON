@@ -27,7 +27,6 @@ data/*
 !tests/references/*.csv
 *.pdf
 *.json
-!examples/**/*.json
 /wandb/
 
 # Github

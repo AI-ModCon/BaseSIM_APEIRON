@@ -21,6 +21,13 @@ import pytest
 # access-restricted dependency. Skip rather than fail collection without it.
 pytest.importorskip("matey", reason="the MATEY package is not installed")
 
+import sys
+from pathlib import Path
+
+_ROOT = Path(__file__).resolve().parents[1]
+if str(_ROOT) not in sys.path:  # repo root, so `examples.matey` imports
+    sys.path.append(str(_ROOT))
+
 from examples.matey.solps.solps2dwion_dataset import (  # noqa: E402
     _CASE_MINMAX,
     SOLPS2DwIONDataset,
