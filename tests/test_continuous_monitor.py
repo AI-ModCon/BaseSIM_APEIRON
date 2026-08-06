@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 import pytest
-import torch
 
 from apeiron.config.configuration import EvalCfg
 from apeiron.drift_detection.detectors.base import DriftSignal, LearningRegime
@@ -216,57 +214,3 @@ class TestMaxValBatches:
         assert default_cfg.eval is None
         mon = ContinuousMonitor(cfg=default_cfg, modelHarness=dummy_harness)
         assert mon.max_val_batches == 0
-
-
-class TestCheckpointing:
-    """``model.max_ckpts`` has been declared since before it did anything.
-
-    Without a written snapshot an adapted run cannot be replayed, which is what
-    a before/after comparison against the pretrained model needs.
-    """
-
-    def _trainer(self, default_cfg, dummy_harness, tmp_path, keep):
-        from apeiron.config.configuration import ModelCfg
-        from apeiron.training.continuous_trainer import ContinuousTrainer
-
-        cfg = replace(
-            default_cfg,
-            model=ModelCfg(
-                name="tiny",
-                pretrained_path="",
-                max_ckpts=keep,
-                ckpts_path=str(tmp_path / "ckpts"),
-            ),
-        )
-        return ContinuousTrainer(
-            cfg=cfg, modelHarness=dummy_harness, logger=MagicMock(), profiler=None
-        ), Path(str(tmp_path / "ckpts"))
-
-    def test_zero_keeps_the_historical_behaviour(
-        self, default_cfg, dummy_harness, tmp_path
-    ):
-        trainer, root = self._trainer(default_cfg, dummy_harness, tmp_path, keep=0)
-        trainer._save_checkpoint(0)
-        assert not root.exists()
-
-    def test_snapshot_is_written_and_loadable(
-        self, default_cfg, dummy_harness, tmp_path
-    ):
-        trainer, root = self._trainer(default_cfg, dummy_harness, tmp_path, keep=2)
-        trainer._save_checkpoint(3)
-        saved = list(root.glob("drift_*.pt"))
-        assert [p.name for p in saved] == ["drift_003.pt"]
-        assert set(torch.load(saved[0], weights_only=True)) == set(
-            dummy_harness.model.state_dict()
-        )
-
-    def test_retention_keeps_only_the_newest(
-        self, default_cfg, dummy_harness, tmp_path
-    ):
-        trainer, root = self._trainer(default_cfg, dummy_harness, tmp_path, keep=2)
-        for event in range(4):
-            trainer._save_checkpoint(event)
-        assert sorted(p.name for p in root.glob("drift_*.pt")) == [
-            "drift_002.pt",
-            "drift_003.pt",
-        ]

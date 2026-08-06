@@ -3,8 +3,6 @@ from __future__ import annotations
 from collections.abc import Iterator
 from typing import Any, Optional
 
-from pathlib import Path
-
 import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -85,28 +83,6 @@ class ContinuousTrainer:
         # increment=False: annotate the CL round's step, do not advance it.
         logger.log(payload, commit=False, increment=False)
 
-    def _save_checkpoint(self, drift_event_id: int) -> None:
-        """Write a post-CL snapshot, keeping the newest ``model.max_ckpts``.
-
-        ModelCfg has advertised max_ckpts/ckpts_path since before this commit
-        without anything writing them, so a run could not be replayed from its
-        adapted weights. 0 keeps that behaviour.
-        """
-        keep = int(getattr(self.cfg.model, "max_ckpts", 0) or 0)
-        if keep <= 0:
-            return
-
-        root = Path(self.cfg.model.ckpts_path or "output/checkpoints")
-        root.mkdir(parents=True, exist_ok=True)
-        path = root / f"drift_{drift_event_id:03d}.pt"
-        torch.save(self.modelHarness.model.state_dict(), path)
-
-        stale = sorted(root.glob("drift_*.pt"))[:-keep]
-        for old in stale:
-            old.unlink()
-
-        get_logger(__name__).info(f"\tSaved checkpoint: {path}", level=1)
-
     def outer_cl_training_loop(
         self,
         drift_event_id: int = 0,
@@ -178,7 +154,6 @@ class ContinuousTrainer:
         self._log_validation(
             "post", cur_validation_metrics, hist_validation_metrics, drift_event_id
         )
-        self._save_checkpoint(drift_event_id)
 
         logger.info(f"\tTest Accuracy: {cur_validation_metrics[0]:.1f}%", level=1)
         if hist_validation_metrics is not None:
