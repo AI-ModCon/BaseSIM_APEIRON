@@ -163,6 +163,37 @@ Panels (d) and (e) come from the stream CSVs. Panels (a-c) need field snapshots
 from a separate drift-showcase run, which is **not part of this PR** -- omit
 `--fields` and the figure is drawn from the CSVs alone.
 
+## Which Detector Fires
+
+All four arms below monitor the identical 343-window error trace -- with
+`update_mode = "none"` the model never changes, so the signal is the same and
+only the detector differs:
+
+| detector | detections | notes |
+|---|---:|---|
+| `ADWINDetector` | 0 | tracks the running mean; blind to this shift |
+| `PageHinkleyDetector` | 0 | likewise |
+| `KSWINDetector` (seeded) | 4 | tests the error *distribution* |
+| `EnsembleDetector`, `any` vote of all three | 4 | identical steps to KSWIN alone |
+
+The shift shows up as a change in the distribution of the per-window error, not
+in its mean, which is why the two mean-based detectors never trigger. The
+ensemble inherits KSWIN's detections exactly and adds nothing here -- useful as
+a negative result: `any` voting costs no false alarms when the other members
+stay silent, but it cannot manufacture sensitivity they do not have.
+
+Reproduce with:
+
+```bash
+for d in ADWINDetector KSWINDetector PageHinkleyDetector EnsembleDetector; do
+  sbatch --export=ALL,OUTDIR="$OUTDIR",DETECTOR="$d",TAG="_$d" \
+    examples/matey/submit_stream_cl.sh nocl
+done
+```
+
+`kswin_seed` makes this reproducible; without it KSWIN draws its reference
+window at random and the firing steps move between runs.
+
 ## How the Drift Arises
 
 Nothing is synthesised. The 24-arrival stream the shipped config describes is

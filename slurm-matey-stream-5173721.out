@@ -1,0 +1,477 @@
+stream has 32 arrivals -> max_stream_updates=23
+================ arm=nocl (update_mode=none) ================
+/lustre/orion/world-shared/stf218/junqi/forge/matey-env-rcom631/lib/python3.10/site-packages/torch_geometric/__init__.py:4: UserWarning: An issue occurred while importing 'pyg-lib'. Disabling its usage. Stacktrace: librocm_smi64.so.1: cannot open shared object file: No such file or directory
+  import torch_geometric.typing
+/lustre/orion/world-shared/stf218/junqi/forge/matey-env-rcom631/lib/python3.10/site-packages/torch_geometric/__init__.py:4: UserWarning: An issue occurred while importing 'torch-sparse'. Disabling its usage. Stacktrace: librocm_smi64.so.1: cannot open shared object file: No such file or directory
+  import torch_geometric.typing
+2026-08-05 23:24:05.149314: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: SSE3 SSE4.1 SSE4.2 AVX AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'
+log_to_screen True
+save_checkpoint True
+checkpoint_save_interval 5
+true_time False
+num_data_workers 4
+enable_amp False
+compile False
+gradient_checkpointing False
+exp_dir ./Dev_Fusion_MAY_AR
+log_interval 1
+pretrained False
+drop_path 0.1
+max_epochs 100
+scheduler_epochs -1
+epoch_size 200
+rescale_gradients False
+optimizer AdamW
+scheduler cosine
+warmup_steps 5
+learning_rate 0.001
+weight_decay 0.001
+n_states 15
+state_names ['Pressure', 'Vx', 'Vy', 'Density', 'Vx', 'Vy', 'Density', 'Pressure']
+dt 1
+leadtime_max 1
+autoregressive True
+supportdata [{'input_control_act': True}]
+n_steps 2
+enforce_max_steps False
+accum_grad 1
+model_type turbt
+tie_fields False
+embed_dim 192
+num_heads 3
+processor_blocks 12
+tokenizer_heads [{'head_name': 'tk-2D', 'patch_size': [[1, 2, 2]]}, {'head_name': 'tk-3D', 'patch_size': [[2, 2, 2]]}, {'head_name': 'tk-graph', 'patch_size': [[4, 4, 4]]}]
+hierarchical {'filtersize': 2, 'nlevels': 1, 'fixedupsample': False, 'linearupsample': False}
+notransposed False
+batch_size 1
+nbatchs_loc 50
+sts_model False
+sts_train False
+bias_type PositionAreaBias
+bias_MLP True
+train_val_test [0.8, 0.1, 0.1]
+augmentation False
+use_all_fields True
+tie_batches False
+extended_names False
+embedding_offset 0
+train_data_paths [['/lustre/orion/fus183/proj-shared/MATEY/Datasets_pretraining/solps/train/', 'SOLPS2D', '', 'tk-2D'], ['/lustre/orion/fus183/proj-shared/MATEY/Datasets_pretraining/solps/SOLPS2DwION/', 'SOLPS2DwION', '', 'tk-2D'], ['/lustre/orion/fus183/proj-shared/MATEY/Datasets_pretraining/gkeyll/', 'gkeylltcv', '', 'tk-3D'], ['/lustre/orion/fus183/proj-shared/fusiond-seed-xgc1-data/', 'graphxgc', '', 'tk-graph']]
+valid_data_paths [['/lustre/orion/fus183/proj-shared/MATEY/Datasets_pretraining/solps/valid/', 'SOLPS2D', '', 'tk-2D'], ['/lustre/orion/fus183/proj-shared/MATEY/Datasets_pretraining/gkeyll/', 'gkeylltcv', '', 'tk-3D'], ['/lustre/orion/fus183/proj-shared/fusiond-seed-xgc1-data/', 'graphxgc', '', 'tk-graph']]
+append_datasets []
+startEpoch 0
+old_exp_dir ./Dev_Fusion_MAY_AR/basic_config/demo_nbatchsloc100_lt1
+experiment_dir /lustre/orion/lrn037/scratch/zhangp/fy25/github/coderelease/MATEY/examples/Dev_Fusion_MAY_AR/basic_config/demo_nbatchsloc100_lt1
+checkpoint_path ./Dev_Fusion_MAY_AR/basic_config/demo_nbatchsloc100_lt1/training_checkpoints/ckpt.tar
+best_checkpoint_path ./Dev_Fusion_MAY_AR/basic_config/demo_nbatchsloc100_lt1/training_checkpoints/best_ckpt.tar
+old_checkpoint_path ./Dev_Fusion_MAY_AR/basic_config/demo_nbatchsloc100_lt1/training_checkpoints/best_ckpt.tar
+resuming True
+[32mINFO:0[0m | 23:24:15 | step=0 | model | Using MATEY hyperparams from checkpoint: /lustre/orion/lrn097/scratch/asvillar/mateydata/models/leadtime_1/hyperparams.yaml
+[32mINFO:0[0m | 23:24:16 | step=0 | model | Loaded MATEY pretrained weights: /lustre/orion/lrn097/scratch/asvillar/mateydata/models/leadtime_1/best_ckpt.tar
+[32mINFO:0[0m | 23:24:16 | step=0 | model | MATEY settings: dset_type=SOLPS2DwION, field_labels=[533, 534, 535], leadtime=1, step_inference=True, drop_cond_input=False
+[32mINFO:0[0m | 23:24:16 | step=0 | model_stream | ==== MATEY sequential simulation stream ====
+[32mINFO:0[0m | 23:24:16 | step=0 | continuous_monitor | ==== ContinuousMonitor initialized ====
+[32mINFO:0[0m | 23:24:16 | step=0 | continuous_monitor | ==== Starting Continuous Monitoring ====
+[32mINFO:0[0m | 23:24:16 | step=0 | model_stream | ==== arrival 1/32: baseline_d3d seg 0 [DIII-D] ====
+[W805 23:24:17.383473865 socket.cpp:755] [c10d] The client socket cannot be initialized to connect to [localhost.localdomain]:29500 (errno: 97 - Address family not supported by protocol).
+Using train/val/test split: [1.0, 0.0, 0.0]
+Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_000_baseline_d3d_00/train/D3D/174310_D',)
+Using train/val/test split: [0.0, 1.0, 0.0]
+Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_000_baseline_d3d_00/valid/D3D/174310_D',)
+Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:21, 21.49s/it]Processing batches: 3it [00:21,  5.62s/it]Processing batches: 5it [00:21,  2.78s/it]Processing batches: 7it [00:21,  1.64s/it]Processing batches: 9it [00:22,  1.05s/it]Processing batches: 11it [00:22,  1.40it/s]Processing batches: 13it [00:22,  1.97it/s]                                           [32mINFO:0[0m | 23:24:40 | step=28 | model_stream | ==== arrival 2/32: baseline_d3d seg 1 [DIII-D] ====
+Using train/val/test split: [1.0, 0.0, 0.0]
+Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_001_baseline_d3d_01/train/D3D/174310_D',)
+Using train/val/test split: [0.0, 1.0, 0.0]
+Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_001_baseline_d3d_01/valid/D3D/174310_D',)
+Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.43it/s]Processing batches: 3it [00:00, 10.56it/s]Processing batches: 5it [00:00, 10.80it/s]Processing batches: 7it [00:00, 10.94it/s]Processing batches: 9it [00:00, 11.02it/s]Processing batches: 11it [00:01, 11.05it/s]Processing batches: 13it [00:01, 11.08it/s]                                           [32mINFO:0[0m | 23:24:42 | step=58 | model_stream | ==== arrival 3/32: baseline_d3d seg 2 [DIII-D] ====
+Using train/val/test split: [1.0, 0.0, 0.0]
+Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_002_baseline_d3d_02/train/D3D/174310_D',)
+Using train/val/test split: [0.0, 1.0, 0.0]
+Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_002_baseline_d3d_02/valid/D3D/174310_D',)
+Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.50it/s]Processing batches: 3it [00:00, 10.56it/s]Processing batches: 5it [00:00, 10.81it/s]Processing batches: 7it [00:00, 10.95it/s]Processing batches: 9it [00:00, 11.03it/s]Processing batches: 11it [00:01, 11.07it/s]Processing batches: 13it [00:01, 11.10it/s]                                           [32mINFO:0[0m | 23:24:43 | step=88 | model_stream | ==== arrival 4/32: baseline_d3d seg 3 [DIII-D] ====
+Using train/val/test split: [1.0, 0.0, 0.0]
+Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_003_baseline_d3d_03/train/D3D/174310_D',)
+Using train/val/test split: [0.0, 1.0, 0.0]
+Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_003_baseline_d3d_03/valid/D3D/174310_D',)
+Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.53it/s]Processing batches: 3it [00:00, 10.58it/s]Processing batches: 5it [00:00, 10.84it/s]Processing batches: 7it [00:00, 10.98it/s]Processing batches: 9it [00:00, 11.06it/s]Processing batches: 11it [00:01, 11.09it/s]Processing batches: 13it [00:01, 11.13it/s]                                           [32mINFO:0[0m | 23:24:45 | step=118 | model_stream | ==== arrival 5/32: baseline_d3d seg 4 [DIII-D] ====
+Using train/val/test split: [1.0, 0.0, 0.0]
+Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_004_baseline_d3d_04/train/D3D/174310_D',)
+Using train/val/test split: [0.0, 1.0, 0.0]
+Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_004_baseline_d3d_04/valid/D3D/174310_D',)
+Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.48it/s]Processing batches: 3it [00:00, 10.53it/s]Processing batches: 5it [00:00, 10.79it/s]Processing batches: 7it [00:00, 10.93it/s]Processing batches: 9it [00:00, 11.02it/s]Processing batches: 11it [00:01, 11.06it/s]Processing batches: 13it [00:01, 11.09it/s]                                           [32mINFO:0[0m | 23:24:47 | step=148 | model_stream | ==== arrival 6/32: baseline_d3d seg 5 [DIII-D] ====
+Using train/val/test split: [1.0, 0.0, 0.0]
+Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_005_baseline_d3d_05/train/D3D/174310_D',)
+Using train/val/test split: [0.0, 1.0, 0.0]
+Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_005_baseline_d3d_05/valid/D3D/174310_D',)
+Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.50it/s]Processing batches: 3it [00:00, 10.55it/s]Processing batches: 5it [00:00, 10.80it/s]Processing batches: 7it [00:00, 10.94it/s]Processing batches: 9it [00:00, 11.02it/s]Processing batches: 11it [00:01, 11.06it/s]Processing batches: 13it [00:01, 11.08it/s]                                           [32mINFO:0[0m | 23:24:49 | step=178 | model_stream | ==== arrival 7/32: baseline_d3d seg 6 [DIII-D] ====
+Using train/val/test split: [1.0, 0.0, 0.0]
+Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_006_baseline_d3d_06/train/D3D/174310_D',)
+Using train/val/test split: [0.0, 1.0, 0.0]
+Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_006_baseline_d3d_06/valid/D3D/174310_D',)
+Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.47it/s]Processing batches: 3it [00:00, 10.53it/s]Processing batches: 5it [00:00, 10.79it/s]Processing batches: 7it [00:00, 10.93it/s]Processing batches: 9it [00:00, 11.02it/s]Processing batches: 11it [00:01, 11.06it/s]Processing batches: 13it [00:01, 11.09it/s]                                           [32mINFO:0[0m | 23:24:51 | step=208 | model_stream | ==== arrival 8/32: baseline_d3d seg 7 [DIII-D] ====
+Using train/val/test split: [1.0, 0.0, 0.0]
+Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_007_baseline_d3d_07/train/D3D/174310_D',)
+Using train/val/test split: [0.0, 1.0, 0.0]
+Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_007_baseline_d3d_07/valid/D3D/174310_D',)
+Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.45it/s]Processing batches: 3it [00:00, 10.50it/s]Processing batches: 5it [00:00, 10.77it/s]Processing batches: 7it [00:00, 10.92it/s]Processing batches: 9it [00:00, 11.01it/s]Processing batches: 11it [00:01, 11.03it/s]Processing batches: 13it [00:01, 11.06it/s]                                           [32mINFO:0[0m | 23:24:53 | step=238 | model_stream | ==== arrival 9/32: ood_d3d seg 0 [DIII-D] ====
+Using train/val/test split: [1.0, 0.0, 0.0]
+Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_008_ood_d3d_00/train/D3D/174310_D',)
+Using train/val/test split: [0.0, 1.0, 0.0]
+Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_008_ood_d3d_00/valid/D3D/174310_D',)
+Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.55it/s]Processing batches: 3it [00:00, 10.55it/s]Processing batches: 5it [00:00, 10.78it/s]Processing batches: 7it [00:00, 10.90it/s]Processing batches: 9it [00:00, 10.98it/s]Processing batches: 11it [00:01, 11.01it/s]Processing batches: 13it [00:01, 11.03it/s]                                           [32mINFO:0[0m | 23:24:55 | step=268 | model_stream | ==== arrival 10/32: ood_d3d seg 1 [DIII-D] ====
+Using train/val/test split: [1.0, 0.0, 0.0]
+Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_009_ood_d3d_01/train/D3D/174310_D',)
+Using train/val/test split: [0.0, 1.0, 0.0]
+Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_009_ood_d3d_01/valid/D3D/174310_D',)
+Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.44it/s]Processing batches: 3it [00:00, 10.50it/s]Processing batches: 5it [00:00, 10.75it/s]Processing batches: 7it [00:00, 10.89it/s]Processing batches: 9it [00:00, 10.97it/s][32mINFO:0[0m | 23:24:56 | step=288 | continuous_monitor | ==== DRIFT DETECTED (Event #1)! ====
+[32mINFO:0[0m | 23:24:56 | step=288 | continuous_monitor | -> Dispatching continual learning module...
+[32mINFO:0[0m | 23:24:57 | step=288 | continuous_trainer | ==== Continual Learning ====
+
+CL Updates (drift_event_id=1):   0%|          | 0/500 [00:00<?, ?it/s][A
+CL Updates (drift_event_id=1):   1%|▏         | 7/500 [00:00<00:07, 64.05it/s][A
+CL Updates (drift_event_id=1):   4%|▎         | 18/500 [00:00<00:05, 87.27it/s][A
+CL Updates (drift_event_id=1):   6%|▌         | 29/500 [00:00<00:04, 96.31it/s][A[rank0]:[W805 23:24:57.559626662 CPUAllocator.cpp:245] Memory block of unknown size was allocated before the profiling started, profiler results will not include the deallocation event
+
+CL Updates (drift_event_id=1):   8%|▊         | 40/500 [00:00<00:04, 98.22it/s][A
+CL Updates (drift_event_id=1):  10%|█         | 50/500 [00:00<00:04, 98.67it/s][A
+CL Updates (drift_event_id=1):  12%|█▏        | 61/500 [00:00<00:04, 100.19it/s][A
+CL Updates (drift_event_id=1):  14%|█▍        | 72/500 [00:00<00:04, 101.81it/s][A
+CL Updates (drift_event_id=1):  17%|█▋        | 83/500 [00:00<00:04, 102.19it/s][A
+CL Updates (drift_event_id=1):  19%|█▉        | 94/500 [00:00<00:03, 103.30it/s][A
+CL Updates (drift_event_id=1):  21%|██        | 105/500 [00:01<00:03, 104.12it/s][A
+CL Updates (drift_event_id=1):  23%|██▎       | 116/500 [00:01<00:03, 104.12it/s][A
+CL Updates (drift_event_id=1):  25%|██▌       | 127/500 [00:01<00:03, 104.54it/s][A
+CL Updates (drift_event_id=1):  28%|██▊       | 138/500 [00:01<00:03, 104.77it/s][A
+CL Updates (drift_event_id=1):  30%|██▉       | 149/500 [00:01<00:03, 104.63it/s][A
+CL Updates (drift_event_id=1):  32%|███▏      | 160/500 [00:01<00:03, 104.98it/s][A
+CL Updates (drift_event_id=1):  34%|███▍      | 171/500 [00:01<00:03, 104.78it/s][A
+CL Updates (drift_event_id=1):  36%|███▋      | 182/500 [00:01<00:03, 105.09it/s][A
+CL Updates (drift_event_id=1):  39%|███▊      | 193/500 [00:01<00:02, 105.11it/s][A
+CL Updates (drift_event_id=1):  41%|████      | 204/500 [00:01<00:02, 104.95it/s][A
+CL Updates (drift_event_id=1):  43%|████▎     | 215/500 [00:02<00:02, 105.30it/s][A
+CL Updates (drift_event_id=1):  45%|████▌     | 226/500 [00:02<00:02, 104.97it/s][A
+CL Updates (drift_event_id=1):  47%|████▋     | 237/500 [00:02<00:02, 105.22it/s][A
+CL Updates (drift_event_id=1):  50%|████▉     | 248/500 [00:02<00:02, 105.30it/s][A
+CL Updates (drift_event_id=1):  52%|█████▏    | 259/500 [00:02<00:02, 105.11it/s][A
+CL Updates (drift_event_id=1):  54%|█████▍    | 270/500 [00:02<00:02, 105.31it/s][A
+CL Updates (drift_event_id=1):  56%|█████▌    | 281/500 [00:02<00:02, 105.00it/s][A
+CL Updates (drift_event_id=1):  58%|█████▊    | 292/500 [00:02<00:01, 105.28it/s][A[rank0]:[W805 23:25:00.139066935 CPUAllocator.cpp:245] Memory block of unknown size was allocated before the profiling started, profiler results will not include the deallocation event
+
+CL Updates (drift_event_id=1):  61%|██████    | 303/500 [00:02<00:01, 105.46it/s][A
+CL Updates (drift_event_id=1):  63%|██████▎   | 314/500 [00:03<00:01, 105.15it/s][A
+CL Updates (drift_event_id=1):  65%|██████▌   | 325/500 [00:03<00:01, 105.34it/s][A
+CL Updates (drift_event_id=1):  67%|██████▋   | 336/500 [00:03<00:01, 105.00it/s][A
+CL Updates (drift_event_id=1):  69%|██████▉   | 347/500 [00:03<00:01, 105.23it/s][A
+CL Updates (drift_event_id=1):  72%|███████▏  | 358/500 [00:03<00:01, 105.40it/s][A
+CL Updates (drift_event_id=1):  74%|███████▍  | 369/500 [00:03<00:01, 105.09it/s][A
+CL Updates (drift_event_id=1):  76%|███████▌  | 380/500 [00:03<00:01, 105.19it/s][A
+CL Updates (drift_event_id=1):  78%|███████▊  | 391/500 [00:03<00:01, 104.87it/s][A
+CL Updates (drift_event_id=1):  80%|████████  | 402/500 [00:03<00:00, 105.25it/s][A
+CL Updates (drift_event_id=1):  83%|████████▎ | 413/500 [00:03<00:00, 105.49it/s][A
+CL Updates (drift_event_id=1):  85%|████████▍ | 424/500 [00:04<00:00, 105.12it/s][A
+CL Updates (drift_event_id=1):  87%|████████▋ | 435/500 [00:04<00:00, 105.35it/s][A
+CL Updates (drift_event_id=1):  89%|████████▉ | 446/500 [00:04<00:00, 105.49it/s][A
+CL Updates (drift_event_id=1):  91%|█████████▏| 457/500 [00:04<00:00, 105.22it/s][A
+CL Updates (drift_event_id=1):  94%|█████████▎| 468/500 [00:04<00:00, 105.37it/s][A
+CL Updates (drift_event_id=1):  96%|█████████▌| 479/500 [00:04<00:00, 105.08it/s][A
+CL Updates (drift_event_id=1):  98%|█████████▊| 490/500 [00:04<00:00, 105.33it/s][ACL Updates (drift_event_id=1): 100%|██████████| 500/500 [00:04<00:00, 104.01it/s]
+---------------------------------------------------------------------------
+Compute Performance Metrics (Averaged per Update)
+---------------------------------------------------------------------------
+Operation       FLOPs              Time            Throughput          
+---------------------------------------------------------------------------
+detector        0 FLOPs            359.42 μs       0 FLOP/s            
+infer           20.94 GFLOPs       85.17 ms        245.90 GFLOP/s      
+optimizer       0 FLOPs            576.20 μs       0 FLOP/s            
+update_fwd_bwd  0 FLOPs            1.80 μs         0 FLOP/s            
+---------------------------------------------------------------------------
+TOTAL           20.94 GFLOPs       86.11 ms        243.23 GFLOP/s      
+---------------------------------------------------------------------------
+[32mINFO:0[0m | 23:25:02 | step=790 | continuous_monitor | <- Continual learning complete.
+[32mINFO:0[0m | 23:25:02 | step=790 | continuous_monitor | ==== RESUMING MONITORING! ====
+Processing batches: 11it [00:07,  1.18s/it]Processing batches: 13it [00:07,  1.23it/s]                                           [32mINFO:0[0m | 23:25:03 | step=800 | model_stream | ==== arrival 11/32: ood_d3d seg 2 [DIII-D] ====
+Using train/val/test split: [1.0, 0.0, 0.0]
+Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_010_ood_d3d_02/train/D3D/174310_D',)
+Using train/val/test split: [0.0, 1.0, 0.0]
+Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_010_ood_d3d_02/valid/D3D/174310_D',)
+Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.59it/s]Processing batches: 3it [00:00, 10.59it/s]Processing batches: 5it [00:00, 10.82it/s]Processing batches: 7it [00:00, 10.96it/s]Processing batches: 9it [00:00, 11.04it/s]Processing batches: 11it [00:01, 11.08it/s]Processing batches: 13it [00:01, 11.10it/s]                                           [32mINFO:0[0m | 23:25:04 | step=830 | model_stream | ==== arrival 12/32: ood_d3d seg 3 [DIII-D] ====
+Using train/val/test split: [1.0, 0.0, 0.0]
+Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_011_ood_d3d_03/train/D3D/174310_D',)
+Using train/val/test split: [0.0, 1.0, 0.0]
+Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_011_ood_d3d_03/valid/D3D/174310_D',)
+Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.58it/s]Processing batches: 3it [00:00, 10.57it/s]Processing batches: 5it [00:00, 10.81it/s]Processing batches: 7it [00:00, 10.94it/s]Processing batches: 9it [00:00, 11.01it/s]Processing batches: 11it [00:01, 11.04it/s]Processing batches: 13it [00:01, 11.07it/s]                                           [32mINFO:0[0m | 23:25:06 | step=860 | model_stream | ==== arrival 13/32: ood_d3d seg 4 [DIII-D] ====
+Using train/val/test split: [1.0, 0.0, 0.0]
+Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_012_ood_d3d_04/train/D3D/174310_D',)
+Using train/val/test split: [0.0, 1.0, 0.0]
+Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_012_ood_d3d_04/valid/D3D/174310_D',)
+Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.59it/s]Processing batches: 3it [00:00, 10.59it/s]Processing batches: 5it [00:00, 10.83it/s]Processing batches: 7it [00:00, 10.96it/s]Processing batches: 9it [00:00, 11.04it/s]Processing batches: 11it [00:01, 11.06it/s]Processing batches: 13it [00:01, 11.09it/s]                                           [32mINFO:0[0m | 23:25:08 | step=890 | model_stream | ==== arrival 14/32: ood_d3d seg 5 [DIII-D] ====
+Using train/val/test split: [1.0, 0.0, 0.0]
+Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_013_ood_d3d_05/train/D3D/174310_D',)
+Using train/val/test split: [0.0, 1.0, 0.0]
+Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_013_ood_d3d_05/valid/D3D/174310_D',)
+Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.55it/s]Processing batches: 3it [00:00, 10.57it/s]Processing batches: 5it [00:00, 10.82it/s]Processing batches: 7it [00:00, 10.95it/s]Processing batches: 9it [00:00, 11.03it/s][32mINFO:0[0m | 23:25:09 | step=912 | continuous_monitor | ==== DRIFT DETECTED (Event #2)! ====
+[32mINFO:0[0m | 23:25:09 | step=912 | continuous_monitor | -> Dispatching continual learning module...
+[32mINFO:0[0m | 23:25:10 | step=912 | continuous_trainer | ==== Continual Learning ====
+
+CL Updates (drift_event_id=2):   0%|          | 0/500 [00:00<?, ?it/s][A
+CL Updates (drift_event_id=2):   2%|▏         | 10/500 [00:00<00:05, 93.25it/s][A
+CL Updates (drift_event_id=2):   4%|▍         | 21/500 [00:00<00:04, 101.62it/s][A
+CL Updates (drift_event_id=2):   6%|▋         | 32/500 [00:00<00:04, 104.35it/s][A
+CL Updates (drift_event_id=2):   9%|▊         | 43/500 [00:00<00:04, 104.75it/s][A
+CL Updates (drift_event_id=2):  11%|█         | 54/500 [00:00<00:04, 104.48it/s][A
+CL Updates (drift_event_id=2):  13%|█▎        | 65/500 [00:00<00:04, 104.97it/s][A
+CL Updates (drift_event_id=2):  15%|█▌        | 76/500 [00:00<00:04, 105.13it/s][A[rank0]:[W805 23:25:10.919812671 CPUAllocator.cpp:245] Memory block of unknown size was allocated before the profiling started, profiler results will not include the deallocation event
+
+CL Updates (drift_event_id=2):  17%|█▋        | 87/500 [00:00<00:03, 103.53it/s][A
+CL Updates (drift_event_id=2):  20%|█▉        | 98/500 [00:00<00:03, 104.20it/s][A
+CL Updates (drift_event_id=2):  22%|██▏       | 109/500 [00:01<00:03, 104.12it/s][A
+CL Updates (drift_event_id=2):  24%|██▍       | 120/500 [00:01<00:03, 104.65it/s][A
+CL Updates (drift_event_id=2):  26%|██▌       | 131/500 [00:01<00:03, 103.33it/s][A
+CL Updates (drift_event_id=2):  28%|██▊       | 142/500 [00:01<00:03, 103.86it/s][A[rank0]:[W805 23:25:11.633590413 CPUAllocator.cpp:245] Memory block of unknown size was allocated before the profiling started, profiler results will not include the deallocation event
+
+CL Updates (drift_event_id=2):  31%|███       | 153/500 [00:01<00:03, 103.65it/s][A
+CL Updates (drift_event_id=2):  33%|███▎      | 164/500 [00:01<00:03, 104.09it/s][A
+CL Updates (drift_event_id=2):  35%|███▌      | 175/500 [00:01<00:03, 104.28it/s][A
+CL Updates (drift_event_id=2):  37%|███▋      | 186/500 [00:01<00:03, 102.94it/s][A
+CL Updates (drift_event_id=2):  39%|███▉      | 197/500 [00:01<00:02, 103.57it/s][A
+CL Updates (drift_event_id=2):  42%|████▏     | 208/500 [00:02<00:02, 103.29it/s][A
+CL Updates (drift_event_id=2):  44%|████▍     | 219/500 [00:02<00:02, 103.77it/s][A[rank0]:[W805 23:25:12.395423051 CPUAllocator.cpp:245] Memory block of unknown size was allocated before the profiling started, profiler results will not include the deallocation event
+
+CL Updates (drift_event_id=2):  46%|████▌     | 230/500 [00:02<00:02, 102.61it/s][A
+CL Updates (drift_event_id=2):  48%|████▊     | 241/500 [00:02<00:02, 103.34it/s][A
+CL Updates (drift_event_id=2):  50%|█████     | 252/500 [00:02<00:02, 103.81it/s][A
+CL Updates (drift_event_id=2):  53%|█████▎    | 263/500 [00:02<00:02, 103.49it/s][A
+CL Updates (drift_event_id=2):  55%|█████▍    | 274/500 [00:02<00:02, 103.92it/s][A
+CL Updates (drift_event_id=2):  57%|█████▋    | 285/500 [00:02<00:02, 102.69it/s][A
+CL Updates (drift_event_id=2):  59%|█████▉    | 296/500 [00:02<00:01, 103.39it/s][A[rank0]:[W805 23:25:12.113480706 CPUAllocator.cpp:245] Memory block of unknown size was allocated before the profiling started, profiler results will not include the deallocation event
+
+CL Updates (drift_event_id=2):  61%|██████▏   | 307/500 [00:02<00:01, 103.22it/s][A
+CL Updates (drift_event_id=2):  64%|██████▎   | 318/500 [00:03<00:01, 103.78it/s][A
+CL Updates (drift_event_id=2):  66%|██████▌   | 329/500 [00:03<00:01, 104.23it/s][A
+CL Updates (drift_event_id=2):  68%|██████▊   | 340/500 [00:03<00:01, 102.91it/s][A
+CL Updates (drift_event_id=2):  70%|███████   | 351/500 [00:03<00:01, 103.54it/s][A
+CL Updates (drift_event_id=2):  72%|███████▏  | 362/500 [00:03<00:01, 103.35it/s][A
+CL Updates (drift_event_id=2):  75%|███████▍  | 373/500 [00:03<00:01, 103.86it/s][A[rank0]:[W805 23:25:13.874836358 CPUAllocator.cpp:245] Memory block of unknown size was allocated before the profiling started, profiler results will not include the deallocation event
+
+CL Updates (drift_event_id=2):  77%|███████▋  | 384/500 [00:03<00:01, 102.62it/s][A
+CL Updates (drift_event_id=2):  79%|███████▉  | 395/500 [00:03<00:01, 103.20it/s][A
+CL Updates (drift_event_id=2):  81%|████████  | 406/500 [00:03<00:00, 103.03it/s][A
+CL Updates (drift_event_id=2):  83%|████████▎ | 417/500 [00:04<00:00, 103.65it/s][A
+CL Updates (drift_event_id=2):  86%|████████▌ | 428/500 [00:04<00:00, 104.04it/s][A
+CL Updates (drift_event_id=2):  88%|████████▊ | 439/500 [00:04<00:00, 102.70it/s][A
+CL Updates (drift_event_id=2):  90%|█████████ | 450/500 [00:04<00:00, 103.26it/s][A[rank0]:[W805 23:25:14.594131765 CPUAllocator.cpp:245] Memory block of unknown size was allocated before the profiling started, profiler results will not include the deallocation event
+
+CL Updates (drift_event_id=2):  92%|█████████▏| 461/500 [00:04<00:00, 103.05it/s][A
+CL Updates (drift_event_id=2):  94%|█████████▍| 472/500 [00:04<00:00, 103.60it/s][A
+CL Updates (drift_event_id=2):  97%|█████████▋| 483/500 [00:04<00:00, 103.47it/s][A
+CL Updates (drift_event_id=2):  99%|█████████▉| 494/500 [00:04<00:00, 101.89it/s][ACL Updates (drift_event_id=2): 100%|██████████| 500/500 [00:04<00:00, 103.42it/s]
+---------------------------------------------------------------------------
+Compute Performance Metrics (Averaged per Update)
+---------------------------------------------------------------------------
+Operation       FLOPs              Time            Throughput          
+---------------------------------------------------------------------------
+detector        0 FLOPs            270.02 μs       0 FLOP/s            
+infer           20.94 GFLOPs       85.26 ms        245.63 GFLOP/s      
+optimizer       0 FLOPs            584.29 μs       0 FLOP/s            
+update_fwd_bwd  0 FLOPs            1.81 μs         0 FLOP/s            
+---------------------------------------------------------------------------
+TOTAL           20.94 GFLOPs       86.12 ms        243.19 GFLOP/s      
+---------------------------------------------------------------------------
+[32mINFO:0[0m | 23:25:15 | step=1414 | continuous_monitor | <- Continual learning complete.
+[32mINFO:0[0m | 23:25:15 | step=1414 | continuous_monitor | ==== RESUMING MONITORING! ====
+Processing batches: 11it [00:07,  1.18s/it]Processing batches: 13it [00:07,  1.22it/s]                                           [32mINFO:0[0m | 23:25:15 | step=1422 | model_stream | ==== arrival 15/32: ood_d3d seg 6 [DIII-D] ====
+Using train/val/test split: [1.0, 0.0, 0.0]
+Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_014_ood_d3d_06/train/D3D/174310_D',)
+Using train/val/test split: [0.0, 1.0, 0.0]
+Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_014_ood_d3d_06/valid/D3D/174310_D',)
+Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.53it/s]Processing batches: 3it [00:00, 10.53it/s]Processing batches: 5it [00:00, 10.79it/s]Processing batches: 7it [00:00, 10.94it/s]Processing batches: 9it [00:00, 11.03it/s]Processing batches: 11it [00:01, 11.07it/s]Processing batches: 13it [00:01, 11.09it/s]                                           [32mINFO:0[0m | 23:25:17 | step=1452 | model_stream | ==== arrival 16/32: ood_d3d seg 7 [DIII-D] ====
+Using train/val/test split: [1.0, 0.0, 0.0]
+Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_015_ood_d3d_07/train/D3D/174310_D',)
+Using train/val/test split: [0.0, 1.0, 0.0]
+Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_015_ood_d3d_07/valid/D3D/174310_D',)
+Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.58it/s]Processing batches: 3it [00:00, 10.60it/s]Processing batches: 5it [00:00, 10.83it/s]Processing batches: 7it [00:00, 10.94it/s]Processing batches: 9it [00:00, 11.02it/s]Processing batches: 11it [00:01, 11.05it/s]Processing batches: 13it [00:01, 11.08it/s]                                           [32mINFO:0[0m | 23:25:19 | step=1482 | model_stream | ==== arrival 17/32: kstar seg 0 [KSTAR]  <-- MACHINE CHANGE ====
+Using train/val/test split: [1.0, 0.0, 0.0]
+Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_016_kstar_00/train/KSTAR/19077_D',)
+Using train/val/test split: [0.0, 1.0, 0.0]
+Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_016_kstar_00/valid/KSTAR/19077_D',)
+Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.47it/s]Processing batches: 3it [00:00, 10.46it/s]Processing batches: 5it [00:00, 10.73it/s]Processing batches: 7it [00:00, 10.89it/s]Processing batches: 9it [00:00, 11.00it/s]Processing batches: 11it [00:01, 11.04it/s]Processing batches: 13it [00:01, 11.07it/s]                                           [32mINFO:0[0m | 23:25:21 | step=1512 | model_stream | ==== arrival 18/32: kstar seg 1 [KSTAR] ====
+Using train/val/test split: [1.0, 0.0, 0.0]
+Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_017_kstar_01/train/KSTAR/19077_D',)
+Using train/val/test split: [0.0, 1.0, 0.0]
+Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_017_kstar_01/valid/KSTAR/19077_D',)
+Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.45it/s]Processing batches: 3it [00:00, 10.46it/s]Processing batches: 5it [00:00, 10.71it/s]Processing batches: 7it [00:00, 10.88it/s]Processing batches: 9it [00:00, 10.97it/s][32mINFO:0[0m | 23:25:22 | step=1534 | continuous_monitor | ==== DRIFT DETECTED (Event #3)! ====
+[32mINFO:0[0m | 23:25:22 | step=1534 | continuous_monitor | -> Dispatching continual learning module...
+[32mINFO:0[0m | 23:25:23 | step=1534 | continuous_trainer | ==== Continual Learning ====
+
+CL Updates (drift_event_id=3):   0%|          | 0/500 [00:00<?, ?it/s][A
+CL Updates (drift_event_id=3):   2%|▏         | 10/500 [00:00<00:05, 92.97it/s][A
+CL Updates (drift_event_id=3):   4%|▍         | 21/500 [00:00<00:04, 101.27it/s][A
+CL Updates (drift_event_id=3):   6%|▋         | 32/500 [00:00<00:04, 104.03it/s][A
+CL Updates (drift_event_id=3):   9%|▊         | 43/500 [00:00<00:04, 104.58it/s][A
+CL Updates (drift_event_id=3):  11%|█         | 54/500 [00:00<00:04, 104.35it/s][A
+CL Updates (drift_event_id=3):  13%|█▎        | 65/500 [00:00<00:04, 104.83it/s][A
+CL Updates (drift_event_id=3):  15%|█▌        | 76/500 [00:00<00:04, 104.98it/s][A
+CL Updates (drift_event_id=3):  17%|█▋        | 87/500 [00:00<00:03, 103.39it/s][A
+CL Updates (drift_event_id=3):  20%|█▉        | 98/500 [00:00<00:03, 104.05it/s][A[rank0]:[W805 23:25:23.098647520 CPUAllocator.cpp:245] Memory block of unknown size was allocated before the profiling started, profiler results will not include the deallocation event
+
+CL Updates (drift_event_id=3):  22%|██▏       | 109/500 [00:01<00:03, 103.88it/s][A
+CL Updates (drift_event_id=3):  24%|██▍       | 120/500 [00:01<00:03, 104.38it/s][A
+CL Updates (drift_event_id=3):  26%|██▌       | 131/500 [00:01<00:03, 103.09it/s][A
+CL Updates (drift_event_id=3):  28%|██▊       | 142/500 [00:01<00:03, 103.77it/s][A
+CL Updates (drift_event_id=3):  31%|███       | 153/500 [00:01<00:03, 103.64it/s][A
+CL Updates (drift_event_id=3):  33%|███▎      | 164/500 [00:01<00:03, 104.27it/s][A
+CL Updates (drift_event_id=3):  35%|███▌      | 175/500 [00:01<00:03, 104.61it/s][A[rank0]:[W805 23:25:24.856762774 CPUAllocator.cpp:245] Memory block of unknown size was allocated before the profiling started, profiler results will not include the deallocation event
+
+CL Updates (drift_event_id=3):  37%|███▋      | 186/500 [00:01<00:03, 103.33it/s][A
+CL Updates (drift_event_id=3):  39%|███▉      | 197/500 [00:01<00:02, 104.01it/s][A
+CL Updates (drift_event_id=3):  42%|████▏     | 208/500 [00:02<00:02, 103.83it/s][A
+CL Updates (drift_event_id=3):  44%|████▍     | 219/500 [00:02<00:02, 104.39it/s][A
+CL Updates (drift_event_id=3):  46%|████▌     | 230/500 [00:02<00:02, 103.22it/s][A
+CL Updates (drift_event_id=3):  48%|████▊     | 241/500 [00:02<00:02, 103.71it/s][A
+CL Updates (drift_event_id=3):  50%|█████     | 252/500 [00:02<00:02, 104.28it/s][A[rank0]:[W805 23:25:25.571073419 CPUAllocator.cpp:245] Memory block of unknown size was allocated before the profiling started, profiler results will not include the deallocation event
+
+CL Updates (drift_event_id=3):  53%|█████▎    | 263/500 [00:02<00:02, 104.08it/s][A
+CL Updates (drift_event_id=3):  55%|█████▍    | 274/500 [00:02<00:02, 104.56it/s][A
+CL Updates (drift_event_id=3):  57%|█████▋    | 285/500 [00:02<00:02, 103.35it/s][A
+CL Updates (drift_event_id=3):  59%|█████▉    | 296/500 [00:02<00:01, 104.05it/s][A
+CL Updates (drift_event_id=3):  61%|██████▏   | 307/500 [00:02<00:01, 103.89it/s][A
+CL Updates (drift_event_id=3):  64%|██████▎   | 318/500 [00:03<00:01, 104.48it/s][A
+CL Updates (drift_event_id=3):  66%|██████▌   | 329/500 [00:03<00:01, 104.88it/s][A[rank0]:[W805 23:25:26.327533407 CPUAllocator.cpp:245] Memory block of unknown size was allocated before the profiling started, profiler results will not include the deallocation event
+
+CL Updates (drift_event_id=3):  68%|██████▊   | 340/500 [00:03<00:01, 103.54it/s][A
+CL Updates (drift_event_id=3):  70%|███████   | 351/500 [00:03<00:01, 104.11it/s][A
+CL Updates (drift_event_id=3):  72%|███████▏  | 362/500 [00:03<00:01, 103.98it/s][A
+CL Updates (drift_event_id=3):  75%|███████▍  | 373/500 [00:03<00:01, 104.57it/s][A
+CL Updates (drift_event_id=3):  77%|███████▋  | 384/500 [00:03<00:01, 103.31it/s][A
+CL Updates (drift_event_id=3):  79%|███████▉  | 395/500 [00:03<00:01, 104.01it/s][A[rank0]:[W805 23:25:26.040565022 CPUAllocator.cpp:245] Memory block of unknown size was allocated before the profiling started, profiler results will not include the deallocation event
+
+CL Updates (drift_event_id=3):  81%|████████  | 406/500 [00:03<00:00, 103.80it/s][A
+CL Updates (drift_event_id=3):  83%|████████▎ | 417/500 [00:04<00:00, 104.40it/s][A
+CL Updates (drift_event_id=3):  86%|████████▌ | 428/500 [00:04<00:00, 104.79it/s][A
+CL Updates (drift_event_id=3):  88%|████████▊ | 439/500 [00:04<00:00, 103.51it/s][A
+CL Updates (drift_event_id=3):  90%|█████████ | 450/500 [00:04<00:00, 104.13it/s][A
+CL Updates (drift_event_id=3):  92%|█████████▏| 461/500 [00:04<00:00, 104.04it/s][A
+CL Updates (drift_event_id=3):  94%|█████████▍| 472/500 [00:04<00:00, 104.57it/s][A
+CL Updates (drift_event_id=3):  97%|█████████▋| 483/500 [00:04<00:00, 104.90it/s][A[rank0]:[W805 23:25:27.797129770 CPUAllocator.cpp:245] Memory block of unknown size was allocated before the profiling started, profiler results will not include the deallocation event
+
+CL Updates (drift_event_id=3):  99%|█████████▉| 494/500 [00:04<00:00, 103.57it/s][ACL Updates (drift_event_id=3): 100%|██████████| 500/500 [00:04<00:00, 103.96it/s]
+---------------------------------------------------------------------------
+Compute Performance Metrics (Averaged per Update)
+---------------------------------------------------------------------------
+Operation       FLOPs              Time            Throughput          
+---------------------------------------------------------------------------
+detector        0 FLOPs            220.31 μs       0 FLOP/s            
+infer           20.94 GFLOPs       85.31 ms        245.50 GFLOP/s      
+optimizer       0 FLOPs            584.73 μs       0 FLOP/s            
+update_fwd_bwd  0 FLOPs            1.79 μs         0 FLOP/s            
+---------------------------------------------------------------------------
+TOTAL           20.94 GFLOPs       86.12 ms        243.20 GFLOP/s      
+---------------------------------------------------------------------------
+[32mINFO:0[0m | 23:25:28 | step=2036 | continuous_monitor | <- Continual learning complete.
+[32mINFO:0[0m | 23:25:28 | step=2036 | continuous_monitor | ==== RESUMING MONITORING! ====
+Processing batches: 11it [00:07,  1.18s/it]Processing batches: 13it [00:07,  1.23it/s]                                           [32mINFO:0[0m | 23:25:28 | step=2044 | model_stream | ==== arrival 19/32: kstar seg 2 [KSTAR] ====
+Using train/val/test split: [1.0, 0.0, 0.0]
+Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_018_kstar_02/train/KSTAR/19077_D',)
+Using train/val/test split: [0.0, 1.0, 0.0]
+Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_018_kstar_02/valid/KSTAR/19077_D',)
+Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.40it/s]Processing batches: 3it [00:00, 10.41it/s]Processing batches: 5it [00:00, 10.66it/s]Processing batches: 7it [00:00, 10.84it/s]Processing batches: 9it [00:00, 10.95it/s]Processing batches: 11it [00:01, 10.99it/s]Processing batches: 13it [00:01, 11.03it/s]                                           [32mINFO:0[0m | 23:25:30 | step=2074 | model_stream | ==== arrival 20/32: kstar seg 3 [KSTAR] ====
+Using train/val/test split: [1.0, 0.0, 0.0]
+Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_019_kstar_03/train/KSTAR/19077_D',)
+Using train/val/test split: [0.0, 1.0, 0.0]
+Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_019_kstar_03/valid/KSTAR/19077_D',)
+Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.40it/s]Processing batches: 3it [00:00, 10.41it/s]Processing batches: 5it [00:00, 10.67it/s]Processing batches: 7it [00:00, 10.83it/s]Processing batches: 9it [00:00, 10.94it/s]Processing batches: 11it [00:01, 10.98it/s]Processing batches: 13it [00:01, 11.02it/s]                                           [32mINFO:0[0m | 23:25:32 | step=2104 | model_stream | ==== arrival 21/32: kstar seg 4 [KSTAR] ====
+Using train/val/test split: [1.0, 0.0, 0.0]
+Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_020_kstar_04/train/KSTAR/19077_D',)
+Using train/val/test split: [0.0, 1.0, 0.0]
+Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_020_kstar_04/valid/KSTAR/19077_D',)
+Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.46it/s]Processing batches: 3it [00:00, 10.45it/s]Processing batches: 5it [00:00, 10.71it/s]Processing batches: 7it [00:00, 10.88it/s]Processing batches: 9it [00:00, 10.98it/s]Processing batches: 11it [00:01, 11.01it/s]Processing batches: 13it [00:01, 11.05it/s]                                           [32mINFO:0[0m | 23:25:33 | step=2134 | model_stream | ==== arrival 22/32: kstar seg 5 [KSTAR] ====
+Using train/val/test split: [1.0, 0.0, 0.0]
+Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_021_kstar_05/train/KSTAR/19077_D',)
+Using train/val/test split: [0.0, 1.0, 0.0]
+Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_021_kstar_05/valid/KSTAR/19077_D',)
+Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.45it/s]Processing batches: 3it [00:00, 10.45it/s]Processing batches: 5it [00:00, 10.71it/s]Processing batches: 7it [00:00, 10.88it/s]Processing batches: 9it [00:00, 10.98it/s]Processing batches: 11it [00:01, 11.00it/s]Processing batches: 13it [00:01, 11.02it/s]                                           [32mINFO:0[0m | 23:25:35 | step=2164 | model_stream | ==== arrival 23/32: kstar seg 6 [KSTAR] ====
+Using train/val/test split: [1.0, 0.0, 0.0]
+Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_022_kstar_06/train/KSTAR/19077_D',)
+Using train/val/test split: [0.0, 1.0, 0.0]
+Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_022_kstar_06/valid/KSTAR/19077_D',)
+Processing batches: 0it [00:00, ?it/s]Processing batches: 1it [00:00,  9.38it/s]Processing batches: 3it [00:00, 10.38it/s]Processing batches: 5it [00:00, 10.64it/s]Processing batches: 7it [00:00, 10.82it/s]Processing batches: 9it [00:00, 10.92it/s]Processing batches: 11it [00:01, 10.96it/s]Processing batches: 13it [00:01, 11.00it/s][32mINFO:0[0m | 23:25:37 | step=2192 | continuous_monitor | ==== DRIFT DETECTED (Event #4)! ====
+[32mINFO:0[0m | 23:25:37 | step=2192 | continuous_monitor | -> Dispatching continual learning module...
+[32mINFO:0[0m | 23:25:37 | step=2192 | continuous_trainer | ==== Continual Learning ====
+
+CL Updates (drift_event_id=4):   0%|          | 0/500 [00:00<?, ?it/s][A
+CL Updates (drift_event_id=4):   2%|▏         | 10/500 [00:00<00:05, 92.95it/s][A
+CL Updates (drift_event_id=4):   4%|▍         | 21/500 [00:00<00:04, 101.20it/s][A
+CL Updates (drift_event_id=4):   6%|▋         | 32/500 [00:00<00:04, 103.85it/s][A
+CL Updates (drift_event_id=4):   9%|▊         | 43/500 [00:00<00:04, 104.27it/s][A
+CL Updates (drift_event_id=4):  11%|█         | 54/500 [00:00<00:04, 103.97it/s][A
+CL Updates (drift_event_id=4):  13%|█▎        | 65/500 [00:00<00:04, 104.43it/s][A
+CL Updates (drift_event_id=4):  15%|█▌        | 76/500 [00:00<00:04, 104.60it/s][A
+CL Updates (drift_event_id=4):  17%|█▋        | 87/500 [00:00<00:04, 102.97it/s][A
+CL Updates (drift_event_id=4):  20%|█▉        | 98/500 [00:00<00:03, 103.59it/s][A
+CL Updates (drift_event_id=4):  22%|██▏       | 109/500 [00:01<00:03, 103.41it/s][A
+CL Updates (drift_event_id=4):  24%|██▍       | 120/500 [00:01<00:03, 103.91it/s][A[rank0]:[W805 23:25:39.305982888 CPUAllocator.cpp:245] Memory block of unknown size was allocated before the profiling started, profiler results will not include the deallocation event
+
+CL Updates (drift_event_id=4):  26%|██▌       | 131/500 [00:01<00:03, 102.55it/s][A
+CL Updates (drift_event_id=4):  28%|██▊       | 142/500 [00:01<00:03, 103.20it/s][A
+CL Updates (drift_event_id=4):  31%|███       | 153/500 [00:01<00:03, 103.14it/s][A
+CL Updates (drift_event_id=4):  33%|███▎      | 164/500 [00:01<00:03, 103.63it/s][A
+CL Updates (drift_event_id=4):  35%|███▌      | 175/500 [00:01<00:03, 103.91it/s][A
+CL Updates (drift_event_id=4):  37%|███▋      | 186/500 [00:01<00:03, 102.59it/s][A[rank0]:[W805 23:25:39.891414784 CPUAllocator.cpp:245] Memory block of unknown size was allocated before the profiling started, profiler results will not include the deallocation event
+
+CL Updates (drift_event_id=4):  39%|███▉      | 197/500 [00:01<00:02, 103.23it/s][A
+CL Updates (drift_event_id=4):  42%|████▏     | 208/500 [00:02<00:02, 103.07it/s][A
+CL Updates (drift_event_id=4):  44%|████▍     | 219/500 [00:02<00:02, 103.61it/s][A
+CL Updates (drift_event_id=4):  46%|████▌     | 230/500 [00:02<00:02, 102.41it/s][A
+CL Updates (drift_event_id=4):  48%|████▊     | 241/500 [00:02<00:02, 103.15it/s][A
+CL Updates (drift_event_id=4):  50%|█████     | 252/500 [00:02<00:02, 103.69it/s][A
+CL Updates (drift_event_id=4):  53%|█████▎    | 263/500 [00:02<00:02, 103.33it/s][A
+CL Updates (drift_event_id=4):  55%|█████▍    | 274/500 [00:02<00:02, 103.65it/s][A[rank0]:[W805 23:25:40.788994072 CPUAllocator.cpp:245] Memory block of unknown size was allocated before the profiling started, profiler results will not include the deallocation event
+
+CL Updates (drift_event_id=4):  57%|█████▋    | 285/500 [00:02<00:02, 102.44it/s][A
+CL Updates (drift_event_id=4):  59%|█████▉    | 296/500 [00:02<00:01, 103.18it/s][A
+CL Updates (drift_event_id=4):  61%|██████▏   | 307/500 [00:02<00:01, 103.03it/s][A
+CL Updates (drift_event_id=4):  64%|██████▎   | 318/500 [00:03<00:01, 103.61it/s][A
+CL Updates (drift_event_id=4):  66%|██████▌   | 329/500 [00:03<00:01, 104.06it/s][A
+CL Updates (drift_event_id=4):  68%|██████▊   | 340/500 [00:03<00:01, 102.77it/s][A
+CL Updates (drift_event_id=4):  70%|███████   | 351/500 [00:03<00:01, 103.35it/s][A[rank0]:[W805 23:25:41.507079951 CPUAllocator.cpp:245] Memory block of unknown size was allocated before the profiling started, profiler results will not include the deallocation event
+
+CL Updates (drift_event_id=4):  72%|███████▏  | 362/500 [00:03<00:01, 103.27it/s][A
+CL Updates (drift_event_id=4):  75%|███████▍  | 373/500 [00:03<00:01, 103.88it/s][A
+CL Updates (drift_event_id=4):  77%|███████▋  | 384/500 [00:03<00:01, 102.66it/s][A
+CL Updates (drift_event_id=4):  79%|███████▉  | 395/500 [00:03<00:01, 103.23it/s][A
+CL Updates (drift_event_id=4):  81%|████████  | 406/500 [00:03<00:00, 103.18it/s][A
+CL Updates (drift_event_id=4):  83%|████████▎ | 417/500 [00:04<00:00, 103.82it/s][A
+CL Updates (drift_event_id=4):  86%|████████▌ | 428/500 [00:04<00:00, 104.27it/s][A[rank0]:[W805 23:25:42.267848997 CPUAllocator.cpp:245] Memory block of unknown size was allocated before the profiling started, profiler results will not include the deallocation event
+
+CL Updates (drift_event_id=4):  88%|████████▊ | 439/500 [00:04<00:00, 102.99it/s][A
+CL Updates (drift_event_id=4):  90%|█████████ | 450/500 [00:04<00:00, 103.58it/s][A
+CL Updates (drift_event_id=4):  92%|█████████▏| 461/500 [00:04<00:00, 103.53it/s][A
+CL Updates (drift_event_id=4):  94%|█████████▍| 472/500 [00:04<00:00, 104.05it/s][A
+CL Updates (drift_event_id=4):  97%|█████████▋| 483/500 [00:04<00:00, 104.39it/s][A
+CL Updates (drift_event_id=4):  99%|█████████▉| 494/500 [00:04<00:00, 102.67it/s][ACL Updates (drift_event_id=4): 100%|██████████| 500/500 [00:04<00:00, 103.31it/s]
+---------------------------------------------------------------------------
+Compute Performance Metrics (Averaged per Update)
+---------------------------------------------------------------------------
+Operation       FLOPs              Time            Throughput          
+---------------------------------------------------------------------------
+detector        0 FLOPs            207.47 μs       0 FLOP/s            
+infer           20.94 GFLOPs       85.36 ms        245.35 GFLOP/s      
+optimizer       0 FLOPs            585.54 μs       0 FLOP/s            
+update_fwd_bwd  0 FLOPs            1.78 μs         0 FLOP/s            
+---------------------------------------------------------------------------
+TOTAL           20.94 GFLOPs       86.16 ms        243.08 GFLOP/s      
+---------------------------------------------------------------------------
+[32mINFO:0[0m | 23:25:43 | step=2694 | continuous_monitor | <- Continual learning complete.
+[32mINFO:0[0m | 23:25:43 | step=2694 | continuous_monitor | ==== RESUMING MONITORING! ====
+                                           [32mINFO:0[0m | 23:25:43 | step=2696 | model_stream | ==== arrival 24/32: kstar seg 7 [KSTAR] ====
+Using train/val/test split: [1.0, 0.0, 0.0]
+Warning: asked for max_samples 200, but only have 30, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_023_kstar_07/train/KSTAR/19077_D',)
+Using train/val/test split: [0.0, 1.0, 0.0]
+Warning: asked for max_samples 200, but only have 15, ('/lustre/orion/lrn097/scratch/asvillar/mateydata/solps_stream/seg_023_kstar_07/valid/KSTAR/19077_D',)
+[32mINFO:0[0m | 23:25:43 | step=2696 | continuous_monitor | ==== Continuous Monitoring Complete ====
+done: /lustre/orion/lrn097/scratch/asvillar/apeiron_pr/matey/output/detsweep_20260805_231227/stream_nocl_KSWINDetector.csv

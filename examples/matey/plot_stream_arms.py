@@ -54,6 +54,26 @@ def _series(path: Path) -> dict[str, list[float]]:
     return out
 
 
+def _shade_regimes(ax, spec, n) -> None:
+    """Shade each regime and name it, so the reader sees what changed when."""
+    bands = ["#eef2f8", "#fdf0e9", "#eef6f1"]
+    start = 0.5
+    for i, item in enumerate(spec or []):
+        label, _, end = item.rpartition(":")
+        end = float(end)
+        ax.axvspan(start, end + 0.5, color=bands[i % len(bands)], zorder=0)
+        ax.text(
+            (start + end + 0.5) / 2,
+            ax.get_ylim()[1],
+            label,
+            ha="center",
+            va="bottom",
+            fontsize=9,
+            color=MUTED,
+        )
+        start = end + 0.5
+
+
 def _style(ax) -> None:
     ax.set_facecolor(SURFACE)
     ax.grid(True, color=GRID, linewidth=0.8, alpha=0.9)
@@ -113,6 +133,12 @@ def main() -> int:
     ap.add_argument("-o", "--output", type=Path, default=None)
     ap.add_argument("--fields", type=Path, default=None)
     ap.add_argument("--events-at", type=int, nargs="*", default=None)
+    ap.add_argument(
+        "--regimes",
+        nargs="*",
+        default=None,
+        help="label:last_arrival, e.g. 'baseline:8' 'held-out:16' 'KSTAR:24'",
+    )
     ap.add_argument("--arrivals", type=int, default=24)
     args = ap.parse_args()
 
@@ -154,6 +180,7 @@ def main() -> int:
             label="KSWIN fires → adapt" if k == 0 else None,
         )
     ax.set_xlim(0.5, n + 0.5)
+    _shade_regimes(ax, args.regimes, n)
     ax.set_ylabel("NRMSE", color=INK, fontsize=10)
     ax.set_title(
         f"({'d' if fields else 'a'}) what the detector sees",
@@ -162,7 +189,7 @@ def main() -> int:
         loc="left",
         pad=8,
     )
-    ax.legend(frameon=False, fontsize=9, labelcolor=INK, loc="upper right")
+    ax.legend(frameon=False, fontsize=9, labelcolor=INK, loc="center right")
 
     # -- what adaptation does ------------------------------------------------
     bx = fig.add_subplot(gs[base_row + 1, :])
@@ -198,6 +225,7 @@ def main() -> int:
         )
 
     bx.set_xlim(0.5, n + 0.5)
+    _shade_regimes(bx, args.regimes, n)
     bx.set_ylabel("NRMSE  (mean ± sd)", color=INK, fontsize=10)
     bx.set_xlabel("simulation arrival", color=INK, fontsize=10)
     bx.set_title(
@@ -208,6 +236,24 @@ def main() -> int:
         pad=8,
     )
     bx.legend(frameon=False, fontsize=9, labelcolor=INK)
+
+    base_mean = statistics.mean(nocl[MONITORED][:width])
+    cl_mean = statistics.mean(cl[MONITORED][:width])
+    drops = [100 * (b - a) / b for b, a in zip(cl[PRE], cl[POST])]
+    fig.text(
+        0.01,
+        -0.01,
+        f"pretrained base model   mean NRMSE: {base_mean:.5f}\n"
+        f"with continual learning mean NRMSE: {cl_mean:.5f}"
+        f"   ({100 * (base_mean - cl_mean) / base_mean:.1f}% lower)\n"
+        f"drop on the arriving bundle at each adaptation "
+        f"(validation split, not the streamed windows): "
+        f"{', '.join(f'{d:.0f}%' for d in drops)}",
+        family="monospace",
+        fontsize=9.5,
+        color=INK,
+        va="top",
+    )
 
     out = args.output or (args.outdir / "stream_arms.png")
     fig.savefig(out, dpi=200, facecolor=SURFACE, bbox_inches="tight")

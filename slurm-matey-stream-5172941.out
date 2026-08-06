@@ -1,0 +1,20 @@
+stream has 32 arrivals -> max_stream_updates=23
+================ arm=cl (update_mode=base) ================
+Traceback (most recent call last):
+  File "/opt/cray/pe/python/3.10.10/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/opt/cray/pe/python/3.10.10/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/lustre/orion/lrn097/scratch/asvillar/apeiron_pr/matey/src/main.py", line 3, in <module>
+    from apeiron.logger import get_logger, configure_backend
+  File "/lustre/orion/lrn097/scratch/asvillar/apeiron_pr/matey/src/apeiron/__init__.py", line 16, in <module>
+    from apeiron.driver.continuous_monitor import ContinuousMonitor
+  File "/lustre/orion/lrn097/scratch/asvillar/apeiron_pr/matey/src/apeiron/driver/__init__.py", line 1, in <module>
+    from apeiron.driver.continuous_monitor import ContinuousMonitor as ContinuousMonitor
+  File "/lustre/orion/lrn097/scratch/asvillar/apeiron_pr/matey/src/apeiron/driver/continuous_monitor.py", line 18, in <module>
+    from apeiron.drift_detection.load_drift_detector import load_drift_detector
+  File "/lustre/orion/lrn097/scratch/asvillar/apeiron_pr/matey/src/apeiron/drift_detection/__init__.py", line 29, in <module>
+    from apeiron.drift_detection.detectors.model_performance_detector import (
+  File "/lustre/orion/lrn097/scratch/asvillar/apeiron_pr/matey/src/apeiron/drift_detection/detectors/model_performance_detector.py", line 13, in <module>
+    from evidently import Report
+ModuleNotFoundError: No module named 'evidently'
