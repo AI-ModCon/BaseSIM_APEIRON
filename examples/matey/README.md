@@ -22,9 +22,7 @@ a checkpoint, and the SOLPS data.**
 | `model_stream.py` | `MATEYStreamHarness` — walks an ordered sequence of arriving simulations instead of one static root |
 | `solps/settings.py` | `MateySettings` — the MATEY-side knobs, read from the data root (see below) |
 | `solps/matey_batches.py` | Adapters between MATEY's dataclass batches and the framework's `(x, y)` contract |
-| `solps/solps_split.py` | Deterministic, cached train/valid staging of a SOLPS root |
 | `solps/solps2dwion_dataset.py` | `SOLPS2DwIONDataset` — a `b2time.nc` reader registered into MATEY's dataset registry |
-| `solps/solps_field_maps.py` | SOLPS field names and map squeezing |
 | `solps/fusionbench_eval_hooks.py` | `patch_leadtime`, so evaluation matches the checkpoint's rollout horizon |
 | `matey.toml` | Single-root config — ADWIN, `base` updater |
 | `matey_stream.toml` | Sequential-arrival config — KSWIN; this is the one that produces the drift result below |
@@ -48,8 +46,7 @@ tests, but cannot execute the example end to end.
 
 ### Single root (`matey.toml`)
 
-A SOLPS root with `train/` and `valid/` subdirectories. `data.path` points at the
-parent; the harness stages a deterministic split beneath it and caches it.
+A SOLPS root with `train/` and `valid/` subdirectories that `data.path` points at.
 
 ### Stream root (`matey_stream.toml`)
 
