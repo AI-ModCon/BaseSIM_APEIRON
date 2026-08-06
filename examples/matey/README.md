@@ -182,7 +182,14 @@ ensemble inherits KSWIN's detections exactly and adds nothing here -- useful as
 a negative result: `any` voting costs no false alarms when the other members
 stay silent, but it cannot manufacture sensitivity they do not have.
 
-Reproduce with:
+![detector response](../../docs/images/matey-detector-response.png)
+
+Measured on a finer cadence over the same baseline/held-out pair, the ordering is
+the same and the cost of getting it wrong is explicit: KSWIN detects 40 SOLPS
+frames after the change point, ADWIN needs 660, and Page-Hinkley never fires at
+the shipped settings. `drift_showcase/solps_drift_showcase.py` produces it.
+
+Reproduce the stream comparison with:
 
 ```bash
 for d in ADWINDetector KSWINDetector PageHinkleyDetector EnsembleDetector; do
@@ -193,6 +200,36 @@ done
 
 `kswin_seed` makes this reproducible; without it KSWIN draws its reference
 window at random and the firing steps move between runs.
+
+## Drift Detection on XGC
+
+The same detectors, applied to XGC gyrokinetic data rather than SOLPS. There is
+no XGC model harness -- MATEY's graph branch registers 10 feature columns while
+the staged `graphdata_*.pt` carry 11 -- so this is **detection only**: the
+monitored signal is a KS statistic on the raw fields, with no model in the loop
+and therefore no continual learning.
+
+![XGC device maps](../../docs/images/matey-xgc-device-maps.png)
+
+Six cases across four devices, from ITER PFPO at 1.28M mesh nodes down to
+ASDEX-U at 17.5k.
+
+![XGC detector response](../../docs/images/matey-xgc-detectors.png)
+
+The stream leaves the pre-training set at window 16 and the coverage score steps
+from ~0.03 to ~0.32. Page-Hinkley (resized) detects it 4 windows later, KSWIN
+(resized) 6, with no false alarms; at the shipped window sizes none of the three
+fires at all. The control matters more than the detections: on a same-machine
+scenario change (DIII-D PT to DIII-D NT) **0 of 6 configurations fire**, so the
+detectors are responding to the device change rather than to any change.
+
+Note the tuning does not transfer between the two datasets: on SOLPS the
+*as-shipped* KSWIN is the best of the six, while on XGC only the *resized*
+configurations detect anything. Window size has to match the cadence of the
+signal.
+
+`drift_showcase/xgc_mesh_drift.py` extracts the fields (needs `adios2` and the
+staged XGC roots) and `plot_xgc_mesh_drift.py` draws both figures.
 
 ## How the Drift Arises
 
