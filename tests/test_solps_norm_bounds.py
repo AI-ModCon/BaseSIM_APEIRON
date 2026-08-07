@@ -17,8 +17,8 @@ import os
 
 import pytest
 
-# SOLPS2DwIONDataset subclasses a MATEY reader, and MATEY is an optional,
-# access-restricted dependency. Skip rather than fail collection without it.
+# SOLPS2DwIONDataset subclasses a MATEY reader, and MATEY is an optional
+# dependency. Skip rather than fail collection without it.
 pytest.importorskip("matey", reason="the MATEY package is not installed")
 
 import sys

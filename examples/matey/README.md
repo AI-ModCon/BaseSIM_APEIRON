@@ -34,13 +34,17 @@ a checkpoint, and the SOLPS data.**
 module imports and its unit tests collect without it. Running the example does
 require it:
 
+MATEY is open source at <https://github.com/ORNL/MATEY>:
+
 ```bash
-pip install "git+ssh://git@github.com/FusionFM/MATEY.git@<commit>"
+pip install "git+https://github.com/ORNL/MATEY.git@<commit>"
 ```
 
-The pinned commit is `MATEY_GIT_COMMIT` in `model.py`. **That repository is
-currently private**, so reviewers without access can read the harness and run its
-tests, but cannot execute the example end to end.
+The commit this harness was developed against is `MATEY_GIT_COMMIT` in
+`model.py`. It currently points at a development repository rather than the
+public one, so it needs re-pinning to a public commit before anyone outside the
+project can run the example end to end. The harness and its tests do not need
+the package.
 
 ## Prerequisite 2: The Data
 
