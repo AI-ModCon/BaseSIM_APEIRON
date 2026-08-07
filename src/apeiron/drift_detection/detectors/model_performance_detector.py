@@ -208,12 +208,9 @@ class ModelPerformanceDetector(BaseDriftDetector):
         if self.reference_targets is not None:
             reference_data["target"] = self.reference_targets
 
-        # Imported here, not at module scope: evidently cannot be installed in
-        # every deployment environment (on Frontier's MATEY env pip refuses it --
-        # the user site would lack sys.path precedence over the env's protobuf),
-        # and this is the only place in the package that needs it. At module
-        # scope it made `import apeiron` fail outright there, taking the
-        # statistical detectors and ModelEvalDetector down with it.
+        # Imported at the call site: this is the only place in the package that
+        # needs evidently, and at module scope `import apeiron` fails wherever it
+        # is absent, taking the statistical detectors down with it.
         from evidently import Report
         from evidently.presets import DataDriftPreset
 
