@@ -28,7 +28,7 @@ from matplotlib.lines import Line2D
 
 _here = str(Path(__file__).resolve().parent)
 sys.path.insert(0, _here)
-from plot_solps_drift_showcase import (  # noqa: E402
+from plot_solps_drift_showcase import (  # type: ignore[import-not-found] # noqa: E402
     C_BLUE,
     C_GREEN,
     C_SKY,
@@ -146,7 +146,7 @@ def draw_device(
         pass
     ax.add_collection(
         LineCollection(
-            boundary_segments(rz, tri), colors=INK, linewidths=0.55, zorder=6
+            list(boundary_segments(rz, tri)), colors=INK, linewidths=0.55, zorder=6
         )
     )
     ax.set_aspect("equal")
@@ -199,7 +199,9 @@ def fig5(res: dict, npz, outdir: Path) -> dict:
         )
         corner_tag(ax, f"({'abcdef'[n]})", dx=-0.20)
 
-    cax = fig.add_axes([0.885, 0.16, 0.017, 0.62])
+    cax = fig.add_axes((0.885, 0.16, 0.017, 0.62))
+    if tpc is None:
+        raise RuntimeError("no device panel was drawn, so there is no mappable")
     cb = fig.colorbar(tpc, cax=cax)
     cb.ax.tick_params(labelsize=6)
     cb.set_label(r"$n_e$  [m$^{-3}$]", fontsize=7)
@@ -519,7 +521,7 @@ def fig6(res: dict, npz, outdir: Path) -> dict:
         zorder=3,
         lw=0,
     )
-    lim = [0, max(pv.max(), pu.max()) * 1.08]
+    lim = (0.0, float(max(pv.max(), pu.max())) * 1.08)
     ax.plot(lim, lim, color=MUTED, ls="--", lw=0.8, zorder=2)
     ax.set_xlim(lim)
     ax.set_ylim(lim)

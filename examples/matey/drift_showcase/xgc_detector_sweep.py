@@ -118,14 +118,14 @@ def main() -> int:
                 "in_pretraining": res["cases"][lab]["in_pretraining"],
             }
         )
-    stream = np.concatenate(stream)
+    stream_arr = np.concatenate(stream)
     boundary = next(
         b["end"] - (b["end"] - (bounds[i - 1]["end"] if i else 0))
         for i, b in enumerate(bounds)
         if not b["in_pretraining"]
     )
-    dev_out = sweep(stream, boundary, args.seed)
-    print(f"[device] {len(stream)} windows, change point at {boundary}")
+    dev_out = sweep(stream_arr, boundary, args.seed)
+    print(f"[device] {len(stream_arr)} windows, change point at {boundary}")
     for n, v in dev_out.items():
         print(f"  {n:26} delay={v['delay']}  false_alarms={v['false_alarms']}")
 

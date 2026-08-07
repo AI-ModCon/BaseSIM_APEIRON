@@ -23,6 +23,8 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
+from typing import Any
+
 import numpy as np
 import scipy.io as sio
 from matplotlib.colors import LogNorm
@@ -374,7 +376,7 @@ def fig2(res: dict, outdir: Path) -> dict:
         ),
         ("coarse", short, C_ORANGE, f"coarse: {short['n_windows']} win ({w} fr)"),
     ]
-    vals = {}
+    vals: dict[tuple[str, ...], Any] = {}
     for tag, run, _, _ in cadences:
         for nm in names:
             d = run["detectors"][nm]
@@ -529,20 +531,22 @@ def fig3(matey_run: Path, base_nc: str, outdir: Path) -> dict:
     corner_tag(ax, "(a)", dx=-0.055)
 
     # (b,c) predicted vs ground truth
-    stats = {}
+    stats: dict[str, Any] = {}
     P, T = [], []
     for p in sorted((matey_run / "artifacts" / "stream_01_baseline").glob("*.npz")):
         z = np.load(p, allow_pickle=True)
         P.append(z["pred"])
         T.append(z["target"])
-    P, T = np.stack(P), np.stack(T)
+    Pa, Ta = np.stack(P), np.stack(T)
     for j, f in enumerate(["ne2d", "te2d"]):
         ax = fig.add_subplot(gs[1, j])
-        p, t = P[:, j].ravel(), T[:, j].ravel()
-        r = float(np.corrcoef(p, t)[0, 1])
-        stats[f] = {"corr": r, "sigma_ratio": float(p.std() / t.std())}
-        ax.hexbin(t, p, gridsize=40, bins="log", cmap="Greys", mincnt=1, linewidths=0)
-        lim = [min(t.min(), p.min()), max(t.max(), p.max())]
+        pred, targ = Pa[:, j].ravel(), Ta[:, j].ravel()
+        corr = float(np.corrcoef(pred, targ)[0, 1])
+        stats[f] = {"corr": corr, "sigma_ratio": float(pred.std() / targ.std())}
+        ax.hexbin(
+            targ, pred, gridsize=40, bins="log", cmap="Greys", mincnt=1, linewidths=0
+        )
+        lim = [min(targ.min(), pred.min()), max(targ.max(), pred.max())]
         ax.plot(lim, lim, color=C_VERM, lw=1.1, ls="--", zorder=4)
         ax.set_xlabel(f"ground truth {f} (norm.)")
         if j == 0:
@@ -551,7 +555,8 @@ def fig3(matey_run: Path, base_nc: str, outdir: Path) -> dict:
         ax.text(
             0.96,
             0.06,
-            f"$r$ = {r:+.2f}\n$\\sigma_{{\\rm pred}}/\\sigma_{{\\rm true}}$ = {p.std() / t.std():.2f}",
+            f"$r$ = {corr:+.2f}\n$\\sigma_{{\\rm pred}}/\\sigma_{{\\rm true}}$ = "
+            f"{pred.std() / targ.std():.2f}",
             transform=ax.transAxes,
             ha="right",
             va="bottom",
@@ -574,7 +579,7 @@ def fig3(matey_run: Path, base_nc: str, outdir: Path) -> dict:
     bins = np.linspace(0, 1, 55)
     ax.hist(
         lin,
-        bins=bins,
+        bins=bins.tolist(),
         color=C_VERM,
         alpha=0.8,
         density=True,
@@ -582,7 +587,7 @@ def fig3(matey_run: Path, base_nc: str, outdir: Path) -> dict:
     )
     ax.hist(
         lg,
-        bins=bins,
+        bins=bins.tolist(),
         color=C_BLUE,
         alpha=0.65,
         density=True,

@@ -334,8 +334,8 @@ if dens is not None:
     tx.set_ylabel(r"mean density  $\bar{n}_e$  (m$^{-3}$)", color=DENSITY, fontsize=10)
     tx.tick_params(axis="y", colors=DENSITY, labelsize=9)
     tx.spines["right"].set_color(DENSITY)
-    for s in ("top", "left", "bottom"):
-        tx.spines[s].set_visible(False)
+    for side in ("top", "left", "bottom"):
+        tx.spines[side].set_visible(False)
     # Matplotlib draws whole axes in zorder order, so the twin has to sit above
     # bx or bx's regime shading paints over the density line.
     tx.set_zorder(3)

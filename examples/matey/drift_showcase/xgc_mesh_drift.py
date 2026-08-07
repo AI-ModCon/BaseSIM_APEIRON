@@ -53,6 +53,8 @@ import os
 from pathlib import Path
 
 import adios2
+from typing import Any
+
 import numpy as np
 import torch
 from scipy.stats import ks_2samp
@@ -355,7 +357,8 @@ def main() -> int:
             flush=True,
         )
 
-    same_machine, cross_machine = [], []
+    same_machine: list[dict[str, object]] = []
+    cross_machine: list[dict[str, object]] = []
     for i, a in enumerate(labs):
         for j, b in enumerate(labs):
             if j <= i:
@@ -377,7 +380,7 @@ def main() -> int:
 
     # ---- coverage vs. the pre-trained devices --------------------------
     refs = [lab for lab in labs if pre_of[lab]]
-    coverage = {}
+    coverage: dict[str, list[float]] = {}
     for lab in labs:
         # Distance to the CLOSEST pre-trained device, not to a pooled
         # reference: pooling ITER and KSTAR gives a bimodal reference against
@@ -400,10 +403,10 @@ def main() -> int:
         pn = psin_s[lab]
         frame_mean = sam_v[lab].mean(axis=0)  # [n_nodes, n_fields]
         prof = np.full((args.psi_bins, len(FIELDS)), np.nan)
-        for b in range(args.psi_bins):
-            m = (pn >= edges[b]) & (pn < edges[b + 1])
+        for bin_i in range(args.psi_bins):
+            m = (pn >= edges[bin_i]) & (pn < edges[bin_i + 1])
             if m.sum() >= 20:
-                prof[b] = frame_mean[m].mean(axis=0)
+                prof[bin_i] = frame_mean[m].mean(axis=0)
         profiles[lab] = prof
 
     def radial_ks(a: str, b: str) -> np.ndarray:
@@ -423,7 +426,7 @@ def main() -> int:
     radial_pairs = {}
     for rec in same_machine:
         radial_pairs[f"{rec['a']} | {rec['b']}"] = radial_ks(
-            rec["a"], rec["b"]
+            str(rec["a"]), str(rec["b"])
         ).tolist()
     # one representative cross-machine pair per held-out device vs each reference
     for lab in labs:
@@ -456,7 +459,10 @@ def main() -> int:
             arrays[f"snapshot_{k}"] = snaps[lab]
     for name, vals in radial_pairs.items():
         arrays[f"radial_{name.replace(' ', '_').replace('|', 'vs')}"] = np.array(vals)
-    np.savez_compressed(outdir / "xgc_mesh_drift.npz", **arrays)
+    # numpy's stub types savez_compressed's second positional as bool, so the
+    # documented **arrays spread does not type-check.
+    npz: Any = np.savez_compressed
+    npz(str(outdir / "xgc_mesh_drift.npz"), **arrays)
 
     summary = {
         "cases": meta,

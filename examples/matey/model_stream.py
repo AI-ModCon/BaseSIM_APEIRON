@@ -149,8 +149,6 @@ class MATEYStreamHarness(MATEYHarness):
             )
         # Force the SOLPS split cache to rebuild against the new root.
         self._configure_user_data_paths(self._params, self.cfg)
-        if not self._settings.use_step_inference:
-            self._configure_solps_staged_pool(self._params, self.cfg)
 
         machine = arrival.get("machine")
         is_change = bool(idx > 0 and machine != self._arrivals[idx - 1].get("machine"))
