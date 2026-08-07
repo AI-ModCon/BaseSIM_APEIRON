@@ -326,6 +326,7 @@ def plot_pred_vs_truth(
     fig, axes = plt.subplots(n, 1, figsize=(10, 3 * n), squeeze=False)
     for i, var in enumerate(target_cols):
         ax = axes[i, 0]
+        truth.loc[:, var] = np.where(truth[var].values == 0, 1e-2, truth[var])
         ax.plot(
             truth.index,
             truth[var].values,
@@ -334,6 +335,7 @@ def plot_pred_vs_truth(
             label="Ground Truth",
         )
         for j, (label, pred) in enumerate(preds.items()):
+            pred.loc[:, var] = np.where(pred[var].values == 0, 1e-2, pred[var])
             ax.plot(
                 pred.index,
                 pred[var].values,
@@ -341,6 +343,8 @@ def plot_pred_vs_truth(
                 linewidth=1.2,
                 label=label,
             )
+        #ax.set_yscale('log')
+        #ax.set_ylim(bottom=1e-20)
         ax.set_xlabel("time step")
         ax.set_ylabel(var)
         ax.legend(loc="best")

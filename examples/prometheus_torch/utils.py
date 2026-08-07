@@ -45,6 +45,7 @@ def make_sequence_windows(
     target_cols: List[str],
     seq_len: int,
     stats: Dict[str, Tuple[float, float]],
+    forecast_horizon: int = 0,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """Sliding-window sequences with full-sequence targets.
 
@@ -58,14 +59,27 @@ def make_sequence_windows(
     y_parts: List[np.ndarray] = []
 
     for df in dfs:
-        if len(df) <= seq_len:
+        if len(df) < seq_len +forecast_horizon:
             continue
         data = normalize(df[all_cols], stats)
         feat = data[feature_cols].to_numpy(dtype=np.float32)
         targ = data[target_cols].to_numpy(dtype=np.float32)
-        n = len(data) - seq_len
+        n = len(data) - seq_len - forecast_horizon + 1
         x_parts.append(np.stack([feat[i : i + seq_len] for i in range(n)]))
-        y_parts.append(np.stack([targ[i : i + seq_len] for i in range(n)]))
+        if forecast_horizon == 0:
+            y_parts.append(np.stack([targ[i : i + seq_len] for i in range(n)]))
+        else:
+            y_parts.append(
+                np.stack(
+                    [
+                        targ[
+                            i + seq_len:
+                            i + seq_len + forecast_horizon
+                        ]
+                        for i in range(n)
+                    ]
+                )
+            )
 
     if not x_parts:
         raise ValueError(

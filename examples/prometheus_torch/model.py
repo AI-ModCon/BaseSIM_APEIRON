@@ -47,6 +47,63 @@ class TorchTemporalModel(nn.Module):
         x, _ = self.lstm3(x)
         return self.head(x)
 
+class TorchTemporalForecastModel(nn.Module):
+    """Encoder-decoder reproduction of the 2024 TemporalPredict Keras model.
+
+    LSTM(128) -> Dropout -> LSTM(64) -> Dropout -> LSTM(32)
+    -> RepeatVector(horizon) -> LSTM(32) -> Linear(n_targets).
+
+    Output shape: (batch, forecast_horizon, n_targets).
+    """
+
+    def __init__(
+        self,
+        n_features: int,
+        n_targets: int,
+        forecast_horizon: int = 30,
+        dropout: float = 0.2,
+    ):
+        super().__init__()
+        if forecast_horizon <= 0:
+            raise ValueError("forecast_horizon must be positive for forecasting")
+
+        self.forecast_horizon = forecast_horizon
+
+        # These explicit dropout layers approximate Keras LSTM(dropout=...).
+        # PyTorch ignores the dropout argument on a one-layer nn.LSTM.
+        self.input_drop1 = nn.Dropout(dropout)
+        self.lstm1 = nn.LSTM(n_features, 128, batch_first=True)
+        self.drop1 = nn.Dropout(dropout)
+
+        self.input_drop2 = nn.Dropout(dropout)
+        self.lstm2 = nn.LSTM(128, 64, batch_first=True)
+        self.drop2 = nn.Dropout(dropout)
+
+        self.input_drop3 = nn.Dropout(dropout)
+        self.encoder = nn.LSTM(64, 32, batch_first=True)
+
+        self.input_drop_decoder = nn.Dropout(dropout)
+        self.decoder = nn.LSTM(32, 32, batch_first=True)
+        self.head = nn.Linear(32, n_targets)
+
+    def forward(self, x: Tensor) -> Tensor:
+        """Forecast `forecast_horizon` targets from an input sequence."""
+        x, _ = self.lstm1(self.input_drop1(x))
+        x = self.drop1(x)
+
+        x, _ = self.lstm2(self.input_drop2(x))
+        x = self.drop2(x)
+
+        # Equivalent to Keras's final encoder LSTM with
+        # return_sequences=False, followed by RepeatVector(horizon).
+        _, (hidden, _) = self.encoder(self.input_drop3(x))
+        decoder_input = hidden[-1].unsqueeze(1).expand(
+            -1, self.forecast_horizon, -1
+        )
+
+        decoded, _ = self.decoder(self.input_drop_decoder(decoder_input))
+        return self.head(decoded)
+
 
 class PrometheusHarness(BaseModelHarness):
     """Continual-learning harness for the reproduced Prometheus temporal model.
@@ -73,12 +130,17 @@ class PrometheusHarness(BaseModelHarness):
     ]
     TARGET_COLS: List[str] = ["NRAD_RX_NMP1_PWR"]
     SEQUENCE_LENGTH: int = 10
+    FORECAST_HORIZON: int = 30
     VAL_RATIO: float = 0.2
 
     def __init__(self, cfg: Config):
         n_features = len(self.FEATURE_COLS)
         n_targets = len(self.TARGET_COLS)
-        model = TorchTemporalModel(n_features=n_features, n_targets=n_targets)
+        #model = TorchTemporalModel(n_features=n_features, n_targets=n_targets)
+        model = TorchTemporalForecastModel(n_features=n_features, 
+                                            n_targets=n_targets, 
+                                            forecast_horizon=self.FORECAST_HORIZON,
+                                            )
         super().__init__(cfg=cfg, model=model)
 
         self.eval_metrics: Dict[str, Any] = {"mse": self.get_criterion()}
@@ -184,6 +246,7 @@ class PrometheusHarness(BaseModelHarness):
             self.TARGET_COLS,
             self.SEQUENCE_LENGTH,
             stats,
+            forecast_horizon=self.FORECAST_HORIZON,
         )
 
         # 80/20 temporal split
