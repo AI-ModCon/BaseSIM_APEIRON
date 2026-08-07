@@ -1,5 +1,6 @@
 # Data and configs
 *.toml
+!examples/**/*.toml
 
 # Logging files
 *.db
@@ -15,6 +16,11 @@ data/*
 
 # bash
 *.sh
+!examples/**/*.sh
+
+# Slurm job logs land in the submitting directory
+slurm-*.out
+slurm-*.err
 
 
 # Files
@@ -229,3 +235,4 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+output/
