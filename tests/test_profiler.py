@@ -121,6 +121,20 @@ class TestFormatHelpers:
         assert "FLOP/s" in profiler._format_throughput(500)
 
 
+class TestMeasureFlopsOptimizer:
+    def test_parameter_free_model_records_zero_flops(self):
+        class NoParamModel(nn.Module):
+            def forward(self, x: torch.Tensor) -> torch.Tensor:
+                return x.sum(dim=-1, keepdim=True)
+
+        p = FLOPSProfiler()
+        model = NoParamModel()
+        with p.measure_flops_optimizer(tag="optimizer", model=model, device="cpu"):
+            pass
+        assert p.profiles["optimizer"]["flop"] == [0]
+        assert p.profiles["optimizer"]["time"][0] >= 0
+
+
 class TestPrintPerformance:
     def test_no_data(self, capsys):
         p = FLOPSProfiler()

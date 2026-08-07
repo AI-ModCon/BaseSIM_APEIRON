@@ -10,15 +10,17 @@ from apeiron.driver.continuous_monitor import ContinuousMonitor
 
 def main(argv: list[str] | None = None) -> int:
     cfg: Config = build_config(argv)
-    modelHarness = get_example(cfg=cfg)
 
-    # Configure logger
+    # Must precede get_example(): get_logger() ignores its arguments once an
+    # instance exists, so a harness that logs from __init__ would pin the config.
     backend = configure_backend(cfg)
     logger = get_logger(
         verbosity=cfg.verbosity,
         backend=backend,
         csv_path=cfg.visualization.input if cfg.visualization else None,
     )
+
+    modelHarness = get_example(cfg=cfg)
 
     # Determine project/experiment name
     project_name = "basesim-framework"
