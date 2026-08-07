@@ -13,7 +13,7 @@
 #   OUTDIR=output/stream_$(date +%Y%m%d_%H%M%S)
 #   sbatch --export=ALL,OUTDIR="$OUTDIR" examples/matey/submit_stream_cl.sh nocl
 #   sbatch --export=ALL,OUTDIR="$OUTDIR" examples/matey/submit_stream_cl.sh cl
-#   python examples/matey/plot_stream_arms.py "$OUTDIR" --events-at 10 14 19 23
+#   python examples/matey/plot_adaptation_sequence.py "$OUTDIR" --stream "$STREAM"
 #
 # Wall time on one MI250X over 24 arrivals: ~2.5 min for nocl, ~17 min for cl.
 # They are separate jobs because Frontier caps one-node batch jobs at two hours.

@@ -131,37 +131,38 @@ number is meaningless; the stream harness warns when this happens.
 
 ## Result
 
-![drift, detection and adaptation](../../docs/images/matey-stream-adaptation.png)
+![drift, detection and adaptation](../../docs/images/matey-adaptation-sequence.png)
 
-Read left to right, top to bottom:
+Read top to bottom:
 
-- **(a-c)** the physics. Mean electron-density field in the baseline scenario and
-  in the held-out one, and the change between them as a percentage of baseline:
-  a 20-30% depletion over most of the domain, deepest at the divertor legs. This
-  is the drift, before any model is involved.
-- **(d)** what the detector sees. Per-window NRMSE across the 24 arrivals. It sits
-  flat near 0.010 for the eight in-pre-training arrivals, then steps up sharply
-  when the held-out scenario arrives. Dashed lines are the four checks at which
-  KSWIN fired and adaptation ran.
-- **(e)** what adaptation buys. Per-arrival mean ± sd for the adapting arm against
-  the no-adaptation control, with the drop on the arriving bundle at each event.
+- **1.** drift is detected. The score is `-log10(p)` of a two-sample KS test, so
+  it rises when the stream changes: near zero through the baseline, then 13-18
+  once the held-out scenario arrives. The detector fires 9 windows after the
+  stream change -- an independent continuous monitor crosses the threshold at the
+  same window, so that delay is intrinsic to the statistics, not detector lag.
+- **2.** continual learning is applied and re-evaluated on the arriving bundle.
+  Markers show the error before and after each round. The grey trace on the right
+  axis is the mean electron density: within DIII-D the pretrained model's error
+  correlates with how far the density has drifted from pre-training at r = 0.96.
+- **3.** where the adapted model beats the pretrained one, per window, with the
+  per-arrival mean above each block.
 
-Adaptation cuts error 35-45% on the bundle that triggered it, and the arms
-separate through the held-out excursion. They also cross back after arrival ~17:
-adapting to the held-out scenario costs accuracy on the later cross-machine
-block. That is negative transfer, not noise -- the historical-domain metric rises
-over the same span and does not recover.
+Adaptation cuts error 52-69% on the arrivals it fires in, and holds the gain
+across the held-out excursion (+41% and +66% on arrivals 5 and 6). It is not free:
+the first detection lands in the baseline regime and costs 13%, and arrival 7
+costs 42% because the stream reverts to easy data just after the model fitted the
+hard regime. Stream-wide the adapted model is 21.3% better by window mean, 4.1%
+by per-arrival mean; both are reported because they answer different questions.
 
 Regenerate with:
 
 ```bash
-python examples/matey/plot_stream_arms.py "$OUTDIR" --events-at 10 14 19 23 \
-    --fields path/to/drift_showcase.npz
+python examples/matey/plot_adaptation_sequence.py "$OUTDIR" --stream "$STREAM"
 ```
 
-Panels (d) and (e) come from the stream CSVs. Panels (a-c) need field snapshots
-from a separate drift-showcase run, which is **not part of this PR** -- omit
-`--fields` and the figure is drawn from the CSVs alone.
+`--stream` adds the mean-density trace to panel 2, read from the arrivals'
+`b2time.nc`. Omit it and the figure is drawn from the run CSVs alone. The oracle
+and replay arms appear automatically when their CSVs are present in `$OUTDIR`.
 
 ## Which Detector Fires
 
