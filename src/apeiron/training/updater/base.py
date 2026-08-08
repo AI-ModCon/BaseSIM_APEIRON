@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import copy
 from typing import Callable, Optional
 
 import torch
 import torch.nn as nn
+from torch.func import functional_call
+from torch.utils.data import DataLoader
 
 from apeiron.config.configuration import Config
 from apeiron.model.torch_model_harness import BaseModelHarness
@@ -19,7 +22,15 @@ class BaseUpdater:
         cfg: Configuration object.
         criterion: Loss function for training.
         model: Neural network model to update.
+        uses_hist_batch: True iff fwd_bwd consumes hist_batch directly.
+            Read by the trainer to decide whether prioritizing the
+            *historical* loader has any effect. Default False — EWC / KFAC
+            receive their historical-data signal through mixing into the
+            current loader, not through the hist_batch argument, so
+            reweighting hist_train_loader for them would be wasted work.
     """
+
+    uses_hist_batch: bool = False
 
     def __init__(self, cfg: Config, modelHarness: BaseModelHarness) -> None:
         """Initialize updater with config and model harness."""
@@ -27,6 +38,50 @@ class BaseUpdater:
         self.criterion: Callable[..., torch.Tensor] = modelHarness.get_criterion()
         self.model: nn.Module = modelHarness.model
         self.mix_historic_data: bool = cfg.continual_learning.mix_historic_data
+
+        # Anchor weights for importance weighting (shared across all updaters)
+        self.theta_star: dict[str, torch.Tensor] = {
+            n: p.detach().clone()
+            for n, p in self.model.named_parameters()
+            if p.requires_grad
+        }
+
+        self.importance_weighting: bool = False
+        self.importance_alpha: float = 1.0
+
+    def _unreduced_criterion(
+        self, outputs: torch.Tensor, y: torch.Tensor
+    ) -> torch.Tensor:
+        """Compute per-sample loss (no reduction)."""
+        crit = copy.copy(self.criterion)
+        crit.reduction = "none"  # type: ignore[attr-defined]
+        return crit(outputs, y)
+
+    @torch.no_grad()
+    def compute_sample_priorities(
+        self, loader: DataLoader, device: str
+    ) -> torch.Tensor:
+        """Compute per-sample priority = (L_current - L_anchor)^alpha for prioritized sampling.
+
+        Returns a 1-D tensor of priorities, one per sample in dataset order.
+        """
+        self.model.eval()
+        anchor = {n: p.detach() for n, p in self.model.named_parameters()}
+        anchor.update(self.theta_star)
+
+        all_deltas: list[torch.Tensor] = []
+        for batch in loader:
+            x, y = batch[0].to(device), batch[1].to(device)
+            cur_loss = self._unreduced_criterion(self.model(x), y)
+            anchor_out = functional_call(self.model, anchor, (x,))
+            anchor_loss = self._unreduced_criterion(anchor_out, y)
+            delta = (cur_loss - anchor_loss).clamp(min=1e-8)
+            all_deltas.append(delta.cpu())
+
+        self.model.train()
+        priorities = torch.cat(all_deltas)
+        # Apply alpha exponent (alpha=1 → linear, <1 → flatter, >1 → sharper)
+        return priorities.pow(self.importance_alpha)
 
     def fwd_bwd(
         self,
@@ -59,12 +114,21 @@ class BaseUpdater:
 
     @torch.no_grad()
     def cl_preprocessing(self) -> None:
-        """Hook called before before the training loop starts"""
-        pass
+        """Hook called before the training loop starts.
+
+        Snapshots current model parameters into theta_star. Runs AFTER
+        compute_sample_priorities in the outer CL loop, so theta_star ends
+        up one round behind the model — the lag the prioritized-sampling
+        delta `L(w_current, x) - L(theta_star, x)` needs to be non-zero
+        on the next round.
+        """
+        for n, p in self.model.named_parameters():
+            if p.requires_grad and n in self.theta_star:
+                self.theta_star[n].copy_(p.detach())
 
     @torch.no_grad()
     def cl_postprocessing(self) -> None:
-        """Hook called after the training loop ends"""
+        """Hook called after the training loop ends."""
         pass
 
     @torch.no_grad()
