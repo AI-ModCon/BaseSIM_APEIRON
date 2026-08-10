@@ -7,20 +7,27 @@ pick, and how to scale its knobs to your metric.
 ## Start here: what is actually plug-and-play
 
 `ContinuousMonitor._check_drift()` calls `detector.update(agg_metric)` with a
-**single aggregated scalar**. Only three detectors work with that signature out
-of the box:
+**single aggregated scalar**. Three detectors work with that signature out of
+the box:
 
 - `ADWINDetector`
 - `KSWINDetector`
 - `PageHinkleyDetector`
 
-The others need extra wiring and should not be treated as defaults:
+`EnsembleDetector` is also drop-in **as long as every sub-detector is one of the
+three above** — it forwards the same scalar to each of them and votes on the
+results. See [Combine detectors with an ensemble](#combine-detectors-with-an-ensemble).
+
+The remaining two need extra wiring and should not be treated as defaults:
 
 | Detector | Why it is not drop-in |
 | --- | --- |
 | `ModelPerformanceDetector` | Needs reference data plus batch `DataFrame`s, which the monitor does not pass. |
 | `EvalDetector` (`ModelEvalDetector`) | Needs `modelHarness`, `reference_validation_metrics`, and `higher_is_better` kwargs the monitor does not send. |
-| `EnsembleDetector` | `load_drift_detector` raises `NotImplementedError`; sub-detector config is not wired up. |
+
+Putting either of those inside an ensemble fails the same way, because
+`EnsembleDetector.update()` passes each sub-detector exactly the arguments it
+received from the monitor.
 
 ```{important}
 The three scalar detectors fire on **change in either direction** — they do not
@@ -36,6 +43,48 @@ know "better" from "worse". If you only care about degradation, that is what
 | Distribution / variance / shape changes with little mean movement | **KSWIN** | A two-sample KS test compares full distributions, not just means. |
 | Abrupt mean shifts; you want fast and cheap detection | **PageHinkley** | A cumulative-sum test, low memory, quick to react. |
 | Gradual drift, mixed drift, or "not sure — give me a sane default" | **ADWIN** | Adaptive windowing handles gradual *and* abrupt shifts with no fixed window size. |
+| Several drift shapes at once, or you want to trade sensitivity against false alarms explicitly | **Ensemble** | Runs the above in parallel and votes; see below. |
+
+## Combine detectors with an ensemble
+
+`EnsembleDetector` runs several sub-detectors on the same aggregated scalar and
+combines their verdicts. Use it when no single test covers the drift you expect,
+or when you want an explicit sensitivity dial that is coarser than any one
+detector's threshold.
+
+```toml
+[drift_detection]
+detector_name = "EnsembleDetector"
+ensemble_detectors = ["ADWINDetector", "KSWINDetector", "PageHinkleyDetector"]
+ensemble_voting = "majority"
+```
+
+| `ensemble_voting` | Fires when | Use it for |
+| --- | --- | --- |
+| `any` (alias `or`) | At least one sub-detector fires | Highest recall; catches drift early at the cost of false alarms. |
+| `majority` (default) | Strictly more than half fire | Balanced; the sane starting point. |
+| `unanimous` (aliases `all`, `and`) | Every sub-detector fires | Highest precision; use when a CL update is expensive. |
+
+Voting names are case-insensitive. An unrecognized name, or an empty
+`ensemble_detectors` list, raises `ValueError` at load time rather than
+silently falling back.
+
+Things to know before reaching for it:
+
+- **Each sub-detector is built from the same `[drift_detection]` block**, so a
+  detector type can appear at most once — you cannot ensemble two ADWINs with
+  different `adwin_delta`. Ensembles cannot be nested either.
+- **Warm-up is governed by the slowest member.** With `majority` over
+  ADWIN + KSWIN + PageHinkley, a verdict is only meaningful once KSWIN's
+  `kswin_window_size` samples have accumulated — at `detection_interval = 10`
+  that is 1000 monitored batches.
+- **Every sub-detector is updated on every call**, with no short-circuiting, so
+  their internal windows stay aligned and `reset_after_learning` applies
+  uniformly. The cost is the sum of the members' costs.
+- The reported `drift_score` is the **mean** of the sub-detector scores and the
+  regime is a **plurality vote** over their regimes — both independent of the
+  voting rule, which only decides `drift_detected`. Per-detector verdicts are in
+  the signal's `metadata`.
 
 ## Scale the knobs to your metric
 
@@ -140,6 +189,34 @@ max_stream_updates = 20
 ph_min_instances = 30
 ph_delta = 0.005
 # Bounded metric in [0, 1]: start small, not at the default 50.
+ph_threshold = 5
+ph_alpha = 0.9999
+```
+:::
+
+:::{tab-item} Ensemble (vote across detectors)
+```toml
+[drift_detection]
+detector_name = "EnsembleDetector"
+ensemble_detectors = ["ADWINDetector", "KSWINDetector", "PageHinkleyDetector"]
+ensemble_voting = "majority"
+detection_interval = 10
+aggregation = "mean"
+metric_index = 0
+reset_after_learning = false
+max_stream_updates = 20
+
+# Sub-detectors are built from these same keys.
+adwin_delta = 0.002
+adwin_minor_threshold = 0.3
+adwin_moderate_threshold = 0.6
+
+kswin_alpha = 0.005
+kswin_window_size = 100
+kswin_stat_size = 30
+
+ph_min_instances = 30
+ph_delta = 0.005
 ph_threshold = 5
 ph_alpha = 0.9999
 ```

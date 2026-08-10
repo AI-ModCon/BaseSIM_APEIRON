@@ -19,7 +19,7 @@ Keep the two trees in sync: a change to a workflow should be reflected in both
 | `explore-examples` | Run a bundled example (MNIST/CIFAR) to see drift detection + CL in action; picks a config and reports the metrics CSV. |
 | `custom-experiment` | Scaffold a harness, data utilities, and TOML for **your own** dataset/model, register it in the example factory, smoke-test, and run. |
 | `integrate-apeiron` | Add Apeiron's drift detection / CL to an **existing** training loop; inspects your repo and writes the lightest adapter that fits. |
-| `choose-detector` | Pick a drift detector and tune its settings, then emit or patch a validated `[drift_detection]` block. |
+| `choose-detector` | Pick a drift detector (including whether to combine several into an `EnsembleDetector` and which voting rule to use), tune its settings, then emit or patch a validated `[drift_detection]` block. |
 
 ## Choosing between them
 

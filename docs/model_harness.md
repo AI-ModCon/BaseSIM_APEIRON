@@ -4,7 +4,7 @@ This document describes the model harness contract and the concrete harness clas
 
 ## Base Class Contract
 
-All harnesses inherit from `BaseModelHarness` in `src/model/torch_model_harness.py`.
+All harnesses inherit from `BaseModelHarness` in `src/apeiron/model/torch_model_harness.py`.
 
 Required methods:
 
