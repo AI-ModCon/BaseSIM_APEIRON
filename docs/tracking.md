@@ -90,7 +90,7 @@ metrics below, each stage also emits its own step counter (`eval/step`,
 | Metric | Meaning |
 |---|---|
 | `cl/drift_event_id` | Which drift event this update belongs to — use it to slice the loss curves per event. |
-| `cl/jvp_reg_total_loss`, `cl/jvp_reg_generation_loss`, `cl/jvp_reg_forgetting_loss` | Generation and forgetting loss components, and their sum. Despite the `jvp_reg_` prefix these are logged for **every** update mode, not just `jvp_reg`; for modes with no forgetting term the forgetting component stays at zero. |
+| `cl/jvp_reg_total_loss`, `cl/jvp_reg_generation_loss`, `cl/jvp_reg_forgetting_loss` | Generation and forgetting loss components, and their sum. Despite the `jvp_reg_` prefix these are logged for **every** update mode, not just `jvp_reg`; for modes with no forgetting term the forgetting component stays at zero. Under `jvp_reg`, which now performs a SAM robust update, the "forgetting" slot carries the accumulated combined current+historical loss rather than a separate retention penalty. |
 
 **`cperf_*`** — cost counters attached to both the `drift/` and `cl/` stages,
 covering the `infer`, `detector`, `update_fwd_bwd`, and `optimizer` phases, each

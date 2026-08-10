@@ -44,8 +44,10 @@ Defined in `ContinualLearningCfg`:
 | Key | Default | Meaning |
 | --- | --- | --- |
 | `update_mode` | `"base"` | Updater selection key. |
-| `jvp_lambda` | `0.001` | Weight for JVP regularization term (`jvp_reg` mode). |
-| `jvp_deltax_norm` | `1` | Scale factor for JVP input perturbation direction. |
+| `mix_historic_data` | `false` | Mix historical replay data into `fwd_bwd()` (ignored by `jvp_reg`, which mixes the streams itself, and by `none`). |
+| `jvp_rho_theta` | `0.05` | SAM parameter-perturbation radius (`jvp_reg` mode). |
+| `jvp_rho_x` | `1.0` | Perturbation radius on the historical inputs along the drift direction; `0` gives parameter-only SAM. |
+| `jvp_data_sign` | `1.0` | `+1` perturbs old inputs toward the current distribution, `-1` toward the old one. |
 | `ewc_lambda` | `1000.0` | EWC regularization strength (`ewc_online` mode). |
 | `ewc_ema_decay` | `0.95` | EMA decay for online Fisher prior in EWC. |
 | `kfac_lambda` | `0.01` | KFAC penalty strength (`kfac_online` mode). |
@@ -61,14 +63,26 @@ Defined in `ContinualLearningCfg`:
 
 ### `jvp_reg` -> `JVPRegUpdater`
 
-- File: `src/training/updater/jvp_reg.py`
-- Uses:
-  - current batch gradient
-  - historical batch gradient
-  - JVP-based regularization term
+- File: `src/apeiron/training/updater/jvp_reg.py`
+- The JVP updater now implements a first-order Sharpness-Aware / Bertsimas
+  **robust** update rather than the original Jacobian-Vector-Product
+  regularization term.
+- Each step:
+  1. Computes the current-batch gradient and uses its normalized negation `u_new`
+     as the SAM parameter-perturbation direction.
+  2. Builds one combined batch, half current and half historical, and shifts the
+     historical inputs by `jvp_rho_x` along the unit batch-mean drift direction
+     `unit(mean(X_cur) - mean(X_hist))`, signed by `jvp_data_sign`.
+  3. Back-propagates the combined loss evaluated at `theta + jvp_rho_theta * u_new`,
+     then restores the parameters. Only first-order information is used -- no
+     Hessian and no third-order terms.
+- Keeping the current batch inside the loss every step anchors online accuracy, so
+  adaptation does not trade it away for retention.
 - Relevant config:
-  - `continual_learning.jvp_lambda`
-  - `continual_learning.jvp_deltax_norm`
+  - `continual_learning.jvp_rho_theta`
+  - `continual_learning.jvp_rho_x` (set to `0` for parameter-only SAM)
+  - `continual_learning.jvp_data_sign`
+- Manages the historical batch itself, so it ignores `mix_historic_data`.
 - If no historical batch is available, it falls back to base update behavior.
 
 ### `ewc_online` -> `OnlineEWCUpdater`
@@ -118,8 +132,9 @@ max_iter = 600
 
 [continual_learning]
 update_mode = "jvp_reg"
-jvp_lambda = 10.0
-jvp_deltax_norm = 1.0
+jvp_rho_theta = 0.05
+jvp_rho_x = 1.0
+jvp_data_sign = 1.0
 
 ewc_lambda = 1000.0
 ewc_ema_decay = 0.95

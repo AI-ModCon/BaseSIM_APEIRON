@@ -309,6 +309,15 @@ class EnsembleDetector(BaseDriftDetector):
     Combines signals from multiple detectors to make more robust decisions.
     """
 
+    VOTING_STRATEGIES = {
+        "majority": "majority",  # more than half of the detectors fire
+        "any": "any",  # at least one detector fires
+        "or": "any",
+        "unanimous": "unanimous",  # every detector fires
+        "all": "unanimous",
+        "and": "unanimous",
+    }
+
     def __init__(
         self,
         detectors: List[BaseDriftDetector],
@@ -320,12 +329,23 @@ class EnsembleDetector(BaseDriftDetector):
 
         Args:
             detectors: List of individual detectors
-            voting: Voting strategy ('majority', 'unanimous', 'any', 'weighted')
+            voting: Voting strategy. One of 'majority', 'any' (alias 'or'),
+                or 'unanimous' (aliases 'all', 'and').
             name: Detector name
         """
         super().__init__(name)
+        if not detectors:
+            raise ValueError("EnsembleDetector requires at least one sub-detector")
+
+        key = voting.strip().lower()
+        if key not in self.VOTING_STRATEGIES:
+            raise ValueError(
+                f"Unknown ensemble voting strategy: {voting!r}. "
+                f"Expected one of {sorted(self.VOTING_STRATEGIES)}."
+            )
+
         self.detectors = detectors
-        self.voting = voting
+        self.voting = self.VOTING_STRATEGIES[key]
         self._is_initialized = all(d._is_initialized for d in detectors)
 
     def update(self, value: float, **kwargs) -> DriftSignal:
@@ -347,18 +367,19 @@ class EnsembleDetector(BaseDriftDetector):
             signals.append(signal)
             detector_names.append(detector.name)
 
-        # Combine signals based on voting strategy
-        if self.voting == "majority":
-            drift_detected = sum(s.drift_detected for s in signals) > len(signals) / 2
-        elif self.voting == "unanimous":
-            drift_detected = all(s.drift_detected for s in signals)
-        elif self.voting == "any":
-            drift_detected = any(s.drift_detected for s in signals)
-        else:  # weighted - use average drift score
-            drift_detected = bool(np.mean([s.drift_score for s in signals]) > 0.5)
-
         # Average drift scores
         avg_drift_score = np.mean([s.drift_score for s in signals])
+
+        # Combine signals based on voting strategy
+        n_votes = sum(s.drift_detected for s in signals)
+        if self.voting == "majority":
+            drift_detected = n_votes > len(signals) / 2
+        elif self.voting == "unanimous":
+            drift_detected = n_votes == len(signals)
+        elif self.voting == "any":
+            drift_detected = n_votes > 0
+        else:
+            raise ValueError(f"unknown voting strategy: {self.voting!r}")
 
         # Determine regime by majority vote
         regime_votes = [s.regime for s in signals]
@@ -367,19 +388,21 @@ class EnsembleDetector(BaseDriftDetector):
         # Combine metadata
         metadata = {
             "n_detectors": len(signals),
+            "voting": self.voting,
+            "n_votes": int(n_votes),
             "individual_signals": [
                 {"detector": name, "detected": signal.drift_detected}
                 for name, signal in zip(detector_names, signals)
             ],
         }
 
+        confidences = [s.confidence for s in signals if s.confidence is not None]
+
         return DriftSignal(
             regime=regime,
-            drift_detected=drift_detected,
+            drift_detected=bool(drift_detected),
             drift_score=float(avg_drift_score),
-            confidence=float(
-                np.mean([s.confidence for s in signals if s.confidence is not None])
-            ),
+            confidence=float(np.mean(confidences)) if confidences else None,
             metadata=metadata,
         )
 

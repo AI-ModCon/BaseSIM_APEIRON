@@ -1,10 +1,10 @@
 # Drift Detectors
 
-This document describes detector classes under `src/drift_detection/`, the `drift_detection` config section, and how detector outputs drive continual learning.
+This document describes detector classes under `src/apeiron/drift_detection/`, the `drift_detection` config section, and how detector outputs drive continual learning.
 
 ## Core Types
 
-Defined in `src/drift_detection/detectors/base.py`:
+Defined in `src/apeiron/drift_detection/detectors/base.py`:
 
 - `LearningRegime`:
   - `stable`
@@ -23,7 +23,7 @@ Defined in `src/drift_detection/detectors/base.py`:
 
 ## Global Drift Config
 
-`src/config/configuration.py` defines `DriftDetectionCfg`:
+`src/apeiron/config/configuration.py` defines `DriftDetectionCfg`:
 
 | Key | Default | Meaning |
 | --- | --- | --- |
@@ -43,22 +43,23 @@ Defined in `src/drift_detection/detectors/base.py`:
 | `ph_delta` | `0.005` | Page-Hinkley change magnitude parameter. |
 | `ph_threshold` | `50` | Page-Hinkley trigger threshold. |
 | `ph_alpha` | `0.9999` | Page-Hinkley forgetting factor. |
+| `ensemble_detectors` | `()` | Sub-detector names combined by `EnsembleDetector`. |
+| `ensemble_voting` | `"majority"` | Voting rule: `majority`, `any`/`or`, `unanimous`/`all`/`and`. |
 
 ## Detector Selection (`detector_name`)
 
-`src/drift_detection/load_drift_detector.py` currently supports:
+`src/apeiron/drift_detection/load_drift_detector.py` currently supports:
 
 - `ADWINDetector`
 - `KSWINDetector`
 - `PageHinkleyDetector`
 - `ModelPerformanceDetector`
 - `EvalDetector` (maps to `ModelEvalDetector`)
-
-`EnsembleDetector` is present as a class but intentionally not wired in the loader and raises `NotImplementedError`.
+- `EnsembleDetector` (combines the detectors listed in `ensemble_detectors` under `ensemble_voting`)
 
 ## Detector Classes And Options
 
-### `ADWINDetector` (`src/drift_detection/detectors/statistical_detectors.py`)
+### `ADWINDetector` (`src/apeiron/drift_detection/detectors/statistical_detectors.py`)
 
 Brief Explanation:
 
@@ -118,7 +119,7 @@ Behavior:
 - Online mean-shift detector from `river`.
 - Score is recent drift frequency over up to 50 updates.
 
-### `ModelPerformanceDetector` (`src/drift_detection/detectors/model_performance_detector.py`)
+### `ModelPerformanceDetector` (`src/apeiron/drift_detection/detectors/model_performance_detector.py`)
 
 Brief Explanation:
 
@@ -169,21 +170,42 @@ Integration note:
 
 Brief Explanation:
 
-Wraps several sub-detectors and combines their signals under a `voting` rule (`majority`, `unanimous`, `any`, or weighted) so you can trade sensitivity against false-alarm rate: e.g. `any` reacts to the first detector that fires while `unanimous` requires full agreement. It is conceptually useful for robustness, but note it is not currently loadable from config (see integration note).
+Wraps several sub-detectors and combines their signals under a `voting` rule so you can trade sensitivity against false-alarm rate: `any` reacts to the first detector that fires, `unanimous` requires full agreement, `majority` sits in between.
 
-Constructor options:
+Config options:
 
-- `detectors: list[BaseDriftDetector]`: sub-detectors whose signals are combined; more detectors = more robust but more compute.
-- `voting`: `majority`, `unanimous`, `any`, or weighted fallback: how signals combine. `any` = most sensitive (first firing wins), `majority` = balanced, `unanimous` = most conservative (all must agree).
-- `name`
+- `ensemble_detectors`: list of sub-detector names to combine, e.g. `["ADWINDetector", "KSWINDetector"]`. Each is built from the same `[drift_detection]` block, so a given detector type can appear at most once. Required; an empty list raises `ValueError`.
+- `ensemble_voting`: how the sub-detector verdicts combine (default `majority`):
+  - `majority` -- fires when strictly more than half the detectors fire. Balanced.
+  - `any` (alias `or`) -- fires when at least one detector fires. Most sensitive.
+  - `unanimous` (aliases `all`, `and`) -- fires only when every detector fires. Most conservative.
+  Names are case-insensitive; an unrecognized value raises `ValueError` at load time.
 
-Integration note:
+Behavior:
 
-- Class implementation exists, but dynamic config loading for sub-detectors is not implemented.
+- All sub-detectors are updated on every call (no short-circuiting), so `detector.reset()` and internal windows stay in sync.
+- The returned `drift_score` is the mean sub-detector score and `confidence` the mean of the non-`None` sub-detector confidences (`None` if no detector reports one), regardless of the voting rule.
+- The regime is a plurality vote over the sub-detector regimes, independent of `drift_detected`.
+- `metadata` carries `voting`, `n_votes`, `n_detectors`, and the per-detector verdicts.
+
+Example:
+
+```toml
+[drift_detection]
+detector_name = "EnsembleDetector"
+ensemble_detectors = ["ADWINDetector", "KSWINDetector", "PageHinkleyDetector"]
+ensemble_voting = "majority"
+detection_interval = 10
+
+# Sub-detectors read their usual hyperparameters from this same block
+adwin_delta = 0.002
+kswin_alpha = 0.005
+ph_threshold = 50
+```
 
 ## How Monitor Uses Detectors
 
-`src/driver/continuous_monitor.py` does:
+`src/apeiron/driver/continuous_monitor.py` does:
 
 1. Evaluate validation batches and buffer metric vectors.
 2. At every `detection_interval`, extract column `metric_index`.

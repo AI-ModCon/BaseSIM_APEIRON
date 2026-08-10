@@ -121,9 +121,14 @@ class ContinualLearningCfg:
     # historical dataloaders, nor on jvp_reg, which mixes the two streams itself.
     mix_historic_data: bool = False
 
-    # For JVP regularization
-    jvp_lambda: float = 0.001
-    jvp_deltax_norm: float = 1
+    # For JVP regularization -- now a SAM-based robust update (see jvp_reg.py).
+    # The update combines the current + historical batch into one loss and takes
+    # the gradient at a SAM parameter-perturbed point (first-order robustness).
+    jvp_rho_theta: float = 0.05  # SAM parameter-perturbation radius
+    jvp_rho_x: float = 1.0  # historical-input perturbation radius (0 = param-SAM only)
+    jvp_data_sign: float = (
+        1.0  # +1 perturb old inputs toward current dist, -1 toward old
+    )
 
     # For EWC method
     ewc_lambda: float = 1000.0
@@ -160,6 +165,20 @@ class DriftDetectionCfg:
     ph_delta: float = 0.005
     ph_threshold: float = 50
     ph_alpha: float = 0.9999
+
+    # Ensemble hyperparameters (used when detector_name = "EnsembleDetector")
+    ensemble_detectors: tuple[str, ...] = ()
+    # "majority" | "any" (alias "or") | "unanimous" (aliases "all", "and")
+    ensemble_voting: str = "majority"
+
+    def __post_init__(self) -> None:
+        # TOML arrays arrive as lists; keep the frozen config immutable.
+        # A bare string (e.g. an unquoted --set that failed JSON parsing) is a
+        # single detector name, not an iterable of characters.
+        names = self.ensemble_detectors
+        if isinstance(names, str):
+            names = (names,)
+        object.__setattr__(self, "ensemble_detectors", tuple(names))
 
 
 @dataclass(frozen=True)
