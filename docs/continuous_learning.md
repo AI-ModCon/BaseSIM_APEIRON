@@ -4,9 +4,9 @@ This document describes the continual-learning path triggered after drift detect
 
 ## Main Components
 
-- `ContinuousTrainer` in `src/training/continuous_trainer.py`
-- Updater factory `create_updater(...)` in `src/training/updater/create_updater.py`
-- Updater implementations in `src/training/updater/`
+- `ContinuousTrainer` in `src/apeiron/training/continuous_trainer.py`
+- Updater factory `create_updater(...)` in `src/apeiron/training/updater/create_updater.py`
+- Updater implementations in `src/apeiron/training/updater/`
 
 ## Training Loop Flow
 
@@ -27,7 +27,7 @@ When `ContinuousMonitor` detects drift:
 
 ## `train` Config Keys Used By CL
 
-Defined in `TrainCfg` (`src/config/configuration.py`):
+Defined in `TrainCfg` (`src/apeiron/config/configuration.py`):
 
 | Key | Default | Meaning |
 | --- | --- | --- |
@@ -57,7 +57,7 @@ Defined in `ContinualLearningCfg`:
 
 ### `base` -> `BaseUpdater`
 
-- File: `src/training/updater/base.py`
+- File: `src/apeiron/training/updater/base.py`
 - Behavior: plain supervised forward/backward on current batch only.
 - Extra config: none.
 
@@ -87,7 +87,7 @@ Defined in `ContinualLearningCfg`:
 
 ### `ewc_online` -> `OnlineEWCUpdater`
 
-- File: `src/training/updater/ewc.py`
+- File: `src/apeiron/training/updater/ewc.py`
 - Keeps running parameter anchor (`theta_star`) and diagonal Fisher estimate.
 - Adds EWC gradient penalty before optimizer step.
 - Updates Fisher/anchor once per CL event in `cl_postprocessing()`.
@@ -97,7 +97,7 @@ Defined in `ContinualLearningCfg`:
 
 ### `kfac_online` -> `OnlineKFACUpdater`
 
-- File: `src/training/updater/kfac.py`
+- File: `src/apeiron/training/updater/kfac.py`
 - Tracks layer-wise activation/gradient statistics via hooks.
 - Applies KFAC-structured EWC-like penalty.
 - Supports modules:
@@ -109,7 +109,7 @@ Defined in `ContinualLearningCfg`:
 
 ### `none` -> `NoUpdater`
 
-- File: `src/training/updater/no_updater.py`
+- File: `src/apeiron/training/updater/no_updater.py`
 - `fwd_bwd(...)` is a no-op and returns `-1.0`.
 - Useful for disabling CL gradient updates while keeping monitoring flow intact.
 

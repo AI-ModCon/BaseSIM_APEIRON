@@ -1,0 +1,26 @@
+/* Apeiron docs -- small refinements on top of the Furo theme. */
+
+/* Keep wide config/metric tables scrollable instead of overflowing the page. */
+.rst-content table,
+article table {
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+/* Mermaid diagrams: center and constrain. */
+.mermaid {
+  display: flex;
+  justify-content: center;
+  margin: 1.5rem 0;
+}
+
+.mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Slightly tighter grid cards from sphinx-design. */
+.sd-card {
+  border-radius: 0.5rem;
+}

@@ -200,6 +200,7 @@ ensemble_voting = "majority"
 Details about the drift detection algorithms available can be found in [docs/drift_detectors.md](drift_detectors.md)
 
 
+(visualization)=
 ## [visualization]
 
 The visualization configuration options are optional and are used to store the results of the metrics captured during the run.
@@ -258,7 +259,7 @@ eval/test_hist_acc
 ```
 
 Example output file:
-```csv
+```text
 step,metric,value
 10,eval/accuracy,62.5
 10,eval/loss,2.0406203269958496

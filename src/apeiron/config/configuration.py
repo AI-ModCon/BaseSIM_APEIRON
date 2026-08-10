@@ -32,14 +32,18 @@ if TYPE_CHECKING:
 
 def get_available_device(multi_gpu: bool = False) -> torch.device:
     """
-    Returns a torch.device with sensible fallbacks:
-      - CPU-only hosts: 'cpu'
-      - CUDA hosts:
-          * multi_gpu=True  -> 'cuda' (let caller handle DDP/DataParallel)
-          * multi_gpu=False -> choose GPU with most free memory, then restrict
-            CUDA_VISIBLE_DEVICES so only that GPU is visible.
-      - Apple Silicon with PyTorch MPS: 'mps' if CUDA is unavailable
-    Never raises if nvidia-smi is missing.
+    Return a ``torch.device`` with sensible fallbacks.
+
+    - CPU-only hosts: ``cpu``.
+    - CUDA hosts:
+
+      - ``multi_gpu=True`` -> ``cuda`` (let the caller handle DDP/DataParallel).
+      - ``multi_gpu=False`` -> choose the GPU with the most free memory, then
+        restrict ``CUDA_VISIBLE_DEVICES`` so only that GPU is visible.
+
+    - Apple Silicon with PyTorch MPS: ``mps`` if CUDA is unavailable.
+
+    Never raises if ``nvidia-smi`` is missing.
     """
     # Single-GPU mode: must set CUDA_VISIBLE_DEVICES *before* CUDA init
     if not multi_gpu and "CUDA_VISIBLE_DEVICES" not in os.environ:
@@ -318,7 +322,7 @@ def env_overrides(prefix="APP_") -> dict[str, Any]:
     Parameters
     ----------
     prefix : str, optional
-        The prefix to filter environment variables with. Defaults to "APP_".
+        The prefix to filter environment variables with. Defaults to ``APP_``.
 
     Returns
     -------
