@@ -19,6 +19,10 @@ def get_example(cfg: Config) -> BaseModelHarness:
         from examples.matey.model import MATEYHarness
 
         return MATEYHarness(cfg=cfg)
+    elif cfg.data.name == "matey_stream":
+        from examples.matey.model_stream import MATEYStreamHarness
+
+        return MATEYStreamHarness(cfg=cfg)
     else:
         raise NotImplementedError(
             f"Example for dataset {cfg.data.name} is not implemented."
