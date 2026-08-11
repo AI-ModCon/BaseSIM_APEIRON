@@ -1,0 +1,466 @@
+# MATEY Example
+
+A MATEY vision-transformer surrogate for SOLPS plasma-edge simulations, run
+through the same monitor → detect → adapt → resume loop as the other examples.
+
+This is the only bundled example where **the drift is real**. MNIST, CIFAR and
+ImageNet manufacture drift by drawing affine transforms; here the stream is a
+sequence of physics simulations that genuinely arrive from different scenarios
+and different tokamaks, and the surrogate's error moves because the physics
+moved. It is also the only example whose model comes from an external package,
+and the only one where the monitored quantity is a regression error (NRMSE)
+rather than classification accuracy.
+
+Like `imagenet/`, it cannot fetch its own inputs: **you supply the MATEY package,
+a checkpoint, and the SOLPS data.**
+
+## Contents
+
+| File | Purpose |
+|---|---|
+| `model.py` | `MATEYHarness` — builds the MATEY model from a checkpoint, adapts its loaders and batch types to `BaseModelHarness`, defines the NRMSE metrics |
+| `model_stream.py` | `MATEYStreamHarness` — walks an ordered sequence of arriving simulations instead of one static root |
+| `solps/settings.py` | `MateySettings` — the MATEY-side knobs, read from the data root (see below) |
+| `solps/matey_batches.py` | Adapters between MATEY's dataclass batches and the framework's `(x, y)` contract |
+| `solps/solps2dwion_dataset.py` | `SOLPS2DwIONDataset` — a `b2time.nc` reader registered into MATEY's dataset registry |
+| `solps/fusionbench_eval_hooks.py` | `patch_leadtime`, so evaluation matches the checkpoint's rollout horizon |
+| `matey.toml` | Single-root config — ADWIN, `base` updater |
+| `matey_stream.toml` | Sequential-arrival config — KSWIN; this is the one that produces the drift result below |
+| `Demo_SOLPS_vit.yaml` | Fallback MATEY architecture params, used when the checkpoint ships no `hyperparams.yaml` |
+| `stage_solps_stream.py` | Builds a stream root and its `stream_manifest.json` from SOLPS output |
+| `sweep_field_labels.py` | Re-derives `field_labels` for a checkpoint (see the warning under *Stream root*) |
+| `download_data.sh` | Fetches a staged stream, and optionally the checkpoint, verified against `checksums.txt` |
+| `eval_retrospective.py` | Scores every saved adaptation checkpoint against every arrival — the forgetting measurement |
+| `tune_kswin_offline.py` | Chooses KSWIN's window sizes by replaying a recorded control run |
+| `plot_adaptation_sequence.py` | The drift/detection/adaptation figure; add `--mix` and a retrospective to get the forgetting panel too |
+| `submit_retrospective.sh` | Batch runner for `eval_retrospective.py` |
+| `STANDALONE.md` | What stops this running outside ORNL, whose permission each part needs, and what a distributable bundle would cost |
+
+**Before you try to run this elsewhere, read [`STANDALONE.md`](STANDALONE.md).**
+MATEY is not on PyPI and its public clone does not build, so today this runs only
+with MATEY supplied on `PYTHONPATH`. The harness and its tests need none of that.
+
+## Prerequisite 1: The MATEY Package
+
+`model.py` imports `matey` lazily, inside the functions that need it, so the
+module imports and its unit tests collect without it. Running the example does
+require it:
+
+MATEY lives at <https://github.com/ORNL/MATEY>. This harness is pinned to a
+development commit, since it uses model internals that the released version does
+not expose:
+
+```bash
+pip install "git+ssh://git@github.com/FusionFM/MATEY.git@<commit>"
+```
+
+The pinned commit is `MATEY_GIT_COMMIT` in `model.py`. Reviewers without access
+to that repository can still read the harness and run its tests; only the
+end-to-end run needs the package.
+
+## Prerequisite 2: The Data
+
+### Single root (`matey.toml`)
+
+A SOLPS root with `train/` and `valid/` subdirectories that `data.path` points at.
+
+### Stream root (`matey_stream.toml`)
+
+`MATEYStreamHarness` walks simulations in arrival order, so its root holds one
+bundle directory per arrival plus two small JSON files:
+
+```
+<data.path>/
+  stream_manifest.json
+  matey_settings.json
+  seg_000_<case>_00/   train/ valid/
+  seg_001_<case>_01/   train/ valid/
+  ...
+```
+
+`stream_manifest.json` gives the order and each arrival's metadata:
+
+```json
+{
+  "n_arrivals": 32,
+  "machine_change_points": [16, 24],
+  "arrivals": [
+    {"index": 0, "dir": "seg_000_baseline_00", "case": "baseline",
+     "machine": "D3D", "segment": 0, "time_range": [0, 60],
+     "train_range": [0, 36], "valid_range": [41, 56]}
+  ]
+}
+```
+
+`matey_settings.json` carries the settings that describe the data and the
+checkpoint rather than the continual-learning run:
+
+```json
+{
+  "dset_type": "SOLPS2DwION",
+  "field_labels": [533, 534, 535],
+  "leadtime": 1,
+  "use_step_inference": true
+}
+```
+
+These deliberately live here rather than in the TOML. `apeiron.config` is shared
+with every other user of the framework, and a key like `field_labels` means
+nothing to the MNIST example; `solps/settings.py` has the full rationale and the
+defaults. Every field is optional.
+
+**Read about `field_labels` before trusting any number.** MATEY assigns each
+dataset a slice of a global field-embedding table by walking its registry in
+insertion order, so registering a dataset class at runtime appends it, and the
+slice depends on the *local* registry rather than the one used during
+pre-training. Getting it wrong is silent — the table is wide enough that the
+indices stay in bounds — and it inflated SOLPS NRMSE from ~0.11 to ~0.63 before it
+was found. Re-derive it whenever the checkpoint changes.
+
+## Running It
+
+From the **repository root**:
+
+```bash
+poetry run python -m src.main --config examples/matey/matey_stream.toml \
+  --set data.path=/path/to/solps_stream \
+  --set model.pretrained_path=/path/to/best_ckpt.tar
+```
+
+`drift_detection.max_stream_updates` must be `n_arrivals - 1`: `ContinuousMonitor`
+calls `update_data_stream()` once before its loop and once per extension, so
+`n_arrivals` requests one past the end. The harness raises with the correct value
+if you get it wrong.
+
+To check the wiring without a staged stream, run the single-root config over a
+handful of shots and one window:
+
+```bash
+poetry run python -m src.main --config examples/matey/matey.toml \
+  --set data.path=/path/to/solps \
+  --set drift_detection.max_stream_updates=1 --set train.max_iter=5
+```
+
+An empty `model.pretrained_path` is **not** benign here. Unlike ImageNet there is
+no stock pretrained MATEY, so the ViT starts from random weights and every error
+number is meaningless; the stream harness warns when this happens.
+
+## What Adaptation Actually Does
+
+Worth stating plainly before reading any percentage below, because "continual
+learning improved the error by X%" says nothing about what was optimised.
+
+**It is fine-tuning, not training from scratch.** The checkpoint is a
+pre-trained MATEY surrogate; each drift event continues training it on the
+simulation that just arrived.
+
+**Every parameter moves.** `get_optmizer()` builds two parameter groups over the
+whole backbone via MATEY's own `add_weight_decay` -- one that decays, one that
+does not. Nothing is frozen, and there is no LoRA, adapter or head-only path.
+That is exactly why forgetting is a live risk here and why the harness exposes
+`get_hist_dataloaders()` so `history_eval()` can measure it.
+
+**The learning rate is the one setting you must not inherit.** AdamW at
+`train.init_lr = 3e-6`, roughly 300x below MATEY's pre-training rate of 1e-3.
+`get_optmizer()` deliberately lets `train.init_lr` win over the value in the
+checkpoint's `hyperparams.yaml`; under the previous precedence every
+`--set train.init_lr=...` was silently a no-op.
+
+**One round is bounded work.** `train.max_iter = 500` steps at
+`train.batch_size = 1`, drawn from the arriving bundle's train split. With
+`mix_historic_data = false` the round sees only the new arrival; with it true,
+each step also replays a batch from the last arrival of the starting case.
+
+`train.batch_size` must stay at 1 for this stream. MATEY's batch sampler reports
+`len(sampler) // batch_size` batches per arrival, and a 60-frame arrival's valid
+split holds 15 -- at batch size 4 that floors to zero and the monitor evaluates
+nothing at all, walking the whole stream and writing an empty metrics file
+without raising.
+
+**The loss is the metric.** `get_criterion()` returns NRMSE over the predicted
+fields -- the same quantity `eval_metrics` reports and the detector monitors, so
+"the loss went down" and "the monitored error went down" mean the same thing
+here. `patch_leadtime` pins evaluation to the checkpoint's rollout horizon, and
+an arrival's train and valid frame ranges are disjoint with a 5-frame gap, so a
+round can never train on the frames it is then scored against.
+
+**Adaptation volume is the knob that matters.** A larger per-round percentage
+improvement is not better in itself: it partly measures how much damage the
+previous round did. An earlier staging with far fewer samples per arrival
+produced bigger headline per-round drops and a *worse* per-arrival mean.
+
+Which continual-learning strategy is used is `continual_learning.update_mode`.
+`base` is vanilla fine-tuning; `ewc_online`, `kfac_online` and `jvp_reg` all run
+on this harness, and are compared in [the forgetting study](#catastrophic-forgetting).
+
+## Result
+
+![drift, detection and adaptation](../../docs/images/matey-adaptation-sequence.png)
+
+Read top to bottom:
+
+- **1.** drift is detected. The score is `-log10(p)` of a two-sample KS test, so
+  it rises when the stream changes: near zero through the baseline, then 13-18
+  once the held-out scenario arrives. The detector fires 9 windows after the
+  stream change -- an independent continuous monitor crosses the threshold at the
+  same window, so that delay is intrinsic to the statistics, not detector lag.
+- **2.** continual learning is applied and re-evaluated on the arriving bundle.
+  Markers show the error before and after each round. The grey trace on the right
+  axis is the mean electron density: within DIII-D the pretrained model's error
+  correlates with how far the density has drifted from pre-training at r = 0.96.
+- **3.** where the adapted model beats the pretrained one, per window, with the
+  per-arrival mean above each block.
+
+Adaptation cuts error 52-69% on the arrivals it fires in, and holds the gain
+across the held-out excursion (+41% and +66% on arrivals 5 and 6). It is not free:
+the first detection lands in the baseline regime and costs 13%, and arrival 7
+costs 42% because the stream reverts to easy data just after the model fitted the
+hard regime. Stream-wide the adapted model is 21.3% better by window mean, 4.1%
+by per-arrival mean; both are reported because they answer different questions.
+
+Regenerate with:
+
+```bash
+python examples/matey/plot_adaptation_sequence.py "$OUTDIR" --stream "$STREAM"
+```
+
+`--stream` adds the mean-density trace to panel 2, read from the arrivals'
+`b2time.nc`. Omit it and the figure is drawn from the run CSVs alone. The oracle
+and replay arms appear automatically when their CSVs are present in `$OUTDIR`.
+
+## Catastrophic Forgetting
+
+![what adaptation costs the data already learned](../../docs/images/matey-forgetting.png)
+
+Adapting to an arriving simulation is only half the question. The other half is
+what it costs on data the surrogate had already learned. `eval_retrospective.py`
+answers it by replaying every saved adaptation checkpoint over the baseline
+arrivals *no CL round ever trained on*, and `plot_adaptation_sequence.py` draws
+the result as panels 3 and 4 of the figure above.
+
+### Four measurements, and why they differ
+
+The same word "gain" covers four quantities here, which is how one result gets
+quoted as 35%, 8.6%, 5.6% and 1.8% in four places. Throughout, **positive means
+the error went down**.
+
+| measurement | reference | what it answers |
+|---|---|---|
+| **per round** | the arm's own model just before that round | did this round improve on the arrival that triggered it |
+| **online** | the frozen pre-trained model | is the adapted model better on the arriving simulation |
+| **BWT 0-7** | the frozen pre-trained model | does the finished model still hold the arrivals it was pre-trained on and never re-trained on |
+| **BWT all** | the frozen pre-trained model | the same, over the whole stream |
+
+Each is reported two ways: the **mean over monitoring windows**, which weights
+every window equally, and in brackets the **reduction of the mean error**, which
+the largest-error windows dominate. They differ by several points, and for a weak
+arm they differ in sign -- so an unqualified percentage is not a result.
+
+### The grid
+
+Nine arms over the 32-arrival stream, against the frozen-pretrained control.
+
+| arm | `update_mode` | replay | per round | online | BWT 0-7 | BWT all |
+|---|---|---|---:|---:|---:|---:|
+| `base_mix` | `base` | yes | +27.2% | **+3.4** (+8.6) | **+1.8** (+2.0) | **+5.6** (+5.8) |
+| `ewc_mix` | `ewc_online` | yes | +27.1% | **+3.5** (+8.8) | **+1.6** (+1.7) | **+5.3** (+5.6) |
+| `kfac_mix` | `kfac_online` | yes | +27.1% | **+3.6** (+8.8) | **+1.4** (+1.6) | **+5.4** (+5.5) |
+| `jvp` (`rho_theta=1e-3`) | `jvp_reg` | own | +25.1% | +2.1 (+7.5) | -0.3 (-0.1) | +3.7 (+4.2) |
+| `base` | `base` | no | +35.3% | -1.5 (+4.2) | **-13.2** (-13.0) | -4.2 (-5.8) |
+| `base2` (replicate) | `base` | no | +35.4% | -1.4 (+4.2) | **-9.8** (-9.6) | -2.2 (-4.2) |
+| `kfac` | `kfac_online` | no | +35.4% | -1.7 (+4.1) | **-11.4** (-11.2) | -2.7 (-4.5) |
+| `ewc` | `ewc_online` | no | +35.3% | -1.7 (+3.9) | **-10.7** (-10.6) | -2.8 (-4.7) |
+| `ewc_anchor` | `ewc_online` | no | +35.7% | -2.0 (+3.7) | **-12.7** (-12.5) | -3.8 (-5.5) |
+
+**Seeing the old data is the only thing that matters.** Every arm that replays
+history -- the three `mix_historic_data = true` arms, plus `jvp_reg`, which
+combines the current and historical batches into one loss itself -- holds the
+pre-training arrivals, at -0.3 to +1.8% BWT. Every arm that does not loses 9.8 to
+13.2% on them. The split is total: no arm is on the wrong side of it, and nothing
+else about the arms predicts any column.
+
+Replay wins on adaptation *and* on retention, so there is no
+stability-plasticity trade-off to negotiate here -- one setting wins on both axes.
+
+**A larger per-round drop is a worse arm.** This is the column that looks like the
+headline and is not. Every non-replaying arm drops ~35% per round, every replaying
+arm ~27%, and the ~35% group is behind on all three of the other columns. The
+reason is the reference: the per-round figure is measured against the arm's own
+model as it stood when drift fired, so a round undoing the previous round's damage
+scores as well as one that learned something. On the five adapted arrivals
+themselves, against the frozen control, `base` is **-14.8%** despite those 35%
+drops, while `base_mix` is +2.7%.
+
+**The regularisers do nothing measurable.** EWC, K-FAC and pretrained-anchored
+EWC all land inside the `base`/`base2` replicate spread. Two reasons, both visible
+in the per-event trace: they re-anchor on the previous round's weights rather than
+on pre-training, and EWC's Fisher is still zero during the first CL round -- the
+round that does most of the damage (0.01065 -> 0.01597, then partial recovery). A
+penalty with no curvature to weight it constrains nothing exactly when it matters.
+
+**`base2` is not redundant.** Same configuration as `base`, different seed. They
+differ by 3.4 pp of BWT on arrivals 0-7, and that is the noise floor every other
+comparison is read against: the 15.0 pp `base` -> `base_mix` gap is ~4x it and
+real, the 2.5 pp `base` -> `ewc` gap is not. The two axes have very different
+noise -- online gain reproduces to 0.1 pp, BWT only to 3.4 pp -- so a BWT claim
+needs a replicate and an online claim does not.
+
+### `jvp_reg` needs its radius retuned for a pretrained model
+
+At the shipped `jvp_rho_theta = 0.05` this arm reports **+353%** -- it makes the
+surrogate four and a half times worse while detecting drift and checkpointing
+normally. At `1e-3` the same arm reports **-7.50%**, second only to replay. The
+default is a SAM perturbation radius chosen for models trained from scratch; a
+converged surrogate fine-tuned at `3e-6` cannot walk back from it. `JVP_RHO_THETA`
+in `submit_stream_cl.sh` exposes it.
+
+### Reproducing
+
+```bash
+for arm in nocl base base2 base_mix ewc ewc_mix ewc_anchor kfac kfac_mix; do
+  sbatch --export=ALL,MATEY_ENV=..,MATEY_SRC=..,STREAM=..,CKPT=..,OUTDIR="$OUTDIR" \
+         examples/matey/submit_stream_cl.sh "$arm"
+done
+# then, per adapting arm:
+sbatch --export=ALL,...,ARM=base_mix examples/matey/submit_retrospective.sh
+# the same script as the adaptation figure; panel 4 appears once retro_*.csv exist
+python examples/matey/plot_adaptation_sequence.py "$OUTDIR" --stream "$STREAM" \
+  --control nocl --cl base --mix base_mix --baseline-arrivals 0-7
+```
+
+Each arm is one job of 25-40 min on a single MI250X; the retrospectives are ~10 min each.
+
+## Which Detector Fires
+
+All four arms below monitor the identical 343-window error trace -- with
+`update_mode = "none"` the model never changes, so the signal is the same and
+only the detector differs:
+
+| detector | detections | notes |
+|---|---:|---|
+| `ADWINDetector` | 0 | tracks the running mean; blind to this shift |
+| `PageHinkleyDetector` | 0 | likewise |
+| `KSWINDetector` (seeded) | 4 | tests the error *distribution* |
+| `EnsembleDetector`, `any` vote of all three | 4 | identical steps to KSWIN alone |
+
+The shift shows up as a change in the distribution of the per-window error, not
+in its mean, which is why the two mean-based detectors never trigger. The
+ensemble inherits KSWIN's detections exactly and adds nothing here -- useful as
+a negative result: `any` voting costs no false alarms when the other members
+stay silent, but it cannot manufacture sensitivity they do not have.
+
+![detector response](../../docs/images/matey-detector-response.png)
+
+Measured on a finer cadence over the same baseline/held-out pair, the ordering is
+the same and the cost of getting it wrong is explicit: KSWIN detects 40 SOLPS
+frames after the change point, ADWIN needs 660, and Page-Hinkley never fires at
+the shipped settings. `drift_showcase/solps_drift_showcase.py` produces it.
+
+Reproduce the stream comparison with:
+
+```bash
+for d in ADWINDetector KSWINDetector PageHinkleyDetector EnsembleDetector; do
+  sbatch --export=ALL,OUTDIR="$OUTDIR",DETECTOR="$d",TAG="_$d" \
+    examples/matey/submit_stream_cl.sh nocl
+done
+```
+
+`kswin_seed` makes this reproducible; without it KSWIN draws its reference
+window at random and the firing steps move between runs.
+
+## Drift Detection on XGC
+
+The same detectors, applied to XGC gyrokinetic data rather than SOLPS. There is
+no XGC model harness -- MATEY's graph branch registers 10 feature columns while
+the staged `graphdata_*.pt` carry 11 -- so this is **detection only**: the
+monitored signal is a KS statistic on the raw fields, with no model in the loop
+and therefore no continual learning.
+
+![XGC device maps](../../docs/images/matey-xgc-device-maps.png)
+
+Six cases across four devices, from ITER PFPO at 1.28M mesh nodes down to
+ASDEX-U at 17.5k.
+
+![XGC detector response](../../docs/images/matey-xgc-detectors.png)
+
+The stream leaves the pre-training set at window 16 and the coverage score steps
+from ~0.03 to ~0.32. Page-Hinkley (tuned to stream) detects it 4 windows later, KSWIN (tuned to stream) 6, with no false alarms; at river's default window sizes none of the three
+fires at all. The control matters more than the detections: on a same-machine
+scenario change (DIII-D PT to DIII-D NT) **0 of 6 configurations fire**, so the
+detectors are responding to the device change rather than to any change.
+
+Note the tuning does not transfer between the two datasets: on SOLPS the
+*as-shipped* KSWIN is the best of the six, while on XGC only the *resized*
+configurations detect anything. Window size has to match the cadence of the
+signal.
+
+`drift_showcase/xgc_mesh_drift.py` extracts the fields (needs `adios2` and the
+staged XGC roots) and `plot_xgc_mesh_drift.py` draws both figures.
+
+## How the Drift Arises
+
+Nothing is synthesised. The 24-arrival stream the shipped config describes is
+ordered so the change points are unambiguous: sixteen arrivals from one tokamak
+(a scenario the surrogate saw in pre-training, then a held-out scenario on the
+same machine), then eight from a second machine. The machine change falls at
+arrival 16.
+
+Only the held-out scenario is genuinely unseen — the checkpoint trains on the
+whole SOLPS tree, so the cross-machine arrivals are "different machine,
+under-fit" rather than "never seen". That distinction matters when reading the
+results.
+
+`get_hist_dataloaders()` returns the most recent arrival of the stream's *first*
+case, which is what makes forgetting measurable: after adaptation,
+`history_eval()` scores the model back on the data it started out good at.
+
+## Expected Outcome
+
+The console loop has the same shape as the other examples. What differs is the
+detector and the metric: KSWIN on `nrmse_mean` (`metric_index = 3`), because the
+shift shows up as a change in the error *distribution* that mean-based detectors
+miss. ADWIN and Page-Hinkley at their shipped settings never fire on this signal
+at all.
+
+The 60/20 KSWIN window was chosen by replaying a recorded control stream through
+candidate configurations: it fires on the held-out excursion with zero false
+alarms before onset and none at either machine change. `kswin_seed` is set,
+because KSWIN samples its reference window at random and the run is otherwise not
+reproducible.
+
+Continual learning helps at every event it fires on, measured on the arrival it
+has just adapted to:
+
+| CL event | NRMSE before | after | change |
+|---|---|---|---|
+| 1 | 0.01824 | 0.01169 | −35.9% |
+| 2 | 0.01811 | 0.01078 | −40.5% |
+| 3 | 0.01018 | 0.00569 | −44.1% |
+| 4 | 0.00996 | 0.00626 | −37.2% |
+| 5 | 0.00703 | 0.00561 | −20.2% |
+
+Aggregated over the whole stream against a no-adaptation control the picture is
+more mixed, and worth stating plainly: adaptation is a clear win on the held-out
+scenario (−12.3% NRMSE), roughly neutral on the in-distribution baseline, and a
+**loss** on one cross-machine block (+12.9%). Two things drive that. The detector
+fires some windows after the regime actually changed, so part of the adaptation
+lands on the wrong side of the boundary; and the gains are local to the window
+that was adapted on. Over the whole stream, continual learning comes out about 4%
+ahead of no adaptation.
+
+These are numbers from one checkpoint on one staged stream. Treat them as a
+worked example of the analysis, not as a benchmark.
+
+### Artifacts
+
+- The CSV at `[visualization] input` — `eval/*`, `drift/*` and `cl/*` rows, plus
+  `val_pre_*` / `val_post_*` for every metric on the current and historical
+  domains around each CL round.
+- The end-of-run summary reports drift checks, detections and CL dispatches, so a
+  run where nothing fired is distinguishable from a broken detector.
+
+### Cost
+
+Every window runs MATEY forward passes over a SOLPS validation split, and each
+drift event fine-tunes on the arriving bundle. Expect a multi-GPU allocation for the full 24-arrival stream; the
+single-root smoke test above runs in minutes.
