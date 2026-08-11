@@ -127,6 +127,19 @@ class TestADWINDetector:
 # ---------------------------------------------------------------------------
 # KSWINDetector
 # ---------------------------------------------------------------------------
+def _shifting_stream() -> list[float]:
+    """Deterministic stream: 100 samples at mean 0, then 100 at mean 5."""
+    rng = np.random.default_rng(0)
+    return [
+        *rng.normal(0.0, 1.0, 100).tolist(),
+        *rng.normal(5.0, 1.0, 100).tolist(),
+    ]
+
+
+def _drift_steps(detector: KSWINDetector, stream: list[float]) -> list[int]:
+    return [i for i, v in enumerate(stream) if detector.update(v).drift_detected]
+
+
 class TestKSWINDetector:
     def test_init(self):
         d = KSWINDetector(alpha=0.01)
@@ -151,6 +164,24 @@ class TestKSWINDetector:
         d = KSWINDetector(alpha=0.01)
         signal = d.update(1.0)
         assert signal.confidence == pytest.approx(0.99)
+
+    def test_same_seed_gives_the_same_detections(self):
+        stream = _shifting_stream()
+        first = _drift_steps(
+            KSWINDetector(window_size=60, stat_size=20, seed=1337), stream
+        )
+        second = _drift_steps(
+            KSWINDetector(window_size=60, stat_size=20, seed=1337), stream
+        )
+        assert first == second
+        assert first, "expected at least one detection on a mean shift of 5 sigma"
+
+    def test_reset_restores_the_seeded_sequence(self):
+        stream = _shifting_stream()
+        d = KSWINDetector(window_size=60, stat_size=20, seed=1337)
+        first = _drift_steps(d, stream)
+        d.reset()
+        assert _drift_steps(d, stream) == first
 
 
 # ---------------------------------------------------------------------------
@@ -377,6 +408,18 @@ class TestLoadDriftDetector:
         )
         d = load_drift_detector(cfg)
         assert isinstance(d, KSWINDetector)
+
+    def test_kswin_seed_is_forwarded_from_config(self, default_cfg):
+        from dataclasses import replace
+
+        cfg = replace(
+            default_cfg,
+            drift_detection=DriftDetectionCfg(
+                detector_name="KSWINDetector", kswin_seed=1337
+            ),
+        )
+        d = load_drift_detector(cfg)
+        assert d.seed == 1337
 
     def test_page_hinkley(self, default_cfg):
         from dataclasses import replace
