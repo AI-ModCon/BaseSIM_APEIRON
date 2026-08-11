@@ -15,13 +15,26 @@ from apeiron.drift_detection.detectors.statistical_detectors import (
     KSWINDetector,
     PageHinkleyDetector,
 )
-from apeiron.drift_detection.detectors.model_performance_detector import (
-    EnsembleDetector,
-    ModelEvalDetector,
-    ModelPerformanceDetector,
-)
 from apeiron.config.configuration import DriftDetectionCfg
 from apeiron.drift_detection.load_drift_detector import load_drift_detector
+
+# Evidently has no wheel for every deployment target. Import them behind a
+# guard so the statistical-detector tests -- which need nothing beyond river --
+# still run there, instead of the whole module erroring out at collection.
+try:
+    from apeiron.drift_detection.detectors.model_performance_detector import (
+        EnsembleDetector,
+        ModelEvalDetector,
+        ModelPerformanceDetector,
+    )
+
+    HAS_EVIDENTLY = True
+except ModuleNotFoundError:  # pragma: no cover - environment dependent
+    HAS_EVIDENTLY = False
+
+requires_evidently = pytest.mark.skipif(
+    not HAS_EVIDENTLY, reason="evidently is not installed in this environment"
+)
 
 
 # ---------------------------------------------------------------------------
@@ -222,6 +235,7 @@ class TestPageHinkleyDetector:
 # ---------------------------------------------------------------------------
 # ModelPerformanceDetector (simple value path)
 # ---------------------------------------------------------------------------
+@requires_evidently
 class TestModelPerformanceDetector:
     def test_not_initialized_raises(self):
         d = ModelPerformanceDetector()
@@ -254,6 +268,7 @@ class TestModelPerformanceDetector:
 # ---------------------------------------------------------------------------
 # ModelEvalDetector
 # ---------------------------------------------------------------------------
+@requires_evidently
 class TestModelEvalDetector:
     def test_raises_without_harness(self):
         d = ModelEvalDetector()
@@ -431,6 +446,7 @@ class TestLoadDriftDetector:
         d = load_drift_detector(cfg)
         assert isinstance(d, PageHinkleyDetector)
 
+    @requires_evidently
     def test_model_performance(self, default_cfg):
         from dataclasses import replace
 
@@ -441,6 +457,7 @@ class TestLoadDriftDetector:
         d = load_drift_detector(cfg)
         assert isinstance(d, ModelPerformanceDetector)
 
+    @requires_evidently
     def test_eval_detector(self, default_cfg):
         from dataclasses import replace
 
