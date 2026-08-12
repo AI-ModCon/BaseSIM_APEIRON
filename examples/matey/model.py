@@ -34,6 +34,11 @@ DEFAULT_MATEY_TRAIN_VAL_TEST = (0.7, 0.15, 0.15)
 SOLPS_ION_FIELD_NAMES = ("ne2d", "te2d", "ti2d")
 MATEY_GIT_COMMIT = "4e615bb5c86024632e386153bfbed028b38a8262"
 MATEY_GIT_URL = f"git+ssh://git@github.com/FusionFM/MATEY.git@{MATEY_GIT_COMMIT}"
+# The commit above lives in a private fork. The public tag carries every symbol
+# this harness imports, at the same module path and with the same signature, so
+# it is what an outside reader should be sent to; see examples/matey/STANDALONE.md.
+MATEY_PUBLIC_URL = "https://github.com/ORNL/MATEY"
+MATEY_PUBLIC_TAG = "v1.0.0"
 
 
 class MATEYHarness(BaseModelHarness):
@@ -238,11 +243,19 @@ class MATEYHarness(BaseModelHarness):
             from matey.utils.forward_options import ForwardOptionsBase
             from matey.utils.training_utils import autoregressive_rollout
         except ModuleNotFoundError as exc:
+            # Neither `pip install matey` nor the pinned URL helps a reader
+            # outside the project: the PyPI name belongs to an unrelated package,
+            # and the pin is a private fork. MATEY is not pip-installable at all
+            # yet -- its setup.py is commented out -- so the remedy is a clone on
+            # PYTHONPATH, which is what the submit scripts pass as MATEY_SRC.
             raise RuntimeError(
-                "Matey dependency import failed. Ensure MATEY requirements are "
-                "installed in the active environment (for example: "
-                f'`poetry install --extras matey` or `pip install "matey @ {MATEY_GIT_URL}"`) '
-                "and that `[data].path` points to your local SOLPS dataset root."
+                "MATEY import failed. It is supplied on PYTHONPATH rather than "
+                "installed:\n"
+                f"    git clone --branch {MATEY_PUBLIC_TAG} {MATEY_PUBLIC_URL}\n"
+                "    export PYTHONPATH=/path/to/MATEY:$PYTHONPATH\n"
+                "Also check that `[data].path` points to your SOLPS dataset root. "
+                "See examples/matey/STANDALONE.md for what the public tag does and "
+                "does not cover."
             ) from exc
 
         dadapt = None
