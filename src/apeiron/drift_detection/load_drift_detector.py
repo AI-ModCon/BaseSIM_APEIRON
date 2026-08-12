@@ -32,6 +32,7 @@ def _build_detector(detector_name: str, cfg: Config) -> BaseDriftDetector:
             alpha=cfg.drift_detection.kswin_alpha,
             window_size=cfg.drift_detection.kswin_window_size,
             stat_size=cfg.drift_detection.kswin_stat_size,
+            seed=cfg.drift_detection.kswin_seed,
         )
     elif detector_name == "PageHinkleyDetector":
         from apeiron.drift_detection.detectors.statistical_detectors import (

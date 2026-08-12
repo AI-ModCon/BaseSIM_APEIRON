@@ -127,6 +127,7 @@ class KSWINDetector(BaseDriftDetector):
         minor_threshold: float = 0.3,
         moderate_threshold: float = 0.6,
         name: str = "KSWIN",
+        seed: int | None = None,
     ):
         """
         Initialize KSWIN detector.
@@ -138,6 +139,9 @@ class KSWINDetector(BaseDriftDetector):
             minor_threshold: Drift score threshold for continual learning
             moderate_threshold: Drift score threshold for fine-tuning
             name: Detector name
+            seed: Seed for KSWIN's reference-window sampling. KSWIN draws its
+                reference window at random, so runs are not reproducible unless
+                this is set.
         """
         super().__init__(name)
         self.alpha = alpha
@@ -145,8 +149,9 @@ class KSWINDetector(BaseDriftDetector):
         self.stat_size = stat_size
         self.minor_threshold = minor_threshold
         self.moderate_threshold = moderate_threshold
+        self.seed = seed
         self.detector = river_drift.KSWIN(
-            alpha=alpha, window_size=window_size, stat_size=stat_size
+            alpha=alpha, window_size=window_size, stat_size=stat_size, seed=seed
         )
         self._drift_history: list[int] = []
         self._is_initialized = True
@@ -197,7 +202,10 @@ class KSWINDetector(BaseDriftDetector):
     def reset(self) -> None:
         """Reset detector to initial state."""
         self.detector = river_drift.KSWIN(
-            alpha=self.alpha, window_size=self.window_size, stat_size=self.stat_size
+            alpha=self.alpha,
+            window_size=self.window_size,
+            stat_size=self.stat_size,
+            seed=self.seed,
         )
         self._drift_history = []
 

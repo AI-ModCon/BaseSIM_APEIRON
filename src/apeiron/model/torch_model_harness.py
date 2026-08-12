@@ -127,7 +127,7 @@ class BaseModelHarness(ABC):
             # else:
             y_hat = self.model(x)
 
-            batch_size = y.size(0)
+            batch_size = y.shape[0]
             for i, m in enumerate(self.eval_metrics.values()):
                 metric_value = self._to_scalar(m(y_hat, y))
                 # For metrics that return percentages (like accuracy), we need to
@@ -171,7 +171,7 @@ class BaseModelHarness(ABC):
             # else:
             y_hat = self.model(x)
 
-            batch_size = y.size(0)
+            batch_size = y.shape[0]
             for i, m in enumerate(self.eval_metrics.values()):
                 metric_value = self._to_scalar(m(y_hat, y))
                 # For metrics that return percentages (like accuracy), we need to
