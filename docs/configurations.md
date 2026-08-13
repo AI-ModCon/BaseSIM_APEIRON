@@ -254,10 +254,13 @@ drift/regime
 drift/score
 drift/step
 eval/accuracy
+eval/bwt
+eval/fwt
 eval/loss
 eval/step
 eval/test_curr_acc
 eval/test_hist_acc
+eval/test_pre_cl_acc
 ```
 
 Example output file:

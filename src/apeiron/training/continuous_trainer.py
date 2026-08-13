@@ -83,6 +83,41 @@ class ContinuousTrainer:
         # increment=False: annotate the CL round's step, do not advance it.
         logger.log(payload, commit=False, increment=False)
 
+    def compute_bwt(self, metric_index: int = 0) -> Optional[float]:
+        """Backward transfer for the task that just finished adapting.
+
+        ``BWT = (1/(T-1)) * sum_{i<T} ( R[T][i] - R[i][i] )``
+
+        where a *task* is one drift event, ``R[T][i]`` is the current model's
+        score on task ``i``'s validation split and ``R[i][i]`` is the score on
+        that same split recorded right after adapting to it. It therefore
+        compares one task across two model states -- the definition of
+        forgetting -- rather than comparing different tasks at one state.
+
+        Sign follows the raw metric, so the reading depends on the metric's
+        direction: with a higher-is-better metric (accuracy) negative means
+        forgetting, while with a lower-is-better one (SLAC-FEL's MAE) *positive*
+        means forgetting.
+
+        :param metric_index: which entry of ``eval_metrics`` to use, matching the
+            index behind ``test_curr_acc``/``test_hist_acc``.
+        :type metric_index: int
+
+        :return: BWT over the retained past tasks, or None before any task has
+            been registered (the first drift event, where the sum is empty).
+        :rtype: Optional[float]
+        """
+        past_metrics = self.modelHarness.eval_past_tasks()
+        if not past_metrics:
+            return None
+
+        diagonals = self.modelHarness.task_diagonals
+        deltas = [
+            row[metric_index] - diagonal[metric_index]
+            for row, diagonal in zip(past_metrics, diagonals)
+        ]
+        return sum(deltas) / len(deltas)
+
     def outer_cl_training_loop(
         self,
         drift_event_id: int = 0,
@@ -101,9 +136,15 @@ class ContinuousTrainer:
         cur_validation_metrics = self.modelHarness.eval()
         hist_validation_metrics = self.modelHarness.history_eval()
 
+<<<<<<< HEAD
         self._log_validation(
             "pre", cur_validation_metrics, hist_validation_metrics, drift_event_id
         )
+=======
+        # R[i-1][i]: this window scored by the model that has not yet adapted to
+        # it. Kept for the FWT delta once the post-CL score (R[i][i]) is in.
+        pre_cl_validation_metrics = cur_validation_metrics
+>>>>>>> 317fb47 (Adding bwt and fwt metrics to the logger)
 
         logger.info("==== Continual Learning ====")
         logger.info("\tInitial test acc: {}".format(cur_validation_metrics[0]), level=1)
@@ -165,22 +206,31 @@ class ContinuousTrainer:
         else:
             logger.info("\tNo historical data available for evaluation", level=1)
 
+        # FWT = R[i][i] - R[i-1][i]: how much adapting to this window moved the
+        # score on it, i.e. the gain CL delivered on the task that triggered.
+        # Available at every drift event, including the first.
+        fwt = cur_validation_metrics[0] - pre_cl_validation_metrics[0]
+        logger.info(f"\tFWT: {fwt:.4g}", level=1)
+
+        bwt = self.compute_bwt()
+        if bwt is not None:
+            logger.info(f"\tBWT: {bwt:.4g}", level=1)
+
         logger.stage("eval")
+        eval_metrics: dict[str, float] = {
+            "test_curr_acc": cur_validation_metrics[0],
+            "test_pre_cl_acc": pre_cl_validation_metrics[0],
+            "fwt": fwt,
+        }
         if hist_validation_metrics is not None:
-            logger.log(
-                {
-                    "test_curr_acc": cur_validation_metrics[0],
-                    "test_hist_acc": hist_validation_metrics[0],
-                },
-                commit=False,
-            )
-        else:
-            logger.log(
-                {
-                    "test_curr_acc": cur_validation_metrics[0],
-                },
-                commit=False,
-            )
+            eval_metrics["test_hist_acc"] = hist_validation_metrics[0]
+        if bwt is not None:
+            eval_metrics["bwt"] = bwt
+        logger.log(eval_metrics, commit=False)
+
+        # Register *after* BWT so this event's window becomes task T only for
+        # subsequent events -- R[T][T] belongs on the diagonal, not in the sum.
+        self.modelHarness.register_task(cur_validation_metrics)
 
         if self.profiler:
             flops_perf = self.profiler.get_performance()

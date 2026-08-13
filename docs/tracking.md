@@ -75,6 +75,9 @@ metrics below, each stage also emits its own step counter (`eval/step`,
 | `eval/accuracy`, `eval/loss` | Per-batch metrics from the harness's `eval_metrics` dict. This is the raw monitoring signal, logged every stream batch. |
 | `eval/test_curr_acc` | Accuracy on the *current* regime, logged once after each CL round completes. |
 | `eval/test_hist_acc` | Accuracy on the *historical* regime, same cadence. Absent when the harness supplies no historical loaders. |
+| `eval/test_pre_cl_acc` | Accuracy on the current regime measured *before* the CL round ran, same cadence. |
+| `eval/fwt` | Forward transfer: what adapting to this window gained on it. See [Transfer Metrics](#transfer-metrics). |
+| `eval/bwt` | Backward transfer: how much past tasks moved since they were learned. Absent on the first drift event. |
 
 **`drift/`** — the detector, logged once per `detection_interval`.
 
@@ -100,6 +103,61 @@ profiler's warmup iterations, so early steps are intentionally absent.
 The whole `Config` is recorded as run config/params, so `update_mode`,
 `detector_name`, and the detector hyperparameters are all filterable and
 groupable in the runs table.
+
+## Transfer Metrics
+
+`eval/fwt` and `eval/bwt` are indexed by **tasks**, where a task is one drift
+ event — the window the detector fired on and the CL loop adapted to — so `T`
+ counts adaptations, not stream windows.
+
+They are entries of the train-test matrix `R`, where `R[i][j]` is the score on
+task `j` after the model finished learning task `i`:
+
+| Metric | Definition | Reads |
+|---|---|---|
+| `eval/fwt` | `R[i][i] - R[i-1][i]` | The current window scored after adapting, minus its score before. The gain CL delivered on the task that triggered it. Logged at every drift event, the first included. |
+| `eval/bwt` | `(1/(T-1)) * sum over i<T of ( R[T][i] - R[i][i] )` | Each past task scored now, minus its score right after it was learned. This compares one task across two model states, which is what makes it forgetting rather than a difficulty gap. Absent on the first drift event, where the sum is empty. |
+
+`R[i-1][i]` is logged directly as `eval/test_pre_cl_acc` and `R[i][i]` as
+`eval/test_curr_acc`, so `fwt` is reconstructible from the CSV. The
+below-diagonal cells come from a per-task registry the harness maintains: after
+each CL round, `BaseModelHarness.register_task()` freezes that window's
+validation split into a standalone eval set paired with its `R[i][i]`, and
+`eval_past_tasks()` replays the current model over all of them.
+
+### Reading the Sign
+
+Both metrics are raw differences of `R`, so **the sign of the difference inherits
+the direction of the metric**. For a classification harness `R` holds an accuracy
+and bigger is better; for a regression harness it holds an error and bigger is
+worse. Every reading therefore flips between the two:
+
+| | classification (accuracy, higher better) | regression (MAE/MSE, lower better) |
+|---|---|---|
+| `fwt` > 0 | adapting raised accuracy on the window — CL helped | adapting raised error — **CL hurt** |
+| `fwt` < 0 | CL hurt | **CL helped** |
+| `bwt` > 0 | past tasks score better than when learned — backward transfer | past-task error grew — **forgetting** |
+| `bwt` < 0 | **forgetting** | past-task error shrank — backward transfer |
+
+Check the harness's `higher_is_better` before comparing runs across examples.
+
+One trap on the accuracy side: positive `bwt` means past tasks improved relative
+to their own diagonal, which can happen because real backward transfer occurred
+*or* because `R[i][i]` was weak to begin with. A short `train.max_iter` leaves the
+diagonal undertrained and will manufacture positive `bwt` that means nothing.
+Sanity-check `eval/test_curr_acc` at each event before reading a positive value as
+transfer.
+
+Two limits worth knowing. `BaseModelHarness.max_task_records` (default 50) caps
+the registry; past that, `bwt` averages over the retained tasks rather than all
+`T-1`. And `eval/bwt` differs from `eval/test_hist_acc` on purpose —
+`test_hist_acc` is a single *pooled* evaluation over the concatenated history and
+carries no reference point, so it conflates forgetting with windows that were
+simply harder.
+
+This `fwt` is the CL gain on the triggering task. It is not the Lopez-Paz &
+Ranzato form `R[i-1][i] - b_i`, which measures zero-shot transfer against a
+baseline model `b_i`; no baseline term is computed here.
 
 ## Reading the Charts
 
@@ -159,6 +217,9 @@ The green-versus-blue contrast is the argument for replay in one image, and it i
 the contrast the live-stream figure cannot show. It is also what
 `eval/test_hist_acc` measures continuously during a normal run — see
 `mix_historic_data` in [`continuous_learning.md`](continuous_learning.md).
+`eval/bwt` puts a number on the same effect per drift event, against each task's
+own starting point rather than a pooled average — see
+[Transfer Metrics](#transfer-metrics).
 
 ### Cross-Referencing Other Stages
 

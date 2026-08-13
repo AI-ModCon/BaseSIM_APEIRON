@@ -57,6 +57,7 @@ The config default is `wandb`. Before running, ask the user to choose, and pass 
 ### 5. Report results
 - Summarize from the run output: whether drift was detected and how many times, final accuracy, and the output CSV path (the config's `visualization.input`).
 - The package emits this CSV for inspection; it does not ship a built-in dashboard renderer, so point the user at the CSV for further plotting.
+- The CSV carries one row per drift event for `eval/fwt` (what adapting gained on the triggering window) and `eval/bwt` (how far past tasks moved since they were learned; absent on the first event). They are the quickest read on whether adaptation is trading history away — worth quoting alongside `eval/test_curr_acc` and `eval/test_hist_acc`. Sign follows the metric's direction, so for accuracy examples negative `bwt` means forgetting. See `docs/tracking.md` "Transfer Metrics".
 
 ## Notes
 - Quick first run, copy-paste safe: `poetry run python -m src.main --config examples/mnist/mnist.toml --set logging.backend=none`

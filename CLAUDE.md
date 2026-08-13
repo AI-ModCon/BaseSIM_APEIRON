@@ -30,7 +30,7 @@ The installable package lives under `src/apeiron/` (imported as `apeiron`; see `
 
 ### Core Pipeline
 1. **Config** (`src/apeiron/config/configuration.py`): TOML-based config parsed into frozen dataclasses (`Config`, `ModelCfg`, `DataCfg`, `TrainCfg`, `ContinualLearningCfg`, `DriftDetectionCfg`, `LoggingCfg`, `VisualizationCfg`). Supports `--set key=val` CLI overrides and `APP_` env var overrides.
-2. **Model Harness** (`src/apeiron/model/torch_model_harness.py`): Abstract `BaseModelHarness` providing `get_stream_dataloader()`, `get_train_dataloaders()`, `get_hist_dataloaders()`, `update_data_stream()`, `get_criterion()`, `get_optmizer()`, and `eval_metrics` dict.
+2. **Model Harness** (`src/apeiron/model/torch_model_harness.py`): Abstract `BaseModelHarness` providing `get_stream_dataloader()`, `get_train_dataloaders()`, `get_hist_dataloaders()`, `update_data_stream()`, `get_criterion()`, `get_optmizer()`, and `eval_metrics` dict. Also keeps a per-task registry for transfer metrics -- `register_task()`, `eval_past_tasks()`, `task_diagonals` -- which subclasses inherit unchanged (see `docs/tracking.md` "Transfer Metrics").
 3. **Driver** (`src/apeiron/driver/continuous_monitor.py`): `ContinuousMonitor` orchestrates the monitoring loop -- evaluates batches, checks drift at intervals, dispatches CL training on drift.
 4. **Drift Detection** (`src/apeiron/drift_detection/`): `BaseDriftDetector` ABC with `update(value) -> DriftSignal`. Implementations: ADWINDetector, KSWINDetector, PageHinkleyDetector, ModelPerformanceDetector, ModelEvalDetector, EnsembleDetector.
 5. **Training** (`src/apeiron/training/continuous_trainer.py`): `ContinuousTrainer` runs outer/inner CL loops with gradient accumulation.
