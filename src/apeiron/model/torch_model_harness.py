@@ -5,7 +5,7 @@ from typing import Any, Optional, Callable, Tuple, List, Dict
 
 import torch
 from torch import nn, Tensor
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, TensorDataset
 from torch.optim import Optimizer
 
 from apeiron.config.configuration import Config
@@ -33,6 +33,11 @@ class BaseModelHarness(ABC):
         self.model.to(device)
 
         self.eval_metrics: Dict[str, MetricFn] = {}
+
+        # One entry per drift event, oldest first: the frozen validation split of
+        # the window that was adapted to, paired with R[i][i] (see register_task).
+        self._task_records: List[Tuple[DataLoader, List[float]]] = []
+        self.max_task_records: int = 50
 
     @abstractmethod
     def get_optmizer(self) -> Optimizer:
@@ -104,13 +109,13 @@ class BaseModelHarness(ABC):
         return float(x)
 
     @torch.no_grad()
-    def eval(self) -> List[float]:
+    def _eval_loader(self, loader: DataLoader) -> List[float]:
         """Stream over batches; return mean(metric) over batches (order preserved)."""
         self.model.eval()
         sums = [0.0 for _ in self.eval_metrics]
         counts = [0 for _ in self.eval_metrics]
 
-        for batch in self.get_train_dataloaders()[1]:  # assumes iterable
+        for batch in loader:  # assumes iterable
             x, y = self._unpack(batch)
             x, y = x.to(self.cfg.device), y.to(self.cfg.device)
 
@@ -141,6 +146,11 @@ class BaseModelHarness(ABC):
         return [s / c for s, c in zip(sums, counts)]
 
     @torch.no_grad()
+    def eval(self) -> List[float]:
+        """Stream over batches; return mean(metric) over batches (order preserved)."""
+        return self._eval_loader(self.get_train_dataloaders()[1])
+
+    @torch.no_grad()
     def history_eval(self) -> Optional[List[float]]:
         """Stream over batches; return mean(metric) over batches (order preserved).
 
@@ -150,39 +160,63 @@ class BaseModelHarness(ABC):
         if hist_loaders is None or hist_loaders[1] is None:
             return None
 
-        self.model.eval()
-        sums = [0.0 for _ in self.eval_metrics]
-        counts = [0 for _ in self.eval_metrics]
+        return self._eval_loader(hist_loaders[1])
 
-        for batch in hist_loaders[1]:
+    # ----- per-task evaluation (train-test matrix R) -----
+
+    def register_task(self, diagonal_metrics: List[float]) -> None:
+        """Record the task just finished so later events can measure forgetting.
+
+        A *task* is one drift event: the window the detector fired on and the CL
+        loop adapted to. This freezes that window's validation split into a
+        standalone eval set and stores it alongside ``diagonal_metrics`` --
+        ``R[i][i]``, the score on the window measured right after adapting to it.
+        Both travel in the same record so eviction can never misalign a task's
+        eval set from its diagonal.
+
+        The split is copied into memory rather than referenced: the harness drops
+        its window tensors as the stream advances, and a plain ``DataLoader``
+        reference would keep the whole window alive through a view.
+
+        :param diagonal_metrics: ``eval()`` output for the current window, taken
+            after the CL loop finished.
+        :type diagonal_metrics: List[float]
+        """
+        xs: List[Tensor] = []
+        ys: List[Tensor] = []
+        for batch in self.get_train_dataloaders()[1]:
             x, y = self._unpack(batch)
-            x, y = x.to(self.cfg.device), y.to(self.cfg.device)
+            xs.append(x.detach().cpu().clone())
+            ys.append(y.detach().cpu().clone())
 
-            # TODO: Add cuda amp support later. Needs config entry for amp
-            # if self.cfg.amp:
+        frozen = DataLoader(
+            TensorDataset(torch.cat(xs), torch.cat(ys)),
+            batch_size=self.cfg.train.batch_size,
+            shuffle=False,
+        )
+        self._task_records.append((frozen, list(diagonal_metrics)))
 
-            #     with torch.autocast(
-            #         device_type=self.device.type,
-            #         dtype=(
-            #             torch.float16 if self.device.type == "cuda" else torch.bfloat16
-            #         ),
-            #     ):
-            #         y_hat = self.model(x)
-            # else:
-            y_hat = self.model(x)
+        # Cap retained tasks; BWT then averages over the surviving ones.
+        while len(self._task_records) > self.max_task_records:
+            self._task_records.pop(0)
 
-            batch_size = y.shape[0]
-            for i, m in enumerate(self.eval_metrics.values()):
-                metric_value = self._to_scalar(m(y_hat, y))
-                # For metrics that return percentages (like accuracy), we need to
-                # convert back to counts for proper averaging across variable batch sizes
-                sums[i] += metric_value * batch_size
-                counts[i] += batch_size
+    @torch.no_grad()
+    def eval_past_tasks(self) -> List[List[float]]:
+        """Score the current model on every registered task's frozen eval set.
 
-        if counts[0] == 0:
-            raise RuntimeError("Empty loader: nothing to evaluate.")
+        Returns row ``T`` of the train-test matrix below the diagonal --
+        ``[R[T][i] for i < T]``, oldest task first, index-aligned with
+        :attr:`task_diagonals`. Empty until at least one task is registered.
+        """
+        return [self._eval_loader(loader) for loader, _ in self._task_records]
 
-        return [s / c for s, c in zip(sums, counts)]
+    @property
+    def task_diagonals(self) -> List[List[float]]:
+        """``R[i][i]`` per registered task, oldest first.
+
+        Index-aligned with :meth:`eval_past_tasks`.
+        """
+        return [diagonal for _, diagonal in self._task_records]
 
     @property
     def ckpts_enabled(self) -> bool:

@@ -85,6 +85,8 @@ poetry run python -m src.main --config $2
 ```
 Report drift events, final accuracy, and the output CSV path (the config's `visualization.input`). Note the package emits this CSV for inspection; it does not ship a built-in dashboard renderer.
 
+The CSV also carries `eval/fwt` and `eval/bwt` per drift event — the gain adapting made on the triggering window, and how far past tasks moved since they were learned. Both come free from `BaseModelHarness`, so a custom harness gets them without extra work; sign follows the metric's direction, so for a lower-is-better metric positive `bwt` means forgetting. See `docs/tracking.md` "Transfer Metrics".
+
 ## Notes
 - Registration here uses the in-repo factory pattern. To instead drive apeiron from your *own* project without editing this repo, use the integrate-apeiron skill.
 - The repo also has older `new-harness` / `new-config` skills covering pieces of this; they are stale (pre-`src/apeiron/` layout) and slated for refresh — prefer this skill.
