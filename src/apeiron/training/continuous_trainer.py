@@ -136,15 +136,9 @@ class ContinuousTrainer:
         cur_validation_metrics = self.modelHarness.eval()
         hist_validation_metrics = self.modelHarness.history_eval()
 
-<<<<<<< HEAD
-        self._log_validation(
-            "pre", cur_validation_metrics, hist_validation_metrics, drift_event_id
-        )
-=======
         # R[i-1][i]: this window scored by the model that has not yet adapted to
         # it. Kept for the FWT delta once the post-CL score (R[i][i]) is in.
         pre_cl_validation_metrics = cur_validation_metrics
->>>>>>> 317fb47 (Adding bwt and fwt metrics to the logger)
 
         logger.info("==== Continual Learning ====")
         logger.info("\tInitial test acc: {}".format(cur_validation_metrics[0]), level=1)
