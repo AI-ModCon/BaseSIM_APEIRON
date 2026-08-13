@@ -1,4 +1,4 @@
-"""Tests for src/evaluation/metrics.py and src/evaluation/evaluation.py"""
+"""Tests for src/apeiron/evaluation/metrics.py and src/apeiron/evaluation/evaluation.py"""
 
 from __future__ import annotations
 

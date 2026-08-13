@@ -1,4 +1,4 @@
-"""Tests for src/profilers/count_flops.py"""
+"""Tests for src/apeiron/profilers/count_flops.py"""
 
 from __future__ import annotations
 

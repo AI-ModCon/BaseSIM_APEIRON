@@ -1,4 +1,4 @@
-# src/model/mnist_cnn_harness.py
+# examples/mnist/model.py
 import gc
 import torch
 import torch.nn.functional as F

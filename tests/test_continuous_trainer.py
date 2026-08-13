@@ -1,4 +1,4 @@
-"""Tests for src/training/continuous_trainer.py"""
+"""Tests for src/apeiron/training/continuous_trainer.py"""
 
 from __future__ import annotations
 

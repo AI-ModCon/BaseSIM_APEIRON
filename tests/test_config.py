@@ -1,4 +1,4 @@
-"""Tests for src/config/configuration.py"""
+"""Tests for src/apeiron/config/configuration.py"""
 
 from __future__ import annotations
 

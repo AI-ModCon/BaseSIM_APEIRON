@@ -1,4 +1,4 @@
-"""Tests for src/driver/continuous_monitor.py"""
+"""Tests for src/apeiron/driver/continuous_monitor.py"""
 
 from __future__ import annotations
 
