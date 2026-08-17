@@ -160,20 +160,22 @@ poetry run mypy .
 
 
 ### What `main.py` Does
-- Builds the `DummyCNN_MNIST` model defined in `src/model/DummyCNN_MNIST.py`, a cross-entropy loss, and an Adam optimizer.
-- Loads the MNIST training split, stacks the tensors, and iterates over 10 tasks (digits 0–9). Each task applies random rotation and translation to encourage continual adaptation.
-- Maintains replay buffers (`memory_image`, `memory_label`, etc.) so past samples remain available for rehearsal while training new tasks.
-- Calls `CL(...)` to assemble task-specific dataloaders and drive the `One_task_CL` loop. The loop trains for five epochs, records loss/accuracy metrics, and prints periodic progress reports.
-- Computes sensitivity scores with `src/validation/validation_utils/return_score` after each task; you can repurpose these values for analysis or adaptive triggers.
+- Builds a `Config` from the TOML file, `APP_` environment variables, and `--set` CLI overrides (`src/apeiron/config/configuration.py`).
+- Configures the logging backend and console logger (`src/apeiron/logger/`), before constructing the harness so a harness that logs from `__init__` cannot pin the config.
+- Selects a concrete `BaseModelHarness` from `cfg.data.name` via `examples/utils.py:get_example`.
+- Runs `ContinuousMonitor` (`src/apeiron/driver/continuous_monitor.py`), which evaluates streaming batches and calls the drift detector every `detection_interval` batches.
+- On drift, dispatches `ContinuousTrainer` (`src/apeiron/training/continuous_trainer.py`) with the updater named by `[continual_learning] update_mode`.
+
+See [`docs/architecture.md`](docs/architecture.md) for the full pipeline, including the detection-only (`src/drift_only.py`) and adaptation-only (`src/cl_only.py`) entry points.
 
 ## Tuning Tips
-- Change the number of epochs by editing `n_epoch` inside `CL`.
-- Adjust replay/adversarial update counts through the `params` dictionaries in `One_task_CL` and `util.update_CL_`.
-- Experiment with different transforms or task definitions by modifying `data.py`.
-- Update batch sizes by changing the `batch_size` parameter used when constructing the dataloaders.
+- Change the CL loop's outer/inner iteration counts and learning rate through the `[continual_learning]` and `[train]` config sections.
+- Swap the adaptation strategy with `[continual_learning] update_mode` (`base`, `jvp_reg`, `ewc_online`, `kfac_online`, `none`).
+- Tune detection sensitivity with `[drift_detection] detector_name` and its per-detector parameters — see [`docs/drift_detectors.md`](docs/drift_detectors.md).
+- Update batch size and worker count with `[train] batch_size` and `[train] num_workers`.
 
 ## Output
-Training logs report the task id, training/test accuracy, and replay-memory accuracy every five epochs. Accuracy is computed via `test(...)` on both the current task and the accumulated memory set.
+The console logger reports per-stage metrics (`eval`, `drift`, `cl`). When `[visualization] input` is set, the run also writes a metrics CSV at that path for external plotting.
 
 ## Deployment
 

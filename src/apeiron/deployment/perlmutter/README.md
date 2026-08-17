@@ -10,7 +10,7 @@ Clone the repo into your scratch directory and run the install script:
 cd $SCRATCH
 git clone https://github.com/AI-ModCon/BaseSim_Framework.git
 cd BaseSim_Framework
-source ./src/deployment/perlmutter/install_venv.sh
+source ./src/apeiron/deployment/perlmutter/install_venv.sh
 ```
 
 `install_venv.sh` creates a virtual environment, installs Poetry, and uses it to resolve and install project dependencies. The environment is saved to `.venv` in the project root. The script runs the following:
@@ -37,7 +37,7 @@ The virtual environment can be sourced directly at the top of your SLURM script 
 From the project root:
 
 ```bash
-sbatch -A amsc002 src/deployment/perlmutter/mnist_example.sbatch
+sbatch -A amsc002 src/apeiron/deployment/perlmutter/mnist_example.sbatch
 ```
 
 ### Troubleshooting

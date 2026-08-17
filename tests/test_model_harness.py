@@ -1,4 +1,4 @@
-"""Tests for src/model/torch_model_harness.py (BaseModelHarness via DummyHarness)."""
+"""Tests for src/apeiron/model/torch_model_harness.py (BaseModelHarness via DummyHarness)."""
 
 from __future__ import annotations
 
