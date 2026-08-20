@@ -45,6 +45,22 @@ def get_available_device(multi_gpu: bool = False) -> torch.device:
 
     Never raises if ``nvidia-smi`` is missing.
     """
+    # Distributed launch (torchrun / SLURM srun): each rank binds to its own
+    # local device by LOCAL_RANK. Do NOT run the nvidia-smi picking below -- it
+    # mutates CUDA_VISIBLE_DEVICES and would fight the launcher's per-rank GPU
+    # assignment (every rank would grab "the freest GPU").
+    local = os.environ.get("LOCAL_RANK") or os.environ.get("SLURM_LOCALID")
+    world = os.environ.get("WORLD_SIZE") or os.environ.get("SLURM_NTASKS")
+    if local is not None and world is not None and int(world) > 1:
+        if torch.cuda.is_available():
+            return torch.device(f"cuda:{int(local)}")
+        try:
+            if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                return torch.device("mps")
+        except Exception:
+            pass
+        return torch.device("cpu")
+
     # Single-GPU mode: must set CUDA_VISIBLE_DEVICES *before* CUDA init
     if not multi_gpu and "CUDA_VISIBLE_DEVICES" not in os.environ:
         best = _select_best_gpu()

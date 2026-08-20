@@ -37,6 +37,7 @@ import sys
 from typing import Any
 
 from apeiron.config.configuration import build_config, Config
+from apeiron.distributed import comm
 from apeiron.driver.stream_engine import StreamEngine
 from apeiron.driver.trigger_action import RecordOnlyAction
 from apeiron.driver.trigger_policy import DetectorPolicy
@@ -72,13 +73,16 @@ def run_drift_only(
 
 def main(argv: list[str] | None = None) -> int:
     cfg: Config = build_config(argv)
+    comm.init_from_env()
     modelHarness = get_example(cfg=cfg)
 
-    backend = configure_backend(cfg)
+    backend = configure_backend(cfg) if comm.is_main else "none"
     logger = get_logger(
         verbosity=cfg.verbosity,
         backend=backend,
-        csv_path=cfg.visualization.input if cfg.visualization else None,
+        csv_path=(
+            cfg.visualization.input if (cfg.visualization and comm.is_main) else None
+        ),
     )
 
     project_name = "basesim-framework"
@@ -90,15 +94,17 @@ def main(argv: list[str] | None = None) -> int:
     summary = run_drift_only(cfg=cfg, modelHarness=modelHarness, logger=logger)
 
     logger.finish()
+    comm.shutdown()
 
-    print("\n==== Drift-only summary ====")
-    print(f"  detector: {summary['policy']}")
-    print(f"  batches: {summary['batches']}")
-    print(f"  stream_updates: {summary['stream_updates']}")
-    print(f"  drift_checks: {summary['decision_points']}")
-    print(f"  drift_events: {summary['fires']}")
-    print(f"  drift_windows: {summary['drift_windows']}")
-    print(f"  final_metrics: {summary['final_metrics']}")
+    if comm.is_main:
+        print("\n==== Drift-only summary ====")
+        print(f"  detector: {summary['policy']}")
+        print(f"  batches: {summary['batches']}")
+        print(f"  stream_updates: {summary['stream_updates']}")
+        print(f"  drift_checks: {summary['decision_points']}")
+        print(f"  drift_events: {summary['fires']}")
+        print(f"  drift_windows: {summary['drift_windows']}")
+        print(f"  final_metrics: {summary['final_metrics']}")
 
     return 0
 

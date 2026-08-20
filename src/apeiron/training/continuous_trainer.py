@@ -8,6 +8,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from apeiron.config.configuration import Config
+from apeiron.distributed import comm
 from apeiron.model.torch_model_harness import BaseModelHarness
 from apeiron.profilers import FLOPSProfiler
 from apeiron.training.updater.create_updater import create_updater
@@ -33,6 +34,18 @@ class ContinuousTrainer:
         self.optimizer = modelHarness.get_optmizer()
 
         self.cl_updater = create_updater(cfg=self.cfg, modelHarness=self.modelHarness)
+
+    def _allreduce_gradients(self) -> None:
+        """Average parameter gradients across ranks (manual data parallel).
+
+        No-op in a single-process run. Called after backward and any updater
+        regularization gradients, before ``optimizer.step()``.
+        """
+        if not comm.is_distributed:
+            return
+        for p in self.modelHarness.model.parameters():
+            if p.grad is not None:
+                comm.all_reduce_mean_(p.grad)
 
     def _safe_next(
         self,
@@ -154,6 +167,10 @@ class ContinuousTrainer:
     ) -> int:
         """Run the outer continuous learning training loop for a drift event."""
         logger = self.logger
+        # Data-parallel training keeps ranks in sync via gradient all-reduce, but
+        # that only holds if they start identical -- so broadcast rank 0's weights
+        # before adapting (no-op single-process).
+        comm.broadcast_module_(self.modelHarness.model)
         cur_train_loader, cur_test_loader = self.modelHarness.get_train_dataloaders()
         hist_train_loader, hist_test_loader = self.modelHarness.get_hist_dataloaders()
 
@@ -318,6 +335,11 @@ class ContinuousTrainer:
                 loss += self.cl_updater.fwd_bwd(train_batch_tuple, hist_batch_tuple)
 
         reg_loss = self.cl_updater.update_post_fwd_bwd()
+
+        # Data-parallel step: average the (accumulated) gradients across ranks
+        # before the optimizer applies them, so every rank takes the same step on
+        # an effective batch of world_size * per-rank samples. No-op single-process.
+        self._allreduce_gradients()
 
         # 3) Update with optimizer
         if self.profiler and iter_count > self.profiler.warmup_iters:

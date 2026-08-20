@@ -9,6 +9,7 @@ from torch.utils.data import DataLoader
 from torch.optim import Optimizer
 
 from apeiron.config.configuration import Config
+from apeiron.distributed import comm
 from apeiron.model.checkpoint import CheckpointStore
 from apeiron.model.task_record import (
     EvalSetRef,
@@ -259,7 +260,9 @@ class BaseModelHarness(ABC):
         while len(self._task_records) > self.max_task_records:
             self._task_records.pop(0)
 
-        if self._records_store is not None:
+        # Every rank keeps the in-memory record (so BWT agrees across ranks), but
+        # only rank 0 writes the durable copy to avoid racing filesystem writes.
+        if self._records_store is not None and comm.is_main:
             self._records_store.save(self._task_records)
 
     def load_task_records(self) -> int:

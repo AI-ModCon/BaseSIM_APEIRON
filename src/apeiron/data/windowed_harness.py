@@ -34,6 +34,7 @@ from torch.utils.data import ConcatDataset, DataLoader, Dataset
 
 from apeiron.config.configuration import Config
 from apeiron.data.window_store import WindowHandle, WindowStore
+from apeiron.distributed import comm
 from apeiron.model.task_record import EvalSetRef, WindowEvalSetRef
 from apeiron.model.torch_model_harness import BaseModelHarness, CriterionFn
 
@@ -131,11 +132,15 @@ class WindowedHarness(BaseModelHarness):
         return torch.cuda.is_available()
 
     def get_stream_dataloader(self) -> DataLoader:
+        # Shard the monitoring stream: each rank runs inference on a contiguous
+        # slice of the window, and the engine gathers the per-batch metrics. In a
+        # single-process run comm.shard() is None -> the whole window, unchanged.
         return self._handle().loader(
             self.stream_split,
             batch_size=self.cfg.data.batch_size,
             shuffle=False,
             num_workers=self.cfg.train.num_workers,
+            shard=comm.shard(),
             pin_memory=self._pin(),
         )
 
@@ -143,11 +148,14 @@ class WindowedHarness(BaseModelHarness):
         handle = self._handle()
         bs = self.cfg.train.batch_size
         nw = self.cfg.train.num_workers
+        # Train split is sharded (data-parallel updates with gradient all-reduce);
+        # the val split is kept whole so every rank computes the same eval metrics.
         train = handle.loader(
             self.train_split,
             batch_size=bs,
             shuffle=True,
             num_workers=nw,
+            shard=comm.shard(),
             pin_memory=self._pin(),
         )
         val = handle.loader(
@@ -167,11 +175,14 @@ class WindowedHarness(BaseModelHarness):
         if not prior:
             return None, None
 
+        # Shard the replay (train) stream for data-parallel updates; keep the
+        # historical val set whole so forgetting metrics agree across ranks.
+        shard = comm.shard()
         train_sets: list[Dataset] = []
         val_sets: list[Dataset] = []
         for manifest in prior:
             handle = WindowHandle(self.store.root / manifest.window_id, manifest)
-            train_sets.append(handle.dataset(self.train_split))
+            train_sets.append(handle.dataset(self.train_split, shard=shard))
             val_sets.append(handle.dataset(self.val_split))
 
         bs = self.cfg.train.batch_size

@@ -31,6 +31,8 @@ import torch
 from tqdm import tqdm
 
 from apeiron.config.configuration import Config
+from apeiron.distributed import comm
+from apeiron.drift_detection.detectors.base import DriftSignal
 from apeiron.driver.trigger_action import TriggerAction
 from apeiron.driver.trigger_policy import TriggerPolicy
 from apeiron.logger import Logger, get_logger
@@ -106,9 +108,14 @@ class StreamEngine:
         self.logger.info("\tInitializing first data stream...", level=1)
         self.modelHarness.update_data_stream()
 
+        process = (
+            self._process_stream_distributed
+            if comm.is_distributed
+            else self._process_stream
+        )
         while not self._should_stop():
             try:
-                self._process_stream()
+                process()
             except StopIteration:
                 self._extend_stream()
 
@@ -190,6 +197,63 @@ class StreamEngine:
             self._decision_point()
 
         raise StopIteration()
+
+    # -- distributed stream processing ------------------------------------
+
+    def _process_stream_distributed(self) -> None:
+        """Sharded, data-parallel version of :meth:`_process_stream`.
+
+        Each rank runs inference on its contiguous shard of the window (the
+        harness shards the stream loader), then all ranks all-gather their
+        per-batch metrics into the global set and make **one decision per window**
+        (window cadence): rank 0 -- which owns the single, stateful detector --
+        aggregates, decides, and logs; the verdict is broadcast so every rank
+        fires (and runs data-parallel adaptation) together.
+
+        Per-window cadence, rather than reproducing single-process interval
+        cadence, is a deliberate choice: it makes the detector's decision points
+        invariant to the number of nodes. Detector verdicts are therefore
+        deterministic for a fixed world size; compare control arms at the same
+        world size.
+        """
+        stream_loader = self.modelHarness.get_stream_dataloader()
+
+        local: list[list[float]] = []
+        for _, batch in tqdm(
+            enumerate(stream_loader), desc="Processing batches", leave=False
+        ):
+            local.append(self._evaluate_batch(batch))
+
+        # Ranks own contiguous shards, so concatenating the gathered per-rank
+        # lists in rank order reconstructs the window's global batch order.
+        gathered = comm.all_gather_object(local)
+        self.metric_buffer = [
+            metrics for rank_list in gathered for metrics in rank_list
+        ]
+        self.batch_count += len(self.metric_buffer)
+
+        self._decision_point_distributed()
+
+        raise StopIteration()
+
+    def _decision_point_distributed(self) -> None:
+        """One window-level decision: rank 0 decides + logs, verdict broadcast."""
+        agg_metric = self._aggregate_buffer()
+
+        decision_idx = self.decision_count
+        self.decision_count += 1
+
+        signal: Optional[DriftSignal]
+        if comm.is_main:
+            signal = self.policy.decide(agg_metric, decision_idx)
+            self._log_decision(decision_idx, agg_metric, signal)
+        else:
+            signal = None
+        signal = comm.broadcast_object(signal, src=0)
+
+        if signal is not None and signal.drift_detected:
+            # Every rank fires together so data-parallel adaptation stays in sync.
+            self.action.on_fire(self, signal, decision_idx, agg_metric)
 
     def _decision_point(self) -> None:
         """Aggregate the buffer, consult the policy, log, and fire if triggered."""

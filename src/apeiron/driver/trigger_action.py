@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from apeiron.distributed import comm
 from apeiron.drift_detection.detectors.base import DriftSignal
 
 if TYPE_CHECKING:
@@ -81,7 +82,9 @@ class AdaptAction(TriggerAction):
         engine.trainer.outer_cl_training_loop(drift_event_id=engine.fire_count)
         logger.info("<- Continual learning complete.", level=0)
 
-        if engine.modelHarness.ckpts_enabled:
+        # Only rank 0 writes checkpoints (the model is kept in sync across ranks
+        # by gradient all-reduce, so any rank's weights are the deployable ones).
+        if engine.modelHarness.ckpts_enabled and comm.is_main:
             ckptpath = engine.modelHarness.save_ckpt(event=engine.fire_count)
             logger.info(f"* Checkpoint saved to: {ckptpath}", level=0)
 
