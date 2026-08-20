@@ -80,7 +80,11 @@ def _cfg(
     max_stream_updates: int = 12,
     ckpts_path: str = "",
     max_ckpts: int = 0,
+    device: str = "",
 ) -> Config:
+    # Match the device to the collective backend (cuda for nccl, cpu for gloo);
+    # a GPU node with an nccl group and cpu tensors would fail the collectives.
+    resolved_device = device or str(comm.device())
     return Config(
         model=ModelCfg(
             name="well_surrogate",
@@ -104,7 +108,7 @@ def _cfg(
             max_stream_updates=max_stream_updates,
         ),
         seed=0,
-        device="cpu",
+        device=resolved_device,
     )
 
 

@@ -136,6 +136,18 @@ class DistContext:
         """``(rank, world_size)`` for :class:`WindowHandle` sharding, or None."""
         return (self.rank, self.world_size) if self.is_distributed else None
 
+    def device(self) -> torch.device:
+        """The device this rank should place tensors on, matching the backend.
+
+        ``cuda:local_rank`` when CUDA/ROCm is available (so tensors match the
+        nccl backend), else ``cpu`` (gloo). Never ``mps`` -- the collective
+        backends do not support it. Use this to build the run config's device so
+        collectives never see a device the backend can't handle.
+        """
+        if torch.cuda.is_available():
+            return torch.device("cuda", self.local_rank)
+        return torch.device("cpu")
+
     # -- lifecycle ---------------------------------------------------------
 
     def init_from_env(self) -> DistInfo:
@@ -161,7 +173,17 @@ class DistContext:
             torch.cuda.set_device(local)
 
         if not dist.is_initialized():
-            dist.init_process_group(backend=backend, rank=rank, world_size=world)
+            # Pin the device at init so NCCL does not have to guess the rank->GPU
+            # mapping (the guess warns and can hang on heterogeneous layouts).
+            init_kwargs: dict[str, Any] = {}
+            if backend == "nccl" and torch.cuda.is_available():
+                init_kwargs["device_id"] = torch.device("cuda", local)
+            try:
+                dist.init_process_group(
+                    backend=backend, rank=rank, world_size=world, **init_kwargs
+                )
+            except TypeError:  # older torch without device_id kwarg
+                dist.init_process_group(backend=backend, rank=rank, world_size=world)
 
         self._info = DistInfo(
             rank=rank,
