@@ -61,47 +61,101 @@ def _expand_channels(name: str, arr: np.ndarray) -> list[tuple[str, np.ndarray]]
     return out
 
 
+@dataclass(frozen=True)
+class WellBundle:
+    """All (or the first ``max``) trajectories of one file, plus provenance.
+
+    ``trajectories`` are each ``[time, channel, H, W]`` and share ``channels`` /
+    ``params`` (a file is one simulation regime, e.g. one ``tcool``). Stacking
+    them makes bigger windows without mixing regimes.
+    """
+
+    trajectories: list[np.ndarray]
+    channels: tuple[str, ...]
+    params: dict[str, float]
+    times: np.ndarray
+    source: str
+
+    @property
+    def n_trajectories(self) -> int:
+        return len(self.trajectories)
+
+
+def _read_params_times(f: "h5py.File") -> tuple[dict[str, float], "np.ndarray | None"]:
+    params: dict[str, float] = {}
+    for p in _param_names(f):
+        if p in f.attrs:
+            params[p] = float(np.asarray(f.attrs[p]).reshape(-1)[0])
+    times = (
+        np.asarray(f["dimensions"]["time"], dtype=np.float32)
+        if "dimensions" in f and "time" in f["dimensions"]
+        else None
+    )
+    return params, times
+
+
+def _assemble_trajectory(
+    f: "h5py.File", trajectory: int
+) -> tuple[np.ndarray, tuple[str, ...]]:
+    """Assemble one trajectory of an open file into ``[time, channel, H, W]``."""
+    channels: list[str] = []
+    planes: list[np.ndarray] = []
+    for group in _FIELD_GROUPS:
+        if group not in f:
+            continue
+        grp = f[group]
+        for name in sorted(grp.keys()):
+            arr = np.asarray(grp[name][trajectory], dtype=np.float32)  # [time, H, W, *]
+            for ch_name, plane in _expand_channels(name, arr):
+                channels.append(ch_name)
+                planes.append(plane)
+    if not planes:
+        raise ValueError("no t0/t1/t2 fields found")
+    fields = np.stack(planes, axis=0).transpose(1, 0, 2, 3)  # -> [time, C, H, W]
+    return np.ascontiguousarray(fields), tuple(channels)
+
+
 def read_well_file(path: str | Path, trajectory: int = 0) -> WellTrajectory:
     """Load one trajectory from a Well HDF5 file as ``[time, channel, H, W]``."""
     import h5py
 
     path = Path(path)
     with h5py.File(path, "r") as f:
-        params: dict[str, float] = {}
-        for p in _param_names(f):
-            if p in f.attrs:
-                params[p] = float(np.asarray(f.attrs[p]).reshape(-1)[0])
-
-        times = (
-            np.asarray(f["dimensions"]["time"], dtype=np.float32)
-            if "dimensions" in f and "time" in f["dimensions"]
-            else None
-        )
-
-        channels: list[str] = []
-        planes: list[np.ndarray] = []
-        for group in _FIELD_GROUPS:
-            if group not in f:
-                continue
-            grp = f[group]
-            for name in sorted(grp.keys()):
-                dset = grp[name]
-                arr = np.asarray(dset[trajectory], dtype=np.float32)  # [time, H, W, *]
-                for ch_name, plane in _expand_channels(name, arr):
-                    channels.append(ch_name)
-                    planes.append(plane)
-
-    if not planes:
-        raise ValueError(f"no t0/t1/t2 fields found in {path}")
-
-    # [channel, time, H, W] -> [time, channel, H, W]
-    fields = np.stack(planes, axis=0).transpose(1, 0, 2, 3)
+        params, times = _read_params_times(f)
+        fields, channels = _assemble_trajectory(f, trajectory)
     if times is None:
         times = np.arange(fields.shape[0], dtype=np.float32)
-
     return WellTrajectory(
-        fields=np.ascontiguousarray(fields),
-        channels=tuple(channels),
+        fields=fields, channels=channels, params=params, times=times, source=path.name
+    )
+
+
+def read_all_trajectories(
+    path: str | Path, max_trajectories: int | None = None
+) -> WellBundle:
+    """Load every (or the first ``max_trajectories``) trajectory of a file.
+
+    Opens the file once and slices each trajectory lazily, so an 8-trajectory
+    file is one open, not eight.
+    """
+    import h5py
+
+    path = Path(path)
+    with h5py.File(path, "r") as f:
+        params, times = _read_params_times(f)
+        n = int(np.asarray(f.attrs.get("n_trajectories", 1)).reshape(-1)[0])
+        if max_trajectories:
+            n = min(n, max_trajectories)
+        trajs: list[np.ndarray] = []
+        channels: tuple[str, ...] = ()
+        for i in range(max(1, n)):
+            fields, channels = _assemble_trajectory(f, i)
+            trajs.append(fields)
+    if times is None:
+        times = np.arange(trajs[0].shape[0], dtype=np.float32)
+    return WellBundle(
+        trajectories=trajs,
+        channels=channels,
         params=params,
         times=times,
         source=path.name,

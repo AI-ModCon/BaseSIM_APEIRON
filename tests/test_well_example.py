@@ -102,6 +102,43 @@ class TestConverter:
         )
         assert meta["skipped_small_windows"] >= 1
 
+    def test_stacks_all_trajectories_per_window(self, tmp_path):
+        # 3 trajectories/file, window_steps=8 -> 7 pairs/traj -> 21 samples/window.
+        generate_fixture(
+            tmp_path / "src",
+            tcools=(0.1,),
+            n_trajectories=3,
+            n_time=8,
+            height=8,
+            width=8,
+        )
+        meta = convert_files(
+            sorted(glob.glob(str(tmp_path / "src" / "*.hdf5"))),
+            tmp_path / "store",
+            window_steps=8,
+        )
+        assert meta["trajectories_per_window"] == 3
+        store = WindowStore(tmp_path / "store", catalog=False)
+        x, _ = store.window(store.window_ids()[0]).load_full("all")
+        assert x.shape[0] == 3 * 7  # 3 trajectories x 7 next-step pairs
+
+    def test_max_trajectories_caps_stacking(self, tmp_path):
+        generate_fixture(
+            tmp_path / "src",
+            tcools=(0.1,),
+            n_trajectories=4,
+            n_time=8,
+            height=8,
+            width=8,
+        )
+        meta = convert_files(
+            sorted(glob.glob(str(tmp_path / "src" / "*.hdf5"))),
+            tmp_path / "store",
+            window_steps=8,
+            max_trajectories=2,
+        )
+        assert meta["trajectories_per_window"] == 2
+
 
 class TestSurrogate:
     def test_residual_shape_preserved(self):

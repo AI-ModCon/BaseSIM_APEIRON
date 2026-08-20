@@ -8,9 +8,12 @@ Everything works on a laptop (CPU/`gloo`, small sizes) and on Perlmutter
 
 > **Key constraint for multi-rank runs:** each window's *train split* is sharded
 > across ranks, so it must have at least `world_size` samples — comfortably
-> `world_size × train.batch_size`. Size windows accordingly (`--window-steps`),
-> or a rank gets an empty shard. `_n_windows × train-split-size` is your total
-> work.
+> `world_size × train.batch_size`. The converter stacks **all trajectories** of a
+> file into each window (`turbulent_radiative_layer_2D` = 8/file), so a window
+> holds `trajectories × (window_steps − 1)` samples — e.g. `--window-steps 100`
+> gives ~792, feeding ~18 ranks at batch 32. Raise `--window-steps` (and lower
+> `--batch-size`) if a rank gets an empty shard; `--max-trajectories` caps
+> stacking.
 
 ---
 

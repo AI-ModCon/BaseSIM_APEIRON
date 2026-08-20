@@ -32,28 +32,23 @@ from typing import Iterator, Optional, Sequence
 import numpy as np
 
 from apeiron.data.window_store import WindowStore
-from examples.well.wellio import WellTrajectory, infer_param, read_well_file, to_dict
+from examples.well.wellio import infer_param, read_all_trajectories
 
 WELL_META = "well_meta.json"
 
 
-def _windows(
-    traj: WellTrajectory, window_steps: int
-) -> Iterator[tuple[int, int, int, np.ndarray, np.ndarray]]:
-    """Yield ``(chunk_idx, t_lo, t_hi, x, y)`` next-step pairs per time chunk.
+def _chunk_ranges(n_time: int, window_steps: int) -> Iterator[tuple[int, int, int]]:
+    """Yield ``(chunk_idx, t_lo, t_hi)`` time chunks over ``n_time`` steps.
 
     A chunk spans ``window_steps`` timesteps and yields ``window_steps - 1``
-    consecutive ``(field_t, field_{t+1})`` pairs.
+    consecutive ``(field_t, field_{t+1})`` pairs per trajectory.
     """
-    n_time = traj.fields.shape[0]
     chunk = 0
     for lo in range(0, n_time - 1, max(1, window_steps - 1)):
         hi = min(lo + window_steps, n_time)
         if hi - lo < 2:
             break
-        x = traj.fields[lo : hi - 1]  # [n, C, H, W]
-        y = traj.fields[lo + 1 : hi]  # [n, C, H, W]
-        yield chunk, lo, hi, x, y
+        yield chunk, lo, hi
         chunk += 1
 
 
@@ -63,12 +58,17 @@ def convert_files(
     *,
     window_steps: int = 8,
     val_fraction: float = 0.25,
-    trajectory: int = 0,
+    max_trajectories: int | None = None,
     order_by_param: bool = True,
 ) -> dict:
     """Convert Well HDF5 files into a committed WindowStore ordered by drift.
 
-    Returns the store metadata dict (also written to ``well_meta.json``).
+    Each committed window stacks **all trajectories** of a file over one time
+    chunk, so a window holds ``n_trajectories * (window_steps - 1)`` next-step
+    pairs -- big enough to feed many ranks -- while staying within one simulation
+    regime (a file is one ``tcool``). ``max_trajectories`` caps how many are used
+    (None = all). Returns the store metadata dict (also written to
+    ``well_meta.json``).
     """
     paths = [Path(p) for p in files]
     if not paths:
@@ -82,25 +82,26 @@ def convert_files(
             keyed.append((pinfo[1] if pinfo else 0.0, p))
         paths = [p for _, p in sorted(keyed, key=lambda kp: kp[0])]
 
-    trajs = [read_well_file(p, trajectory=trajectory) for p in paths]
-    channels = trajs[0].channels
-    for t in trajs:
-        if t.channels != channels:
+    bundles = [read_all_trajectories(p, max_trajectories) for p in paths]
+    channels = bundles[0].channels
+    for b in bundles:
+        if b.channels != channels:
             raise ValueError(
-                f"channel layout differs: {t.source} has {t.channels}, "
+                f"channel layout differs: {b.source} has {b.channels}, "
                 f"expected {channels}"
             )
 
-    # Per-channel normalization stats over all inputs (one streaming pass).
+    # Per-channel normalization stats over every trajectory of every file.
     n_ch = len(channels)
     csum = np.zeros(n_ch, dtype=np.float64)
     csqsum = np.zeros(n_ch, dtype=np.float64)
     count = 0
-    for t in trajs:
-        flat = t.fields.reshape(t.fields.shape[0], n_ch, -1)
-        csum += flat.sum(axis=(0, 2))
-        csqsum += (flat.astype(np.float64) ** 2).sum(axis=(0, 2))
-        count += flat.shape[0] * flat.shape[2]
+    for b in bundles:
+        for traj in b.trajectories:
+            flat = traj.reshape(traj.shape[0], n_ch, -1)
+            csum += flat.sum(axis=(0, 2))
+            csqsum += (flat.astype(np.float64) ** 2).sum(axis=(0, 2))
+            count += flat.shape[0] * flat.shape[2]
     mean = (csum / count).astype(np.float32)
     var = (csqsum / count - (csum / count) ** 2).clip(min=1e-12)
     std = np.sqrt(var).astype(np.float32)
@@ -109,11 +110,23 @@ def convert_files(
     param_name = (infer_param(paths[0]) or ("param", 0.0))[0]
 
     skipped = 0
-    for regime_idx, traj in enumerate(trajs):
-        pv = float(traj.params.get(param_name, regime_idx))
-        for chunk_idx, t_lo, t_hi, x, y in _windows(traj, window_steps):
-            # Drop a (usually trailing) chunk too small to form a non-empty
-            # train AND val split -- an empty val loader would crash eval().
+    for regime_idx, b in enumerate(bundles):
+        pv = float(b.params.get(param_name, regime_idx))
+        prov = {
+            "source": b.source,
+            "params": b.params,
+            "n_trajectories": b.n_trajectories,
+            "grid": list(b.trajectories[0].shape[2:]),
+        }
+        n_time = b.trajectories[0].shape[0]
+        for chunk_idx, t_lo, t_hi in _chunk_ranges(n_time, window_steps):
+            # Stack every trajectory's next-step pairs for this time chunk into
+            # one window (same regime, more samples). Contiguous, so val_fraction
+            # holds out the trailing trajectories.
+            x = np.concatenate([tr[t_lo : t_hi - 1] for tr in b.trajectories], axis=0)
+            y = np.concatenate([tr[t_lo + 1 : t_hi] for tr in b.trajectories], axis=0)
+
+            # Drop a chunk too small to form a non-empty train AND val split.
             n = x.shape[0]
             n_val = round(n * val_fraction)
             if n_val < 1 or n - n_val < 1:
@@ -127,7 +140,7 @@ def convert_files(
                 t_start=f"{param_name}={pv:.4f}:t{t_lo:04d}",
                 t_end=f"{param_name}={pv:.4f}:t{t_hi:04d}",
                 extra={
-                    "provenance": to_dict(traj),
+                    "provenance": prov,
                     param_name: pv,
                     "regime_idx": regime_idx,
                     "chunk_idx": chunk_idx,
@@ -139,16 +152,17 @@ def convert_files(
         "task": "next_step_regression",
         "channels": list(channels),
         "n_channels": n_ch,
-        "grid": list(trajs[0].fields.shape[2:]),
+        "grid": list(bundles[0].trajectories[0].shape[2:]),
         "param_name": param_name,
         "window_steps": window_steps,
         "val_fraction": val_fraction,
+        "trajectories_per_window": bundles[0].n_trajectories,
         "norm_mean": mean.tolist(),
         "norm_std": std.tolist(),
         "n_windows": len(store),
         "skipped_small_windows": skipped,
         "regime_order": [
-            float(t.params.get(param_name, i)) for i, t in enumerate(trajs)
+            float(b.params.get(param_name, i)) for i, b in enumerate(bundles)
         ],
     }
     (Path(out_store) / WELL_META).write_text(json.dumps(meta, indent=2))
@@ -196,6 +210,12 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--out", required=True, help="output WindowStore directory")
     p.add_argument("--window-steps", type=int, default=8)
     p.add_argument("--val-fraction", type=float, default=0.25)
+    p.add_argument(
+        "--max-trajectories",
+        type=int,
+        default=0,
+        help="cap trajectories stacked per window (0 = all in the file)",
+    )
     p.add_argument("--cache-dir", default=None)
     return p
 
@@ -215,10 +235,12 @@ def main(argv: Optional[list[str]] = None) -> int:
         args.out,
         window_steps=args.window_steps,
         val_fraction=args.val_fraction,
+        max_trajectories=args.max_trajectories or None,
     )
     print(
         f"committed {meta['n_windows']} windows to {args.out}\n"
         f"  channels={meta['channels']} grid={meta['grid']} "
+        f"trajectories/window={meta['trajectories_per_window']} "
         f"regimes={meta['regime_order']}"
     )
     return 0
