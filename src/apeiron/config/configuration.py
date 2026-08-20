@@ -91,9 +91,20 @@ def _select_best_gpu() -> int | None:
 class ModelCfg:
     name: str
     pretrained_path: str = ""
-    # FIFO checkpointing: 0 disables, N keeps last N post-CL snapshots
+    # Checkpointing: 0 disables, N caps how many post-CL snapshots are retained.
     max_ckpts: int = 0
     ckpts_path: str = ""
+    # Retention rule over saved checkpoints (see apeiron.model.checkpoint):
+    # "fifo" keeps the newest N; metric-aware specs like
+    # "latest:1+max:test_hist_acc+max:test_curr_acc" keep a curated union.
+    ckpts_retention: str = "fifo"
+    # Promotion rule: single-winner spec naming the checkpoint the `deployed`
+    # pointer should track (e.g. "max:test_hist_acc"). Empty = no deploy pointer.
+    deploy_rule: str = ""
+    # Generic model-capacity knobs (0 = let the harness choose its default).
+    # Used by the Well surrogate to scale compute for the scaling benchmark.
+    width: int = 0
+    depth: int = 0
 
 
 @dataclass(frozen=True)
@@ -110,6 +121,9 @@ class DataCfg:
     name: str
     path: str
     batch_size: int = 1  # streaming batch size
+    # Root directory of a committed-window store (see apeiron.data.window_store).
+    # Used by WindowedHarness; empty for on-the-fly example harnesses.
+    window_store_path: str = ""
 
 
 @dataclass(frozen=True)

@@ -1,14 +1,24 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Optional, Callable, Tuple, List, Dict
+from typing import TYPE_CHECKING, Any, Optional, Callable, Tuple, List, Dict
 
 import torch
 from torch import nn, Tensor
-from torch.utils.data import DataLoader, TensorDataset
+from torch.utils.data import DataLoader
 from torch.optim import Optimizer
 
 from apeiron.config.configuration import Config
+from apeiron.model.checkpoint import CheckpointStore
+from apeiron.model.task_record import (
+    EvalSetRef,
+    InMemoryEvalSet,
+    TaskRecord,
+    TaskRecordStore,
+)
+
+if TYPE_CHECKING:
+    from apeiron.data.window_store import WindowStore
 
 MetricFn = Callable[[Tensor, Tensor], Any]
 CriterionFn = Callable[[Tensor, Tensor], Tensor]
@@ -34,10 +44,40 @@ class BaseModelHarness(ABC):
 
         self.eval_metrics: Dict[str, MetricFn] = {}
 
-        # One entry per drift event, oldest first: the frozen validation split of
-        # the window that was adapted to, paired with R[i][i] (see register_task).
-        self._task_records: List[Tuple[DataLoader, List[float]]] = []
+        # Provenance pointer for the window currently being streamed. Window-
+        # backed harnesses set this; on-the-fly harnesses leave it None.
+        self.current_window_id: Optional[str] = None
+        # Metrics from the most recent CL round (post-CL accuracy, FWT, BWT, ...).
+        # The trainer populates this; checkpoint retention/promotion rules read it.
+        self.last_metrics: Dict[str, float] = {}
+
+        # One TaskRecord per drift event, oldest first. Each holds R[i][i] and a
+        # re-evaluable reference to that task's validation split (a pointer into
+        # a committed window when available, else an in-memory copy).
+        self._task_records: List[TaskRecord] = []
         self.max_task_records: int = 50
+        # Monotonic id so spilled eval-set filenames never collide, even across
+        # FIFO eviction.
+        self._task_seq: int = 0
+
+        # Set by window-backed subclasses; lets task records restore window refs.
+        self._window_store: Optional["WindowStore"] = None
+
+        # Durable stores, wired when a checkpoint path is configured. Task
+        # records persist under <ckpts_path>/task_records so a crashed run's
+        # forgetting history survives; checkpoints additionally need max_ckpts>0.
+        self._records_store: Optional[TaskRecordStore] = None
+        self._ckpt_store: Optional[CheckpointStore] = None
+        if self.cfg.model.ckpts_path:
+            base = Path(self.cfg.model.ckpts_path)
+            self._records_store = TaskRecordStore(base / "task_records")
+            if self.ckpts_enabled:
+                self._ckpt_store = CheckpointStore(
+                    base,
+                    max_ckpts=self.cfg.model.max_ckpts,
+                    retention=getattr(self.cfg.model, "ckpts_retention", "fifo"),
+                    deploy_rule=getattr(self.cfg.model, "deploy_rule", ""),
+                )
 
     @abstractmethod
     def get_optmizer(self) -> Optimizer:
@@ -164,23 +204,17 @@ class BaseModelHarness(ABC):
 
     # ----- per-task evaluation (train-test matrix R) -----
 
-    def register_task(self, diagonal_metrics: List[float]) -> None:
-        """Record the task just finished so later events can measure forgetting.
+    def _freeze_task_evalset(self, window_id: Optional[str]) -> EvalSetRef:
+        """Build a re-evaluable reference to the current task's validation split.
 
-        A *task* is one drift event: the window the detector fired on and the CL
-        loop adapted to. This freezes that window's validation split into a
-        standalone eval set and stores it alongside ``diagonal_metrics`` --
-        ``R[i][i]``, the score on the window measured right after adapting to it.
-        Both travel in the same record so eviction can never misalign a task's
-        eval set from its diagonal.
+        Default: copy the current validation split into memory -- what the
+        harness has always done, because an on-the-fly harness drops its window
+        tensors as the stream advances and a plain ``DataLoader`` reference would
+        keep the whole window alive through a view.
 
-        The split is copied into memory rather than referenced: the harness drops
-        its window tensors as the stream advances, and a plain ``DataLoader``
-        reference would keep the whole window alive through a view.
-
-        :param diagonal_metrics: ``eval()`` output for the current window, taken
-            after the CL loop finished.
-        :type diagonal_metrics: List[float]
+        Window-backed harnesses override this to return a *pointer* into the
+        committed window instead of copying (see
+        :class:`~apeiron.model.task_record.WindowEvalSetRef`).
         """
         xs: List[Tensor] = []
         ys: List[Tensor] = []
@@ -188,17 +222,57 @@ class BaseModelHarness(ABC):
             x, y = self._unpack(batch)
             xs.append(x.detach().cpu().clone())
             ys.append(y.detach().cpu().clone())
+        return InMemoryEvalSet(torch.cat(xs), torch.cat(ys))
 
-        frozen = DataLoader(
-            TensorDataset(torch.cat(xs), torch.cat(ys)),
-            batch_size=self.cfg.train.batch_size,
-            shuffle=False,
+    def register_task(
+        self, diagonal_metrics: List[float], window_id: Optional[str] = None
+    ) -> None:
+        """Record the task just finished so later events can measure forgetting.
+
+        A *task* is one drift event: the window the detector fired on and the CL
+        loop adapted to. This freezes a re-evaluable reference to that window's
+        validation split and stores it alongside ``diagonal_metrics`` --
+        ``R[i][i]``, the score on the window measured right after adapting to it.
+        Both travel in the same record so eviction can never misalign a task's
+        eval set from its diagonal.
+
+        :param diagonal_metrics: ``eval()`` output for the current window, taken
+            after the CL loop finished.
+        :param window_id: Provenance of the task's data; defaults to the
+            harness's current window (set by window-backed harnesses).
+        """
+        if window_id is None:
+            window_id = self.current_window_id
+
+        eval_ref = self._freeze_task_evalset(window_id)
+        self._task_records.append(
+            TaskRecord(
+                event_id=self._task_seq,
+                diagonal=list(diagonal_metrics),
+                eval_ref=eval_ref,
+                window_id=window_id,
+            )
         )
-        self._task_records.append((frozen, list(diagonal_metrics)))
+        self._task_seq += 1
 
         # Cap retained tasks; BWT then averages over the surviving ones.
         while len(self._task_records) > self.max_task_records:
             self._task_records.pop(0)
+
+        if self._records_store is not None:
+            self._records_store.save(self._task_records)
+
+    def load_task_records(self) -> int:
+        """Restore persisted task records (for resuming a crashed run).
+
+        Returns the number of records loaded. No-op (returns 0) when task-record
+        persistence is not configured.
+        """
+        if self._records_store is None:
+            return 0
+        self._task_records = self._records_store.load(self._window_store)
+        self._task_seq = 1 + max((r.event_id for r in self._task_records), default=-1)
+        return len(self._task_records)
 
     @torch.no_grad()
     def eval_past_tasks(self) -> List[List[float]]:
@@ -208,7 +282,10 @@ class BaseModelHarness(ABC):
         ``[R[T][i] for i < T]``, oldest task first, index-aligned with
         :attr:`task_diagonals`. Empty until at least one task is registered.
         """
-        return [self._eval_loader(loader) for loader, _ in self._task_records]
+        bs = self.cfg.train.batch_size
+        return [
+            self._eval_loader(rec.eval_ref.loader(bs)) for rec in self._task_records
+        ]
 
     @property
     def task_diagonals(self) -> List[List[float]]:
@@ -216,24 +293,34 @@ class BaseModelHarness(ABC):
 
         Index-aligned with :meth:`eval_past_tasks`.
         """
-        return [diagonal for _, diagonal in self._task_records]
+        return [rec.diagonal for rec in self._task_records]
 
     @property
     def ckpts_enabled(self) -> bool:
         return self.cfg.model.max_ckpts > 0 and bool(self.cfg.model.ckpts_path)
 
     def save_ckpt(self, event: int) -> str:
-        """Persist model state, evict oldest when over budget."""
-        d = Path(self.cfg.model.ckpts_path)
-        d.mkdir(parents=True, exist_ok=True)
+        """Persist model state and apply the configured retention/promotion rules.
 
-        fname = f"drift_adaptation_{event}.pt"
-        torch.save(self.model.state_dict(), d / fname)
-        (d / "latest").write_text(fname)
-
-        # Guillotine the oldest survivors
-        alive = sorted(d.glob("drift_adaptation_*.pt"), key=lambda p: p.stat().st_mtime)
-        while len(alive) > self.cfg.model.max_ckpts:
-            alive.pop(0).unlink()
-
-        return str(d / fname)
+        The metrics gathered during the CL round (``self.last_metrics``: post-CL
+        current/historical accuracy, FWT, BWT) ride along in a sidecar so
+        retention (``[model] ckpts_retention``) and promotion (``deploy_rule``)
+        can select by quality -- e.g. keep the best-historical-accuracy snapshot,
+        not merely the newest. The default rule ``"fifo"`` keeps the newest
+        ``max_ckpts`` by event, matching the prior behavior.
+        """
+        if self._ckpt_store is None:
+            # Reachable only if a caller invokes save_ckpt without checkpointing
+            # configured (ckpts_enabled is the guard everywhere in-tree).
+            self._ckpt_store = CheckpointStore(
+                self.cfg.model.ckpts_path,
+                max_ckpts=self.cfg.model.max_ckpts,
+                retention=getattr(self.cfg.model, "ckpts_retention", "fifo"),
+                deploy_rule=getattr(self.cfg.model, "deploy_rule", ""),
+            )
+        return self._ckpt_store.save(
+            self.model.state_dict(),
+            event=event,
+            metrics=dict(self.last_metrics),
+            window_id=self.current_window_id,
+        )
