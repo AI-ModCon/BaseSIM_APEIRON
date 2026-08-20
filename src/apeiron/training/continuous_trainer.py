@@ -35,6 +35,11 @@ class ContinuousTrainer:
 
         self.cl_updater = create_updater(cfg=self.cfg, modelHarness=self.modelHarness)
 
+        # Real number of (current-stream) samples fed to fwd_bwd on this rank,
+        # summed across all drift events -- the actual data-parallel training work
+        # (for the benchmark's throughput). Not nominal batch_size * steps.
+        self.train_samples: int = 0
+
     def _allreduce_gradients(self) -> None:
         """Average parameter gradients across ranks (manual data parallel).
 
@@ -180,22 +185,34 @@ class ContinuousTrainer:
         else:
             hist_train_iter = None
 
-        cur_validation_metrics = self.modelHarness.eval()
-        hist_validation_metrics = self.modelHarness.history_eval()
+        # Skip the transfer-metric machinery (pre/post eval, history eval, and the
+        # O(N^2) past-task re-scoring) for a pure-adaptation / throughput run.
+        track = self.cfg.continual_learning.track_transfer
 
-        # R[i-1][i]: this window scored by the model that has not yet adapted to
-        # it. Kept for the FWT delta once the post-CL score (R[i][i]) is in.
-        pre_cl_validation_metrics = cur_validation_metrics
+        pre_cl_validation_metrics = None
+        if track:
+            cur_validation_metrics = self.modelHarness.eval()
+            hist_validation_metrics = self.modelHarness.history_eval()
 
-        logger.info("==== Continual Learning ====")
-        logger.info("\tInitial test acc: {}".format(cur_validation_metrics[0]), level=1)
-        if hist_validation_metrics is not None:
+            # R[i-1][i]: this window scored by the model that has not yet adapted
+            # to it. Kept for the FWT delta once the post-CL score (R[i][i]) is in.
+            pre_cl_validation_metrics = cur_validation_metrics
+
+            logger.info("==== Continual Learning ====")
             logger.info(
-                "\tInitial historical test acc: {}".format(hist_validation_metrics[0]),
-                level=1,
+                "\tInitial test acc: {}".format(cur_validation_metrics[0]), level=1
             )
+            if hist_validation_metrics is not None:
+                logger.info(
+                    "\tInitial historical test acc: {}".format(
+                        hist_validation_metrics[0]
+                    ),
+                    level=1,
+                )
+            else:
+                logger.info("\tNo historical data available for evaluation", level=1)
         else:
-            logger.info("\tNo historical data available for evaluation", level=1)
+            logger.info("==== Continual Learning (transfer eval skipped) ====")
 
         self.modelHarness.model.train()
         # 2) run the outer loop
@@ -231,52 +248,53 @@ class ContinuousTrainer:
 
         self.cl_updater.cl_postprocessing()
 
-        cur_validation_metrics = self.modelHarness.eval()
-        hist_validation_metrics = self.modelHarness.history_eval()
-        self._log_validation(
-            "post", cur_validation_metrics, hist_validation_metrics, drift_event_id
-        )
-
-        logger.info(f"\tTest Accuracy: {cur_validation_metrics[0]:.1f}%", level=1)
-        if hist_validation_metrics is not None:
-            logger.info(
-                f"\tHist Test Accuracy: {hist_validation_metrics[0]:.1f}%",
-                level=1,
+        if track:
+            assert pre_cl_validation_metrics is not None
+            cur_validation_metrics = self.modelHarness.eval()
+            hist_validation_metrics = self.modelHarness.history_eval()
+            self._log_validation(
+                "post", cur_validation_metrics, hist_validation_metrics, drift_event_id
             )
 
-        else:
-            logger.info("\tNo historical data available for evaluation", level=1)
+            logger.info(f"\tTest Accuracy: {cur_validation_metrics[0]:.1f}%", level=1)
+            if hist_validation_metrics is not None:
+                logger.info(
+                    f"\tHist Test Accuracy: {hist_validation_metrics[0]:.1f}%",
+                    level=1,
+                )
+            else:
+                logger.info("\tNo historical data available for evaluation", level=1)
 
-        # FWT = R[i][i] - R[i-1][i]: how much adapting to this window moved the
-        # score on it, i.e. the gain CL delivered on the task that triggered.
-        # Available at every drift event, including the first.
-        fwt = cur_validation_metrics[0] - pre_cl_validation_metrics[0]
-        logger.info(f"\tFWT: {fwt:.4g}", level=1)
+            # FWT = R[i][i] - R[i-1][i]: how much adapting to this window moved the
+            # score on it, i.e. the gain CL delivered on the task that triggered.
+            # Available at every drift event, including the first.
+            fwt = cur_validation_metrics[0] - pre_cl_validation_metrics[0]
+            logger.info(f"\tFWT: {fwt:.4g}", level=1)
 
-        bwt = self.compute_bwt()
-        if bwt is not None:
-            logger.info(f"\tBWT: {bwt:.4g}", level=1)
+            bwt = self.compute_bwt()
+            if bwt is not None:
+                logger.info(f"\tBWT: {bwt:.4g}", level=1)
 
-        logger.stage("eval")
-        eval_metrics: dict[str, float] = {
-            "test_curr_acc": cur_validation_metrics[0],
-            "test_pre_cl_acc": pre_cl_validation_metrics[0],
-            "fwt": fwt,
-        }
-        if hist_validation_metrics is not None:
-            eval_metrics["test_hist_acc"] = hist_validation_metrics[0]
-        if bwt is not None:
-            eval_metrics["bwt"] = bwt
-        logger.log(eval_metrics, commit=False)
+            logger.stage("eval")
+            eval_metrics: dict[str, float] = {
+                "test_curr_acc": cur_validation_metrics[0],
+                "test_pre_cl_acc": pre_cl_validation_metrics[0],
+                "fwt": fwt,
+            }
+            if hist_validation_metrics is not None:
+                eval_metrics["test_hist_acc"] = hist_validation_metrics[0]
+            if bwt is not None:
+                eval_metrics["bwt"] = bwt
+            logger.log(eval_metrics, commit=False)
 
-        # Hand the round's metrics to the harness so checkpoint retention and
-        # promotion rules can select by quality (e.g. best historical accuracy)
-        # rather than only by recency.
-        self.modelHarness.last_metrics = dict(eval_metrics)
+            # Hand the round's metrics to the harness so checkpoint retention and
+            # promotion rules can select by quality (e.g. best historical accuracy)
+            # rather than only by recency.
+            self.modelHarness.last_metrics = dict(eval_metrics)
 
-        # Register *after* BWT so this event's window becomes task T only for
-        # subsequent events -- R[T][T] belongs on the diagonal, not in the sum.
-        self.modelHarness.register_task(cur_validation_metrics)
+            # Register *after* BWT so this event's window becomes task T only for
+            # subsequent events -- R[T][T] belongs on the diagonal, not in the sum.
+            self.modelHarness.register_task(cur_validation_metrics)
 
         if self.profiler:
             flops_perf = self.profiler.get_performance()
@@ -310,6 +328,7 @@ class ContinuousTrainer:
                 cur_train_loader,
                 min_batch=self.cfg.train.batch_size,
             )
+            self.train_samples += int(train_batch[1].shape[0])
             if hist_train_iter is not None and hist_train_loader is not None:
                 hist_train_iter, hist_train_batch = self._safe_next(
                     hist_train_iter,

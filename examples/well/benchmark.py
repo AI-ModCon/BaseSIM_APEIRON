@@ -81,6 +81,7 @@ def _cfg(
     ckpts_path: str = "",
     max_ckpts: int = 0,
     device: str = "",
+    track_transfer: bool = True,
 ) -> Config:
     # Match the device to the collective backend (cuda for nccl, cpu for gloo);
     # a GPU node with an nccl group and cpu tensors would fail the collectives.
@@ -99,7 +100,9 @@ def _cfg(
         train=TrainCfg(
             batch_size=batch_size, num_workers=0, init_lr=1e-3, max_iter=max_iter
         ),
-        continual_learning=ContinualLearningCfg(update_mode="base"),
+        continual_learning=ContinualLearningCfg(
+            update_mode="base", track_transfer=track_transfer
+        ),
         drift_detection=DriftDetectionCfg(
             detector_name="PageHinkleyDetector",
             detection_interval=3,
@@ -175,18 +178,28 @@ def bench_memory(store: str, out: str, task_counts: list[int]) -> list[dict]:
 
 
 def bench_throughput(
-    store: str, out: str, *, width: int, batch_size: int, max_iter: int
+    store: str,
+    out: str,
+    *,
+    width: int,
+    batch_size: int,
+    max_iter: int,
+    pure: bool = False,
 ) -> list[dict]:
     comm.init_from_env()
     comm.time_collectives = True
     comm.reset_timings()
 
+    # pure=True skips the unsharded transfer-metric eval (pre/post/BWT), so the
+    # wall-clock reflects the parallelizable work (sharded inference + training)
+    # and the scaling curve is not dominated by O(N^2) eval overhead.
     cfg = _cfg(
         store,
         batch_size=batch_size,
         width=width,
         max_iter=max_iter,
         max_stream_updates=_n_windows(store),
+        track_transfer=not pure,
     )
     h = WellHarness(cfg)
     engine = StreamEngine(
@@ -199,19 +212,26 @@ def bench_throughput(
     comm.barrier()
     dt = time.perf_counter() - t0
 
+    # Real samples processed, summed across ranks (each rank counted its shard).
+    train_samples = sum(
+        comm.all_gather_object(engine.trainer.train_samples if engine.trainer else 0)
+    )
+    stream_samples = sum(comm.all_gather_object(engine.stream_samples))
+
     rows: list[dict] = []
     if comm.is_main:
-        samples = engine.batch_count * batch_size
         timings = comm.timings()
         rows.append(
             {
                 "world_size": comm.world_size,
+                "pure_throughput": int(pure),
                 "wall_s": round(dt, 3),
                 "windows": summary["stream_updates"],
-                "global_batches": engine.batch_count,
-                "samples": samples,
-                "samples_per_s": round(samples / dt, 1) if dt else 0.0,
                 "fires": summary["fires"],
+                "train_samples": train_samples,
+                "train_samples_per_s": round(train_samples / dt, 1) if dt else 0.0,
+                "stream_samples": stream_samples,
+                "stream_samples_per_s": round(stream_samples / dt, 1) if dt else 0.0,
                 "comm_all_gather_s": round(timings.get("all_gather", 0.0), 4),
                 "comm_broadcast_s": round(timings.get("broadcast", 0.0), 4),
                 "comm_all_reduce_s": round(timings.get("all_reduce", 0.0), 4),
@@ -320,6 +340,12 @@ def main(argv: Optional[list[str]] = None) -> int:
     p.add_argument("--width", type=int, default=16)
     p.add_argument("--batch-size", type=int, default=8)
     p.add_argument("--max-iter", type=int, default=20)
+    p.add_argument(
+        "--pure-throughput",
+        action="store_true",
+        help="throughput: skip the transfer-metric eval (BWT/history) so the "
+        "scaling curve reflects the parallelizable work, not O(N^2) eval",
+    )
     args = p.parse_args(argv)
 
     if args.mode == "memory":
@@ -333,6 +359,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             width=args.width,
             batch_size=args.batch_size,
             max_iter=args.max_iter,
+            pure=args.pure_throughput,
         )
     elif args.mode == "frontier":
         bench_frontier(args.store, args.out, [int(x) for x in args.budgets.split(",")])

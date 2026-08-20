@@ -146,6 +146,12 @@ class DataCfg:
 class ContinualLearningCfg:
     update_mode: str = "base"
 
+    # Measure transfer metrics (FWT/BWT) each drift event: the pre/post eval,
+    # history eval, and the O(N^2) past-task re-scoring. True by default. Set
+    # False for a pure-adaptation / throughput run where that unsharded eval
+    # would otherwise dominate wall-clock (e.g. the scaling benchmark).
+    track_transfer: bool = True
+
     # Replay: concatenate the historical batch onto the current one in
     # BaseUpdater.fwd_bwd(). Has no effect when the harness provides no
     # historical dataloaders, nor on jvp_reg, which mixes the two streams itself.

@@ -95,6 +95,8 @@ class StreamEngine:
         self.fire_points: list[int] = []
         self.events: list[dict[str, Any]] = []
         self.metric_buffer: list[list[float]] = []
+        # Real count of inference samples this rank streamed (not batches * bs).
+        self.stream_samples = 0
 
     @property
     def cadence(self) -> str:
@@ -317,6 +319,7 @@ class StreamEngine:
         """Run the forward pass and compute every harness eval metric."""
         x, y = self.modelHarness._unpack(batch)
         x, y = x.to(self.cfg.device), y.to(self.cfg.device)
+        self.stream_samples += int(y.shape[0])
 
         y_hat = self.modelHarness.model(x)
 

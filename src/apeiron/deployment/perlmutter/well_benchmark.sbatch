@@ -40,13 +40,15 @@ echo "Date: $(date)"
 echo "Nodes: $SLURM_NNODES  world_size (tasks): $SLURM_NTASKS  store: $STORE"
 echo "=============================================="
 
-# Scale --width up until the gradient all-reduce stops dominating compute
-# (check the comm_all_reduce_s column relative to wall_s).
+# --pure-throughput skips the O(N^2) transfer-metric eval so wall_s reflects the
+# parallelizable work (sharded inference + data-parallel training). Scale --width
+# up until the gradient all-reduce stops dominating (check comm_all_reduce_s).
 srun python -m examples.well.benchmark throughput \
     --store "$STORE" \
     --out "output/well_scale_w${SLURM_NTASKS}.csv" \
     --width 256 \
-    --batch-size 32
+    --batch-size 32 \
+    --pure-throughput
 
 echo "wrote output/well_scale_w${SLURM_NTASKS}.csv"
 

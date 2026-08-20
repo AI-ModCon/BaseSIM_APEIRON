@@ -12,7 +12,12 @@ import pytest
 
 pytest.importorskip("h5py")
 
-from examples.well.benchmark import bench_frontier, bench_memory, bench_resume  # noqa: E402
+from examples.well.benchmark import (  # noqa: E402
+    bench_frontier,
+    bench_memory,
+    bench_resume,
+    bench_throughput,
+)
 from examples.well.convert import convert_files  # noqa: E402
 from examples.well.fixture import generate_fixture  # noqa: E402
 
@@ -58,3 +63,19 @@ class TestBenchmark:
         row = rows[0]
         assert row["tasks_reloaded"] == row["tasks_before"] > 0
         assert row["diagonals_match"] is True
+
+    def test_throughput_pure_counts_real_samples(self, well_store):
+        rows = bench_throughput(
+            str(well_store),
+            str(well_store.parent / "t.csv"),
+            width=8,
+            batch_size=6,
+            max_iter=3,
+            pure=True,
+        )
+        row = rows[0]  # single process -> rank 0 writes the row
+        assert row["world_size"] == 1
+        assert row["pure_throughput"] == 1
+        assert row["train_samples"] > 0  # real samples, not batches * batch_size
+        assert row["stream_samples"] > 0
+        assert "final_vrmse" in row  # still reported even with transfer eval off
