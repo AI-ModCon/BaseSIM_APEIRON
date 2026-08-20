@@ -30,7 +30,7 @@ class DriftSignal:
 
     def __init__(
         self,
-        regime: LearningRegime,
+        regime: Optional[LearningRegime],
         drift_detected: bool,
         drift_score: float,
         confidence: Optional[float] = None,
@@ -40,7 +40,8 @@ class DriftSignal:
         Initialize drift signal.
 
         Args:
-            regime: Recommended learning regime
+            regime: Recommended learning regime, or None when the trigger source
+                has no regime concept (e.g. a fixed schedule)
             drift_detected: Whether drift was detected
             drift_score: Numeric drift severity score (higher = more drift)
             confidence: Optional confidence in the detection (0-1)
@@ -53,8 +54,9 @@ class DriftSignal:
         self.metadata = metadata or {}
 
     def __repr__(self) -> str:
+        regime = self.regime.value if self.regime else "N/A"
         return (
-            f"DriftSignal(regime={self.regime.value}, "
+            f"DriftSignal(regime={regime}, "
             f"detected={self.drift_detected}, "
             f"score={self.drift_score:.4f}, "
             f"confidence={self.confidence}, )"

@@ -11,7 +11,6 @@ from apeiron.config.configuration import Config
 from apeiron.model.torch_model_harness import BaseModelHarness
 from apeiron.profilers import FLOPSProfiler
 from apeiron.training.updater.create_updater import create_updater
-from apeiron.logger import get_logger
 
 
 class ContinuousTrainer:
@@ -41,7 +40,26 @@ class ContinuousTrainer:
         loader: DataLoader,
         min_batch: Optional[int] = None,
     ) -> tuple[Iterator, list[torch.Tensor]]:
-        """Get next batch from iterator, restarting on exhaustion and enforcing min batch size."""
+        """Get the next batch, restarting on exhaustion and preferring a full batch.
+
+        When ``min_batch`` is set, undersized batches (e.g. the trailing partial
+        batch of an epoch) are skipped in favour of one with at least
+        ``min_batch`` samples. If the loader simply *cannot* produce one -- the
+        split has fewer than ``min_batch`` samples -- the search is bounded to
+        roughly one epoch and the largest batch seen is returned. Without that
+        bound a split smaller than ``train.batch_size`` sends this loop spinning
+        forever; degrading to a smaller step is the safe fallback.
+        """
+        best_batch: Optional[list[torch.Tensor]] = None
+        best_size = -1
+        attempts = 0
+        try:
+            # One epoch of headroom: enough to skip the lone trailing partial in
+            # a healthy loader, but a hard ceiling when no full batch exists.
+            max_attempts = max(1, len(loader))
+        except TypeError:  # loader without a known length
+            max_attempts = 128
+
         while True:
             try:
                 batch = next(current_iter)
@@ -52,14 +70,26 @@ class ContinuousTrainer:
             if min_batch is None:
                 return current_iter, [b.to(self.cfg.device) for b in batch]
 
-            # Try to enforce batch-size on the second element (x, y)
+            # Inspect the batch's sample count via the label tensor.
             try:
                 y = batch[1]
-                if getattr(y, "shape", None) is not None and y.shape[0] >= min_batch:
-                    return current_iter, [b.to(self.cfg.device) for b in batch]
+                size = (
+                    int(y.shape[0]) if getattr(y, "shape", None) is not None else None
+                )
             except (IndexError, TypeError):
-                # If we cannot inspect batch size, just accept the batch
+                size = None
+
+            if size is None or size >= min_batch:
+                # Cannot inspect the size (accept it) or it is already big enough.
                 return current_iter, [b.to(self.cfg.device) for b in batch]
+
+            # Undersized: remember the largest seen and bound the search so a
+            # split with fewer than min_batch samples cannot spin forever.
+            if size > best_size:
+                best_size, best_batch = size, batch
+            attempts += 1
+            if attempts >= max_attempts and best_batch is not None:
+                return current_iter, [b.to(self.cfg.device) for b in best_batch]
 
     def _log_validation(
         self,
@@ -73,7 +103,7 @@ class ContinuousTrainer:
         ``eval()`` returns a positional list; ``eval_metrics`` holds the labels
         in the same order.
         """
-        logger = get_logger(__name__)
+        logger = self.logger
         names = self.modelHarness.eval_metrics
         payload: dict[str, float] = {"drift_event_id": drift_event_id}
         for domain, values in (("cur", cur), ("hist", hist)):
@@ -123,7 +153,7 @@ class ContinuousTrainer:
         drift_event_id: int = 0,
     ) -> int:
         """Run the outer continuous learning training loop for a drift event."""
-        logger = get_logger(__name__)
+        logger = self.logger
         cur_train_loader, cur_test_loader = self.modelHarness.get_train_dataloaders()
         hist_train_loader, hist_test_loader = self.modelHarness.get_hist_dataloaders()
 
@@ -221,6 +251,11 @@ class ContinuousTrainer:
         if bwt is not None:
             eval_metrics["bwt"] = bwt
         logger.log(eval_metrics, commit=False)
+
+        # Hand the round's metrics to the harness so checkpoint retention and
+        # promotion rules can select by quality (e.g. best historical accuracy)
+        # rather than only by recency.
+        self.modelHarness.last_metrics = dict(eval_metrics)
 
         # Register *after* BWT so this event's window becomes task T only for
         # subsequent events -- R[T][T] belongs on the diagonal, not in the sum.

@@ -33,6 +33,7 @@ def main(argv: list[str] | None = None) -> int:
     monitor = ContinuousMonitor(
         cfg=cfg,
         modelHarness=modelHarness,
+        logger=logger,
     )
 
     # Run continuous monitoring

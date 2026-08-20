@@ -14,12 +14,12 @@ from apeiron.training.continuous_trainer import ContinuousTrainer
 
 @pytest.fixture(autouse=True)
 def _patch_logger():
+    # The trainer now uses the logger injected at construction (self.logger)
+    # rather than fetching a global, so tests simply pass a mock logger. This
+    # fixture just supplies one for convenience.
     mock_logger = MagicMock()
     mock_logger.step = 0
-    with patch(
-        "apeiron.training.continuous_trainer.get_logger", return_value=mock_logger
-    ):
-        yield mock_logger
+    yield mock_logger
 
 
 class TestSafeNext:
@@ -71,6 +71,59 @@ class TestSafeNext:
         it = iter(loader)
         it, batch = trainer._safe_next(it, loader, min_batch=4)
         assert batch[1].shape[0] >= 4
+
+    def test_prefers_full_batch_over_partial(self, default_cfg, dummy_harness):
+        # 10 samples, batch 8 -> batches of 8 and 2; the size-2 partial is skipped
+        # in favour of the full batch.
+        trainer = ContinuousTrainer(
+            cfg=default_cfg,
+            modelHarness=dummy_harness,
+            logger=MagicMock(),
+            profiler=None,
+        )
+        loader = DataLoader(
+            TensorDataset(torch.randn(10, 4), torch.randint(0, 3, (10,))),
+            batch_size=8,
+        )
+        it = iter(loader)
+        for _ in range(5):  # several draws, all should be the full batch
+            it, batch = trainer._safe_next(it, loader, min_batch=8)
+            assert batch[1].shape[0] == 8
+
+    def test_undersized_split_terminates(self, default_cfg, dummy_harness):
+        # The regression guard: a split smaller than min_batch must not hang.
+        # It falls back to the largest available batch instead of looping forever.
+        trainer = ContinuousTrainer(
+            cfg=default_cfg,
+            modelHarness=dummy_harness,
+            logger=MagicMock(),
+            profiler=None,
+        )
+        loader = DataLoader(
+            TensorDataset(torch.randn(3, 4), torch.randint(0, 3, (3,))),
+            batch_size=8,
+        )
+        it = iter(loader)
+        it, batch = trainer._safe_next(it, loader, min_batch=8)
+        assert batch[1].shape[0] == 3  # the whole (undersized) split
+
+    def test_undersized_split_terminates_from_exhausted_iter(
+        self, default_cfg, dummy_harness
+    ):
+        trainer = ContinuousTrainer(
+            cfg=default_cfg,
+            modelHarness=dummy_harness,
+            logger=MagicMock(),
+            profiler=None,
+        )
+        loader = DataLoader(
+            TensorDataset(torch.randn(3, 4), torch.randint(0, 3, (3,))),
+            batch_size=8,
+        )
+        it = iter(loader)
+        next(it)  # exhaust it first
+        it, batch = trainer._safe_next(it, loader, min_batch=8)
+        assert batch[1].shape[0] == 3
 
 
 class TestInnerCLLoop:
