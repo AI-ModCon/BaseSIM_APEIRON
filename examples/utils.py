@@ -15,6 +15,10 @@ def get_example(cfg: Config) -> BaseModelHarness:
         from examples.imagenet.model import IMAGENET_VISION
 
         return IMAGENET_VISION(cfg=cfg)
+    elif cfg.data.name == "well":
+        from examples.well.model import WellHarness
+
+        return WellHarness(cfg=cfg)
     else:
         raise NotImplementedError(
             f"Example for dataset {cfg.data.name} is not implemented."

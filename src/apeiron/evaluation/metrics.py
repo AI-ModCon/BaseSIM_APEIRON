@@ -22,3 +22,39 @@ def accuracy_topk(output, target, topk=(1,)):
 @torch.no_grad()
 def accuracy(output, target):
     return accuracy_topk(output, target, topk=(1,))[0]
+
+
+# ---------------------------------------------------------------------------
+# Regression metrics (lower is better) -- for field-prediction / surrogate tasks
+# ---------------------------------------------------------------------------
+
+
+@torch.no_grad()
+def mae(output, target):
+    """Mean absolute error over all elements."""
+    return (output - target).abs().mean()
+
+
+@torch.no_grad()
+def mse(output, target):
+    """Mean squared error over all elements."""
+    return ((output - target) ** 2).mean()
+
+
+@torch.no_grad()
+def vrmse(output, target, eps: float = 1e-8):
+    """Variance-scaled RMSE, averaged over batch and channels.
+
+    The Well's headline metric: per-sample, per-channel RMSE divided by the
+    target field's spatial standard deviation, so channels on different physical
+    scales contribute comparably and a value of 1.0 means "no better than
+    predicting the field's own mean". Assumes ``[B, C, *spatial]`` layout; falls
+    back to a plain relative RMSE for lower-rank tensors.
+    """
+    if output.ndim >= 3:
+        spatial = tuple(range(2, output.ndim))
+    else:
+        spatial = tuple(range(output.ndim))
+    num = ((output - target) ** 2).mean(dim=spatial)
+    denom = target.var(dim=spatial, unbiased=False) + eps
+    return torch.sqrt(num / denom).mean()

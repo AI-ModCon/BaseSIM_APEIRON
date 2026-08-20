@@ -1,0 +1,65 @@
+# The Well: streaming neural PDE surrogate under regime drift.
+#
+# Prereq -- build the committed WindowStore first (fixture or real data):
+#   poetry run python -m examples.well.fixture /tmp/wellsrc
+#   poetry run python -m examples.well.convert --files "/tmp/wellsrc/*.hdf5" \
+#       --out /tmp/wellstore --window-steps 8
+# or real data:
+#   poetry run python -m examples.well.convert --dataset turbulent_radiative_layer_2D \
+#       --split test --max-files 6 --out /data/wellstore --window-steps 20
+#
+# Then point window_store_path at that store and run:
+#   poetry run python -m src.main --config examples/well/well.toml
+#
+# Multi-node on Perlmutter (data-parallel; see docs/distributed.md):
+#   srun --ntasks-per-node=4 python -m src.main --config examples/well/well.toml
+
+seed = 0
+device = "auto"
+multi_gpu = false
+verbosity = "INFO"
+
+[model]
+name = "well_surrogate"
+# Surrogate capacity -- scale these up on GPU for the scaling benchmark.
+width = 32
+depth = 4
+max_ckpts = 3
+ckpts_path = "output/well_ckpts"
+ckpts_retention = "latest:1+min:val_post_cur_vrmse"
+
+[data]
+name = "well"
+path = "/tmp/wellstore"
+window_store_path = "/tmp/wellstore"
+batch_size = 8          # streaming (monitoring) batch size
+
+[train]
+batch_size = 8
+num_workers = 0
+init_lr = 0.001
+grad_accumulation_steps = 1
+max_iter = 100
+
+[drift_detection]
+detector_name = "PageHinkleyDetector"
+detection_interval = 5
+aggregation = "mean"
+metric_index = 0        # 0 = VRMSE (lower is better)
+reset_after_learning = true
+max_stream_updates = 14
+ph_min_instances = 10
+ph_delta = 0.01
+ph_threshold = 0.5
+ph_alpha = 0.999
+
+[continual_learning]
+update_mode = "base"
+mix_historic_data = true
+
+[logging]
+backend = "none"
+experiment_name = "well-surrogate-drift"
+
+[visualization]
+input = "output/well_output.csv"
