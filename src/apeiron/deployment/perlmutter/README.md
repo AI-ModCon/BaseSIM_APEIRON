@@ -8,8 +8,8 @@ Clone the repo into your scratch directory and run the install script:
 
 ```bash
 cd $SCRATCH
-git clone https://github.com/AI-ModCon/BaseSim_Framework.git
-cd BaseSim_Framework
+git clone https://github.com/AI-ModCon/BaseSIM_APEIRON.git
+cd BaseSIM_APEIRON
 source ./src/apeiron/deployment/perlmutter/install_venv.sh
 ```
 
@@ -37,8 +37,36 @@ The virtual environment can be sourced directly at the top of your SLURM script 
 From the project root:
 
 ```bash
+mkdir -p output
 sbatch -A amsc002 src/apeiron/deployment/perlmutter/mnist_example.sbatch
 ```
+
+### Well scaling benchmark
+
+The Well example (`examples/well/`) is the data-parallel scaling benchmark; the
+full recipe is in `examples/well/BENCHMARK.md`. On Perlmutter:
+
+1. **Build the WindowStore on a login node** — compute nodes have no internet, so
+   the HuggingFace download must happen before you submit any job (this is the
+   Well analog of the MNIST download note above):
+
+   ```bash
+   poetry run python -m examples.well.convert --dataset turbulent_radiative_layer_2D \
+       --split train --max-files 8 --out $SCRATCH/wellstore --window-steps 24
+   ```
+
+2. **Throughput / scaling** — submit `well_benchmark.sbatch` (4 GPUs = 4 ranks per
+   node) and sweep the world size with `--nodes`; each run writes
+   `output/well_scale_w<N>.csv`:
+
+   ```bash
+   mkdir -p output
+   sbatch -A amsc002 src/apeiron/deployment/perlmutter/well_benchmark.sbatch            #  4 ranks
+   sbatch -A amsc002 --nodes=2 src/apeiron/deployment/perlmutter/well_benchmark.sbatch  #  8 ranks
+   ```
+
+3. **Memory / frontier / resume** are single-process — run them directly on a
+   login node (no `srun`), per `examples/well/BENCHMARK.md`.
 
 ### Troubleshooting
 
