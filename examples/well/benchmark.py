@@ -82,6 +82,7 @@ def _cfg(
     max_ckpts: int = 0,
     device: str = "",
     track_transfer: bool = True,
+    init_lr: float = 1e-3,
 ) -> Config:
     # Match the device to the collective backend (cuda for nccl, cpu for gloo);
     # a GPU node with an nccl group and cpu tensors would fail the collectives.
@@ -98,7 +99,7 @@ def _cfg(
             name="well", path=store, window_store_path=store, batch_size=batch_size
         ),
         train=TrainCfg(
-            batch_size=batch_size, num_workers=0, init_lr=1e-3, max_iter=max_iter
+            batch_size=batch_size, num_workers=0, init_lr=init_lr, max_iter=max_iter
         ),
         continual_learning=ContinualLearningCfg(
             update_mode="base", track_transfer=track_transfer
@@ -177,6 +178,23 @@ def bench_memory(store: str, out: str, task_counts: list[int]) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 
+def _scaled_lr(base_lr: float, world_size: int, rule: str) -> float:
+    """Scale the base LR to the DDP effective batch (``world_size x batch_size``).
+
+    Data-parallel averages gradients over ``world_size`` ranks, so the effective
+    batch grows ``world_size x``. With a fixed step budget the frontier degrades
+    unless the LR grows too: ``linear`` (Goyal et al. linear scaling rule) or the
+    gentler ``sqrt`` (Krizhevsky). ``none`` leaves the LR untouched.
+    """
+    if rule == "linear":
+        return base_lr * world_size
+    if rule == "sqrt":
+        return base_lr * (world_size**0.5)
+    if rule == "none":
+        return base_lr
+    raise ValueError(f"unknown lr-scaling rule: {rule!r}")
+
+
 def bench_throughput(
     store: str,
     out: str,
@@ -185,10 +203,16 @@ def bench_throughput(
     batch_size: int,
     max_iter: int,
     pure: bool = False,
+    base_lr: float = 1e-3,
+    lr_scaling: str = "none",
 ) -> list[dict]:
     comm.init_from_env()
     comm.time_collectives = True
     comm.reset_timings()
+
+    # Linear/sqrt scaling rule: match the LR to the world-size-inflated effective
+    # batch so the accuracy frontier holds as ranks grow (default none = off).
+    lr = _scaled_lr(base_lr, comm.world_size, lr_scaling)
 
     # pure=True skips the unsharded transfer-metric eval (pre/post/BWT), so the
     # wall-clock reflects the parallelizable work (sharded inference + training)
@@ -200,6 +224,7 @@ def bench_throughput(
         max_iter=max_iter,
         max_stream_updates=_n_windows(store),
         track_transfer=not pure,
+        init_lr=lr,
     )
     h = WellHarness(cfg)
     engine = StreamEngine(
@@ -225,6 +250,8 @@ def bench_throughput(
             {
                 "world_size": comm.world_size,
                 "pure_throughput": int(pure),
+                "lr_scaling": lr_scaling,
+                "init_lr": round(lr, 6),
                 "wall_s": round(dt, 3),
                 "windows": summary["stream_updates"],
                 "fires": summary["fires"],
@@ -346,6 +373,14 @@ def main(argv: Optional[list[str]] = None) -> int:
         help="throughput: skip the transfer-metric eval (BWT/history) so the "
         "scaling curve reflects the parallelizable work, not O(N^2) eval",
     )
+    p.add_argument("--base-lr", type=float, default=1e-3, help="throughput: LR at W=1")
+    p.add_argument(
+        "--lr-scaling",
+        choices=["none", "linear", "sqrt"],
+        default="none",
+        help="throughput: scale LR to the DDP effective batch (world_size x "
+        "batch_size) to hold the frontier as ranks grow; default none",
+    )
     args = p.parse_args(argv)
 
     if args.mode == "memory":
@@ -360,6 +395,8 @@ def main(argv: Optional[list[str]] = None) -> int:
             batch_size=args.batch_size,
             max_iter=args.max_iter,
             pure=args.pure_throughput,
+            base_lr=args.base_lr,
+            lr_scaling=args.lr_scaling,
         )
     elif args.mode == "frontier":
         bench_frontier(args.store, args.out, [int(x) for x in args.budgets.split(",")])

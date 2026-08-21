@@ -34,10 +34,18 @@ mkdir -p output
 
 STORE=${WELL_STORE:-$SCRATCH/wellstore}
 
+# LR-scaling rule for the DDP effective batch (world_size x batch_size). Override
+# per submission:  LR_SCALING=linear sbatch --nodes=2 ... well_benchmark.sbatch
+# none  = fixed LR (throughput-only run);  linear|sqrt = hold the frontier as
+# ranks grow. The CSV is keyed by the rule so scaled runs don't clobber none runs.
+LR_SCALING=${LR_SCALING:-none}
+OUT="output/well_scale_w${SLURM_NTASKS}_lr-${LR_SCALING}.csv"
+
 echo "=============================================="
 echo "Well benchmark: throughput (data-parallel)"
 echo "Date: $(date)"
 echo "Nodes: $SLURM_NNODES  world_size (tasks): $SLURM_NTASKS  store: $STORE"
+echo "LR scaling: $LR_SCALING  ->  $OUT"
 echo "=============================================="
 
 # --pure-throughput skips the O(N^2) transfer-metric eval so wall_s reflects the
@@ -45,12 +53,13 @@ echo "=============================================="
 # up until the gradient all-reduce stops dominating (check comm_all_reduce_s).
 srun python -m examples.well.benchmark throughput \
     --store "$STORE" \
-    --out "output/well_scale_w${SLURM_NTASKS}.csv" \
+    --out "$OUT" \
     --width 256 \
     --batch-size 32 \
-    --pure-throughput
+    --pure-throughput \
+    --lr-scaling "$LR_SCALING"
 
-echo "wrote output/well_scale_w${SLURM_NTASKS}.csv"
+echo "wrote $OUT"
 
 # --- Single-process modes (memory / frontier / resume) do NOT use srun ---
 # Run them on a login node or a 1-task job, e.g.:
