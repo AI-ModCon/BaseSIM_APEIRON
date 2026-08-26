@@ -3,7 +3,7 @@ name = "apeiron"
 version = "0.1.0"
 description = "A PyTorch continual learning framework for real-time concept drift detection and model adaptation."
 authors = [
-    {name = "Your Name",email = "you@example.com"},
+    {name = "Andrew Ayres",email = "ayresaf@ornl.gov"},
     {name="Krishnan Raghavan", email="kraghavan@anl.gov"}
 ]
 readme = "README.md"
