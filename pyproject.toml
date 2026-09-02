@@ -5,6 +5,7 @@ description = "A PyTorch continual learning framework for real-time concept drif
 authors = [
     {name = "Your Name",email = "you@example.com"},
     {name="Krishnan Raghavan", email="kraghavan@anl.gov"}
+    {name="Anna Quach", email="anna.quach@inl.gov"}
 ]
 readme = "README.md"
 requires-python = ">=3.13,<3.14"
