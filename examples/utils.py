@@ -15,7 +15,7 @@ def get_example(cfg: Config) -> BaseModelHarness:
         from examples.imagenet.model import IMAGENET_VISION
 
         return IMAGENET_VISION(cfg=cfg)
-    elif cfg.data.name == "aeris_dataset.csv":
+    elif cfg.data.name == "aeris":
         from examples.aeris.model import AERIS
 
         return AERIS(cfg=cfg)

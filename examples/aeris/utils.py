@@ -6,6 +6,13 @@ Expected directory layout (pointed to by ``cfg.data.path``)::
     <data_dir>/
         dataset.csv            # data that will be parsed by the SIM framework
         aeris_model.pt        # AERIS pre-trained model
+
+Featurization uses the *fast path* and must stay byte-for-byte consistent with
+``examples/aeris/scripts/make_drift_split.py:build_features`` -- the same code
+that produced the training features. 227 of the 233 features are pre-computed
+columns pulled directly from the CSV; the remaining 6 lattice params are parsed
+from the ``structure`` string. No matminer recompute (that path could disagree
+with the pre-computed columns the model was trained on).
 """
 
 import os
@@ -18,10 +25,6 @@ import pandas as pd
 import torch
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
-
-from pymatgen.core.composition import Composition
-from matminer.featurizers.base import MultipleFeaturizer
-from matminer.featurizers import composition as cf
 
 
 def load_pretrained_model(
@@ -59,239 +62,101 @@ def load_pretrained_model(
     return ckpt
 
 
-def _parse_formula(s: str) -> Dict[str, float]:
-    parts = re.findall(r"([A-Z][a-z]?)([0-9]*\.?[0-9]*)", str(s).strip())
-    if not parts:
-        raise ValueError(f"Could not parse formula: {s}")
-    comp: Dict[str, float] = {}
-    for el, num in parts:
-        comp[el] = float(num) if num else 1.0
-    return comp
-
-
-def _parse_structure_string(struct_str: str) -> Dict[str, float]:
-    # minimal lattice extractor (compatible with training utils)
-    result = {
-        "lattice_a": np.nan,
-        "lattice_b": np.nan,
-        "lattice_c": np.nan,
-        "lattice_alpha": np.nan,
-        "lattice_beta": np.nan,
-        "lattice_gamma": np.nan,
-        "volume": np.nan,
-        "density": np.nan,
-        "nsites": np.nan,
-        "spacegroup_number": np.nan,
-    }
-    if struct_str is None:
-        return result
-    s = str(struct_str)
-    abc_pattern = r"abc\s*:\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)"
-    angles_pattern = r"angles\s*:\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)"
-    abc = re.search(abc_pattern, s)
-    ang = re.search(angles_pattern, s)
-    if abc:
-        result["lattice_a"] = float(abc.group(1))
-        result["lattice_b"] = float(abc.group(2))
-        result["lattice_c"] = float(abc.group(3))
-    if ang:
-        result["lattice_alpha"] = float(ang.group(1))
-        result["lattice_beta"] = float(ang.group(2))
-        result["lattice_gamma"] = float(ang.group(3))
-    # try volume
-    vol_match = re.search(r"volume\s*[:=]\s*([\d.]+)", s)
-    if vol_match:
-        result["volume"] = float(vol_match.group(1))
-    dens_match = re.search(r"density\s*[:=]\s*([\d.]+)", s)
-    if dens_match:
-        result["density"] = float(dens_match.group(1))
-    sg_match = re.search(r"spacegroup(?:_number)?\s*[:=]\s*(\d+)", s)
-    if sg_match:
-        result["spacegroup_number"] = int(sg_match.group(1))
-    nsites_match = re.search(r"nsites\s*[:=]\s*(\d+)", s)
-    if nsites_match:
-        result["nsites"] = int(nsites_match.group(1))
-    return result
-
-
 # -----------------------------
-# Build X,y in *checkpoint feature order*
+# Fast-path featurization
+# (mirrors scripts/make_drift_split.py so the harness featurizes inputs exactly
+#  the way the model was trained)
 # -----------------------------
-# optional numeric columns (if present in CSV) that we will include as features
-OPTIONAL_NUMERIC_COLS = [
-    'density_atomic', 'CN_max', 'CN_min', 'CN_avg',
-    # add more if you know they exist & are useful
+LATTICE_KEYS = [
+    "lattice_a", "lattice_b", "lattice_c",
+    "lattice_alpha", "lattice_beta", "lattice_gamma",
 ]
 
-def _make_magpie_featurizer() -> MultipleFeaturizer:
-    return MultipleFeaturizer([
-        cf.Stoichiometry(),
-        cf.ElementProperty.from_preset("magpie"),
-        cf.ValenceOrbital(props=['avg']),
-        cf.IonProperty(fast=True),
-    ])
 
-def _compute_magpie_df(compositions: pd.Series) -> pd.DataFrame:
-    featurizer = _make_magpie_featurizer()
+def _parse_lattice(struct_str: Any) -> Dict[str, float]:
+    """Extract the 6 lattice params from a pymatgen structure string."""
+    r = {k: 0.0 for k in LATTICE_KEYS}
+    s = str(struct_str)
+    abc = re.search(r"abc\s*:\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)", s)
+    ang = re.search(r"angles\s*:\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)", s)
+    if abc:
+        r["lattice_a"], r["lattice_b"], r["lattice_c"] = map(float, abc.groups())
+    if ang:
+        r["lattice_alpha"], r["lattice_beta"], r["lattice_gamma"] = map(float, ang.groups())
+    return r
 
-    comp_objs = []
-    for s in compositions.astype(str).tolist():
-        try:
-            comp_objs.append(Composition(s))
-        except Exception:
-            comp_objs.append(None)
 
-    base = pd.DataFrame({"comp_obj": comp_objs}, index=compositions.index)
+def _build_X_fast(df: pd.DataFrame, feature_names: List[str]) -> np.ndarray:
+    """Assemble the ``(N, len(feature_names))`` matrix via the fast path.
 
-    try:
-        feat_df = featurizer.featurize_dataframe(
-            base, col_id="comp_obj", ignore_errors=True, pbar=False, n_jobs=1
-        )
-    except TypeError:
-        try:
-            featurizer.set_n_jobs(1)
-        except Exception:
-            pass
-        feat_df = featurizer.featurize_dataframe(
-            base, col_id="comp_obj", ignore_errors=True, pbar=False
-        )
-
-    feat_df = feat_df.drop(columns=[c for c in feat_df.columns if c == "comp_obj"], errors="ignore")
-    return feat_df
-
-def _build_X_y_in_ckpt_order(
-    df: pd.DataFrame,
-    feature_names: List[str],
-    target_col: Optional[str],
-) -> Tuple[np.ndarray, Optional[np.ndarray]]:
-    required = ["composition", "structure"]
-    for c in required:
-        if c not in df.columns:
-            raise KeyError(f"Missing required column '{c}'")
-
-    if target_col is not None and target_col not in df.columns:
-        raise KeyError(f"Missing target column '{target_col}'")
-
-    magpie_df = _compute_magpie_df(df["composition"])
+    227 features are pulled directly from pre-computed CSV columns; the 6 lattice
+    params are parsed from the ``structure`` string. Any feature not found is
+    left at 0. Identical to ``make_drift_split.build_features``.
+    """
     n = len(df)
     X = np.zeros((n, len(feature_names)), dtype=np.float32)
-    y: Optional[np.ndarray] = None
-    if target_col is not None:
-        y = np.zeros((n, 1), dtype=np.float32)
+    col_idx = {f: j for j, f in enumerate(feature_names)}
 
-    df2 = df.reset_index(drop=True)
+    present = [f for f in feature_names if f in df.columns]
+    sub = df[present].apply(pd.to_numeric, errors="coerce").to_numpy(np.float32)
+    for k, f in enumerate(present):
+        X[:, col_idx[f]] = sub[:, k]
 
-    for i, row in df2.iterrows():
-        comp_str = str(row["composition"])
+    if "structure" in df.columns:
+        lat = np.array(
+            [list(_parse_lattice(s).values()) for s in df["structure"].tolist()],
+            dtype=np.float32,
+        )
+        for k, f in enumerate(LATTICE_KEYS):
+            if f in col_idx:
+                X[:, col_idx[f]] = lat[:, k]
 
-        # 1) element fractions
-        try:
-            parsed = _parse_formula(comp_str)
-            total = float(sum(parsed.values())) if parsed else 0.0
-        except Exception:
-            parsed, total = {}, 0.0
-
-        elem_frac: Dict[str, float] = {}
-        if total > 0:
-            for el, cnt in parsed.items():
-                elem_frac[el] = float(cnt) / total
-
-        # 2) structure features
-        struct_vals = _parse_structure_string(row.get("structure"))
-
-        # 3) optional numeric cols
-        opt_vals: Dict[str, float] = {}
-        for c in OPTIONAL_NUMERIC_COLS:
-            if c in df2.columns:
-                v = row.get(c)
-                try:
-                    opt_vals[c] = float(v)
-                except Exception:
-                    opt_vals[c] = np.nan
-
-        # 4) magpie row
-        magpie_row = magpie_df.iloc[i].to_dict()
-
-        # single lookup dict, then assemble in EXACT feature_names order
-        value_by_name: Dict[str, float] = {}
-        for el, frac in elem_frac.items():
-            value_by_name[el] = float(frac)
-        for k, v in struct_vals.items():
-            try:
-                value_by_name[k] = float(v)
-            except Exception:
-                pass
-        for k, v in opt_vals.items():
-            try:
-                value_by_name[k] = float(v)
-            except Exception:
-                pass
-        for k, v in magpie_row.items():
-            try:
-                value_by_name[k] = float(v)
-            except Exception:
-                pass
-
-        X[i, :] = np.array([value_by_name.get(name, 0.0) for name in feature_names], dtype=np.float32)
-
-        if y is not None:
-            try:
-                y[i, 0] = float(row[target_col])  # type: ignore[arg-type]
-            except Exception:
-                y[i, 0] = np.nan
-
-    X = np.nan_to_num(X, nan=0.0, posinf=1e6, neginf=-1e6).astype(np.float32)
-
-    if y is not None:
-        y = y.astype(np.float32)
-        # drop rows where y is nan
-        mask = ~np.isnan(y[:, 0])
-        X = X[mask]
-        y = y[mask]
-    return X, y
+    return np.nan_to_num(X, nan=0.0, posinf=1e6, neginf=-1e6)
 
 
-def load_datasets(data_path: str, dataset_name: str, feature_names: List[str], input_dim: int) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+def load_datasets(
+    data_path: str, dataset_name: str, feature_names: List[str], input_dim: int
+) -> Tuple[np.ndarray, Optional[np.ndarray]]:
     """Load the dataset used by the model.
 
-    This function attempts to *prefer* loading the exact columns listed in
-    `feature_names` (in the same order). If those columns are present in the
-    CSV(s), they are used directly (fast, deterministic). If not all feature
-    columns are present, the function falls back to building feature vectors
-    row-by-row using _build_feature_vector to preserve compatibility with older
-    or alternate CSV formats.
+    Features are assembled in the exact ``feature_names`` order via the fast
+    path (pre-computed columns + parsed lattice params), matching how the model
+    was trained. Rows with a missing target are dropped.
 
-    The function returns:
-        X: numpy.ndarray of shape (n_samples, n_features) dtype float32
-        y: numpy.ndarray of shape (n_samples,) dtype float32
+    Returns
+    -------
+    X: numpy.ndarray of shape (n_samples, n_features) dtype float32 (unscaled)
+    y: numpy.ndarray of shape (n_samples, 1) dtype float32
 
     Note: scaling is intentionally NOT applied here. The caller (model harness)
-    will apply the saved scaler from the checkpoint (if any) via scaler.transform().
+    applies the saved scaler from the checkpoint via scaler.transform().
     """
-
-    # collect files
-    dataset_pattern = os.path.join(data_path, dataset_name)
+    dataset_pattern = os.path.join(data_path)
     dataset_files: List[str] = glob.glob(dataset_pattern)
     if not dataset_files:
         raise FileNotFoundError(f"No dataset files matched pattern: {dataset_pattern}")
 
-    # read & concatenate CSV files
-    dfs = []
-    for file_path in dataset_files:
-        dfs.append(pd.read_csv(file_path, low_memory=False))
+    dfs = [pd.read_csv(fp, low_memory=False) for fp in dataset_files]
     dataset: pd.DataFrame = pd.concat(dfs, ignore_index=True)
 
-    target_col = 'formation_energy_per_atom'
-    X_raw, y = _build_X_y_in_ckpt_order(dataset, feature_names=feature_names, target_col=target_col)
-    #print("Prepared X:", X_raw.shape, "y:", None if y is None else y.shape, "num_features:", len(feature_names))
+    target_col = "formation_energy_per_atom"
+    if target_col not in dataset.columns:
+        raise KeyError(f"Missing target column '{target_col}'")
+    dataset = dataset[dataset[target_col].notna()].reset_index(drop=True)
 
-    if X_raw.shape[1] != input_dim:
-        raise ValueError(f"Checkpoint input_dim={input_dim} but built X has {X_raw.shape[1]} features.")
+    X = _build_X_fast(dataset, feature_names)
+    y = dataset[target_col].to_numpy(np.float32).reshape(-1, 1)
 
-    return X_raw, y
+    if X.shape[1] != input_dim:
+        raise ValueError(
+            f"Checkpoint input_dim={input_dim} but built X has {X.shape[1]} features."
+        )
+
+    return X, y
+
 
 # Default number of samples per time window.  Can be overridden by the caller.
-DEFAULT_WINDOW_SIZE: int = 10
+DEFAULT_WINDOW_SIZE: int = 500
 
 def split_into_windows(
     X: Tensor,
