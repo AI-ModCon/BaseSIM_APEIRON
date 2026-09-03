@@ -1,5 +1,6 @@
 # Data and configs
 *.toml
+!examples/**/*.toml
 
 # Logging files
 *.db
@@ -15,13 +16,18 @@ data/*
 
 # bash
 *.sh
+!examples/**/*.sh
+
+# Slurm job logs land in the submitting directory
+slurm-*.out
+slurm-*.err
 
 
 # Files
 *.png
 !docs/images/*.png
 *.txt
-!docs/requirements.txt
+!examples/**/*.txt
 *.csv
 !tests/references/*.csv
 *.pdf
@@ -163,7 +169,6 @@ celerybeat.pid
 .env
 .envrc
 .venv
-.venv-docs/
 env/
 venv/
 ENV/
@@ -231,3 +236,4 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+output/
