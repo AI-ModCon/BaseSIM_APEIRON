@@ -32,6 +32,66 @@ Required/expected attributes:
 | `self.eval_metrics` | `dict[str, callable]` | Ordered metric map. Metric order controls `metric_index` behavior in drift detection. |
 | `self.higher_is_better` | `dict[str, bool]` | Used by `ModelEvalDetector` style logic. Optional for monitor-only operation. |
 
+## Checkpointing
+
+The base class provides automatic checkpointing when configured via `[model]` section:
+
+```toml
+[model]
+name = "my_model"
+max_ckpts = 5              # Keep last 5 checkpoints (0 disables)
+ckpts_path = "./output/checkpoints"
+```
+
+Checkpoints are saved automatically after each continual learning adaptation.
+
+### Default Checkpoint Format
+
+By default, `BaseModelHarness` saves only model weights (`model.state_dict()`):
+
+```python
+# Default behavior - saves weights only
+torch.save(model.state_dict(), checkpoint_path)
+```
+
+This works for models that don't require additional metadata (preprocessing state, feature names, etc.) to be loaded.
+
+### Custom Checkpoint Format
+
+If your model requires metadata beyond weights (e.g., preprocessing scalers, feature names, architecture parameters), override `build_checkpoint_payload()`:
+
+```python
+class MyHarness(BaseModelHarness):
+    def __init__(self, cfg: Config):
+        # ... load model with metadata ...
+        self._feature_names = checkpoint["feature_names"]
+        self._scaler = checkpoint["scaler"]
+        self._input_dim = checkpoint["input_dim"]
+
+        super().__init__(cfg=cfg, model=model)
+
+    def build_checkpoint_payload(self) -> dict:
+        """Save full checkpoint with metadata."""
+        return {
+            "model_state_dict": self.model.state_dict(),
+            "feature_names": self._feature_names,
+            "scaler": self._scaler,
+            "input_dim": self._input_dim,
+        }
+```
+
+This ensures that:
+1. Checkpoints saved during CL runs can be loaded directly as pretrained models
+2. No separate "reference" checkpoints are needed to recover metadata
+3. Save and load formats match exactly
+
+### Checkpoint Management
+
+- Checkpoints are named `drift_adaptation_<event>.pt` where `<event>` is the drift event number
+- A `latest` file tracks the most recent checkpoint
+- FIFO policy: oldest checkpoints are deleted when `max_ckpts` limit is exceeded
+- Set `max_ckpts = 0` to disable checkpointing entirely
+
 ## Runtime Lifecycle
 
 1. `examples/utils.py:get_example` picks a harness from `cfg.data.name`.
@@ -254,6 +314,34 @@ def update_data_stream(self):
 ```
 
 This function is called by the monitor whenever a new stream segment becomes active.
+
+### (Optional) Custom Checkpoint Format
+
+If your model requires metadata beyond weights (e.g., preprocessing scalers, feature names, architecture parameters), override `build_checkpoint_payload()`:
+
+```python
+def build_checkpoint_payload(self):
+    """Save checkpoint with all metadata needed for loading."""
+    return {
+        "model_state_dict": self.model.state_dict(),
+        "feature_names": self._feature_names,
+        "scaler": self._scaler,
+        "input_dim": self._input_dim,
+    }
+```
+
+This ensures saved checkpoints can be loaded directly without separate reference files.
+
+**When to use:**
+- Your model loads with preprocessing state (scalers, normalizers, encoders)
+- Your architecture requires parameters beyond what's in the config (e.g., inferred input dimensions)
+- You want checkpoints to be self-contained and portable
+
+**When to skip:**
+- Your model only needs weights (`state_dict()`) - the default behavior is fine
+- All loading parameters come from the config file
+
+See the "Checkpointing" section above for details.
 
 ## Step 4: Build Dataset Utilities
 
