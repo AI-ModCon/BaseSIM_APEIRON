@@ -26,7 +26,7 @@ grad_accumulation_steps = 2
 
 [continual_learning]
 update_mode = "kfac_online"
-mix_historic_data = false
+mix_historic_data = true
 
 # jvp_reg
 jvp_rho_theta = 0.05
