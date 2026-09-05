@@ -4,21 +4,16 @@
 This harness wraps a 8-layer neural network trained to predict enthalpy per atom from a given fuel material."""
 
 import gc
-import os
 import math
-from examples.cifar import model
 import torch
 import numpy as np
-from typing import Tuple, Optional, List, Any, Mapping, cast
+from typing import Tuple, Optional, List, Any
 from torch import nn, Tensor
 from torch.optim import Optimizer
-from pathlib import Path
 from torch.utils.data import DataLoader, ConcatDataset, TensorDataset
 
 from apeiron.model.torch_model_harness import BaseModelHarness
 from apeiron.config.configuration import Config
-
-from apeiron.evaluation.metrics import accuracy
 
 from examples.aeris.utils import (
     load_datasets,
@@ -68,76 +63,6 @@ class AerisFullStructure(nn.Module):
 # Fraction of each time window reserved for validation
 _VAL_FRACTION: float = 0.2
 
-# Reference harness checkpoints (looked up in cfg.model.pretrained_path) used to
-# recover feature_names/scaler when the selected checkpoint is a bare state_dict
-# -- e.g. after_cl.pt, which the CL run saves as weights only. aeris_drift_init.pt
-# is the model CL starts from, so its scaler matches the preprocessing used
-# during the run; the rest are fallbacks.
-_REFERENCE_CKPTS = (
-    "aeris_drift_init.pt", "aeris_init.pt", "aeris_full.pt", "aeris_infer.pt",
-)
-
-
-def _is_harness_ckpt(obj: Any) -> bool:
-    """True for a full harness checkpoint (has metadata, not just weights)."""
-    return isinstance(obj, dict) and "model_state_dict" in obj and "feature_names" in obj
-
-
-def _infer_input_dim(state_dict: Mapping[str, Tensor]) -> Optional[int]:
-    """Read input_dim from the first Linear layer's weight (out, in)."""
-    w = state_dict.get("layers.0.weight")
-    return int(w.shape[1]) if w is not None else None
-
-
-def _resolve_checkpoint(
-    ckpt: Any, pretrained_path: str, device: str, ckpt_name: str
-) -> Tuple[Mapping[str, Tensor], List[str], Any, int]:
-    """Normalize a loaded checkpoint into (state_dict, feature_names, scaler, input_dim).
-
-    Accepts either:
-      * a full harness checkpoint (dict with model_state_dict / feature_names /
-        scaler / input_dim), or
-      * a bare state_dict of weights (what the CL run writes, e.g. after_cl.pt),
-        optionally wrapped under a "state_dict" key. In that case feature_names
-        and the scaler are borrowed from the first available reference harness
-        checkpoint, and input_dim is inferred from the first layer's weights.
-    """
-    if _is_harness_ckpt(ckpt):
-        return (ckpt["model_state_dict"], ckpt["feature_names"],
-                ckpt["scaler"], int(ckpt["input_dim"]))
-
-    state_dict = (
-        ckpt["state_dict"] if isinstance(ckpt, dict) and "state_dict" in ckpt else ckpt
-    )
-    if not isinstance(state_dict, Mapping) or not all(
-        isinstance(v, torch.Tensor) for v in state_dict.values()
-    ):
-        raise KeyError(
-            f"Checkpoint '{ckpt_name}' is neither a harness checkpoint (missing "
-            "'feature_names') nor a recognizable state_dict of weights."
-        )
-
-    for ref_name in _REFERENCE_CKPTS:
-        if ref_name == ckpt_name:
-            continue
-        ref_path = os.path.join(pretrained_path, ref_name)
-        if os.path.exists(ref_path):
-            ref = torch.load(ref_path, map_location=device, weights_only=False)
-            if _is_harness_ckpt(ref):
-                input_dim = _infer_input_dim(state_dict) or int(ref["input_dim"])
-                print(
-                    f"[AERIS] '{ckpt_name}' is a bare state_dict; borrowing "
-                    f"feature_names/scaler from reference '{ref_name}' "
-                    f"(input_dim={input_dim})."
-                )
-                return state_dict, ref["feature_names"], ref["scaler"], input_dim
-
-    raise KeyError(
-        f"'{ckpt_name}' is a bare state_dict but no reference harness checkpoint "
-        f"({', '.join(_REFERENCE_CKPTS)}) was found in {pretrained_path} to supply "
-        "feature_names/scaler. Add one, or point [model].name at a full checkpoint."
-    )
-
 
 class AERIS(BaseModelHarness):
     """
@@ -149,11 +74,19 @@ class AERIS(BaseModelHarness):
         ckpt = load_pretrained_model(
             cfg.model.pretrained_path, cfg.model.name, device=cfg.device
         )
-        # Accept either a full harness checkpoint or a bare state_dict (e.g.
-        # after_cl.pt from the CL run) -- see _resolve_checkpoint.
-        state_dict, feature_names, scaler, input_dim = _resolve_checkpoint(
-            ckpt, cfg.model.pretrained_path, cfg.device, cfg.model.name
-        )
+
+        # Expect full harness checkpoint format
+        if not isinstance(ckpt, dict) or "model_state_dict" not in ckpt:
+            raise ValueError(
+                f"Checkpoint '{cfg.model.name}' must be a full harness checkpoint "
+                "with 'model_state_dict', 'feature_names', 'scaler', and 'input_dim'. "
+                "Legacy weight-only checkpoints are no longer supported."
+            )
+
+        state_dict = ckpt["model_state_dict"]
+        feature_names = ckpt["feature_names"]
+        scaler = ckpt["scaler"]
+        input_dim = int(ckpt["input_dim"])
 
         model = AerisFullStructure(input_dim=input_dim)
         model.load_state_dict(state_dict)
@@ -386,6 +319,19 @@ class AERIS(BaseModelHarness):
             ds_train, bs, shuffle=True, num_workers=nw, pin_memory=pin
         )
         self.window_idx += 1
+
+    def build_checkpoint_payload(self) -> dict[str, Any]:
+        """Save full harness checkpoint matching load_pretrained_model format.
+
+        Overrides BaseModelHarness to include feature names, scaler, and input_dim
+        so that saved checkpoints can be loaded directly without reference checkpoints.
+        """
+        return {
+            "model_state_dict": self.model.state_dict(),
+            "feature_names": self._feature_names,
+            "scaler": self._scaler,
+            "input_dim": self._input_dim,
+        }
 
     # --------------------------------------------------------------------- #
     # Helpers
