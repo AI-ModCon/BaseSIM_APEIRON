@@ -16,7 +16,6 @@ from apeiron.config.configuration import (
     DriftDetectionCfg,
     ModelCfg,
     TrainCfg,
-    VisualizationCfg,
     build_config,
     deep_update,
     env_overrides,
@@ -275,10 +274,6 @@ class TestFrozenDataclasses:
         dd = DriftDetectionCfg()
         assert dd.detector_name == "ADWINDetector"
         assert dd.detection_interval == 10
-
-    def test_visualization_cfg(self):
-        viz = VisualizationCfg()
-        assert viz.input == "output/output.csv"
 
 
 # ---------------------------------------------------------------------------

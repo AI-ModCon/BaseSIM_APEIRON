@@ -29,17 +29,15 @@ poetry run mypy .
 The installable package lives under `src/apeiron/` (imported as `apeiron`; see `pyproject.toml` `packages = [{ include = "apeiron", from = "src" }]`).
 
 ### Core Pipeline
-1. **Config** (`src/apeiron/config/configuration.py`): TOML-based config parsed into frozen dataclasses (`Config`, `ModelCfg`, `DataCfg`, `TrainCfg`, `ContinualLearningCfg`, `DriftDetectionCfg`, `LoggingCfg`, `VisualizationCfg`). Supports `--set key=val` CLI overrides and `APP_` env var overrides.
+1. **Config** (`src/apeiron/config/configuration.py`): TOML-based config parsed into frozen dataclasses (`Config`, `ModelCfg`, `DataCfg`, `TrainCfg`, `ContinualLearningCfg`, `DriftDetectionCfg`, `LoggingCfg`). Supports `--set key=val` CLI overrides and `APP_` env var overrides.
 2. **Model Harness** (`src/apeiron/model/torch_model_harness.py`): Abstract `BaseModelHarness` providing `get_stream_dataloader()`, `get_train_dataloaders()`, `get_hist_dataloaders()`, `update_data_stream()`, `get_criterion()`, `get_optmizer()`, and `eval_metrics` dict. Also keeps a per-task registry for transfer metrics -- `register_task()`, `eval_past_tasks()`, `task_diagonals` -- which subclasses inherit unchanged (see `docs/tracking.md` "Transfer Metrics").
 3. **Driver** (`src/apeiron/driver/continuous_monitor.py`): `ContinuousMonitor` orchestrates the monitoring loop -- evaluates batches, checks drift at intervals, dispatches CL training on drift.
 4. **Drift Detection** (`src/apeiron/drift_detection/`): `BaseDriftDetector` ABC with `update(value) -> DriftSignal`. Implementations: ADWINDetector, KSWINDetector, PageHinkleyDetector, ModelPerformanceDetector, ModelEvalDetector, EnsembleDetector.
 5. **Training** (`src/apeiron/training/continuous_trainer.py`): `ContinuousTrainer` runs outer/inner CL loops with gradient accumulation.
 6. **Updaters** (`src/apeiron/training/updater/`): `BaseUpdater` with hooks `cl_preprocessing()`, `fwd_bwd()`, `update_pre_fwd_bwd()`, `update_post_fwd_bwd()`, `update_post_optimizer_call()`, `cl_postprocessing()`. Implementations: base (vanilla), jvp_reg (JVP updater -- now a first-order SAM robust update), ewc_online (EWC), kfac_online (KFAC), none (no-op).
 7. **Evaluation** (`src/apeiron/evaluation/metrics.py`): `accuracy()` and `accuracy_topk()`.
-8. **Logger** (`src/apeiron/logger/`): `Logger` with pluggable metrics backends -- `WandBLogger` and `MLFlowLogger` (configured via `[logging] backend = "wandb"|"mlflow"|"none"`), plus console output. Stages: eval, drift, cl.
+8. **Logger** (`src/apeiron/logger/`): `Logger` with pluggable metrics backends -- `WandBLogger` and `MLFlowLogger` (configured via `[logging] backend = "wandb"|"mlflow"|"none"`), plus console output. Stages: eval, drift, cl. Metrics are written to a CSV file at `[logging] metrics_output_path` for external analysis.
 9. **Profilers** (`src/apeiron/profilers/`): `FLOPSProfiler` (`count_flops.py`) using PyTorch FlopCounterMode.
-
-Note: `[visualization]` config (`VisualizationCfg`) is parsed but there is no bundled dashboard/renderer in the current package; runs emit a CSV at `visualization.input` for external plotting.
 
 ### Example Harnesses
 - `examples/mnist/model.py`: `MNIST_CNN` -- CNN on MNIST with affine drift simulation.
@@ -49,7 +47,7 @@ Note: `[visualization]` config (`VisualizationCfg`) is parsed but there is no bu
 
 ### Configuration Format (TOML)
 Required sections: `[model]` (name, pretrained_path), `[data]` (name, path), `[train]` (batch_size, num_workers, init_lr), `[drift_detection]` (detector_name, detection_interval, etc).
-Optional sections: `[continual_learning]` (update_mode, lambda params), `[logging]` (backend = "wandb"|"mlflow"|"none", experiment_name, mlflow_tracking_uri), `[visualization]` (baseline, input, output -- parsed but not rendered by the package).
+Optional sections: `[continual_learning]` (update_mode, lambda params), `[logging]` (backend = "wandb"|"mlflow"|"none", experiment_name, mlflow_tracking_uri, metrics_output_path).
 Top-level keys: `seed`, `device` ("auto"|"cpu"|"cuda"|"mps"), `multi_gpu`.
 
 ### Available Drift Detectors

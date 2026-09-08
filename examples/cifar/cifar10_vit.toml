@@ -47,5 +47,5 @@ adwin_delta = 0.002
 adwin_minor_threshold = 0.3
 adwin_moderate_threshold = 0.6
 
-[visualization]
-input = "output/cifar.csv"
+[logging]
+metrics_output_path = "output/cifar.csv"
