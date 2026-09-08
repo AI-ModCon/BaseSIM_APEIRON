@@ -24,8 +24,6 @@ class Logger:
         verbosity: str = "INFO",
         backend: MetricsBackend = "wandb",
         csv_path: str | Path | None = None,
-        # Legacy parameter for backwards compatibility
-        wandb_enabled: bool | None = None,
     ):
         """Initialize unified logger.
 
@@ -33,11 +31,7 @@ class Logger:
             verbosity: Console level (DEBUG, INFO, INFO:n, WARNING, ERROR, CRITICAL)
             backend: Metrics backend to use ("wandb", "mlflow", or "none")
             csv_path: Save metrics to CSV at this path (disabled if None)
-            wandb_enabled: Deprecated. Use backend="wandb" or backend="none" instead.
         """
-        # Handle legacy wandb_enabled parameter
-        if wandb_enabled is not None:
-            backend = "wandb" if wandb_enabled else "none"
 
         # Initialize metrics backend
         if backend == "mlflow":
@@ -163,8 +157,6 @@ def get_logger(
     verbosity: str = "INFO",
     backend: MetricsBackend = "wandb",
     csv_path: str | Path | None = None,
-    # Legacy parameter for backwards compatibility
-    wandb_enabled: bool | None = None,
 ) -> Logger:
     """Get or create the default Logger instance.
 
@@ -172,7 +164,6 @@ def get_logger(
         verbosity: Console level (DEBUG, INFO, INFO:n, WARNING, ERROR, CRITICAL)
         backend: Metrics backend to use ("wandb", "mlflow", or "none")
         csv_path: Save metrics to CSV at this path (disabled if None)
-        wandb_enabled: Deprecated. Use backend="wandb" or backend="none" instead.
 
     Returns:
         Logger instance
@@ -183,7 +174,6 @@ def get_logger(
             verbosity=verbosity,
             backend=backend,
             csv_path=csv_path,
-            wandb_enabled=wandb_enabled,
         )
     return _default_logger
 
