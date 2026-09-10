@@ -222,13 +222,27 @@ class BaseModelHarness(ABC):
     def ckpts_enabled(self) -> bool:
         return self.cfg.model.max_ckpts > 0 and bool(self.cfg.model.ckpts_path)
 
+    def build_checkpoint_payload(self) -> Any:
+        """Build the checkpoint object to save.
+
+        Subclasses can override this to include additional metadata beyond weights
+        (e.g., preprocessing scalers, feature names, architecture parameters)
+        so that saved checkpoints match the format expected by the loader.
+
+        Returns
+        -------
+        By default, returns ``model.state_dict()`` (weights only).
+        """
+        return self.model.state_dict()
+
     def save_ckpt(self, event: int) -> str:
         """Persist model state, evict oldest when over budget."""
         d = Path(self.cfg.model.ckpts_path)
         d.mkdir(parents=True, exist_ok=True)
 
         fname = f"drift_adaptation_{event}.pt"
-        torch.save(self.model.state_dict(), d / fname)
+        payload = self.build_checkpoint_payload()
+        torch.save(payload, d / fname)
         (d / "latest").write_text(fname)
 
         # Guillotine the oldest survivors
