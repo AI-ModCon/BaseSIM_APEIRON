@@ -4,7 +4,8 @@ version = "0.1.0"
 description = "A PyTorch continual learning framework for real-time concept drift detection and model adaptation."
 authors = [
     {name = "Andrew Ayres",email = "ayresaf@ornl.gov"},
-    {name="Krishnan Raghavan", email="kraghavan@anl.gov"}
+    {name="Krishnan Raghavan", email="kraghavan@anl.gov"},
+    {name="Ana Gainaru", email="againaru@lanl.gov"}
 ]
 readme = "README.md"
 requires-python = ">=3.13,<3.14"
