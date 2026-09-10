@@ -17,7 +17,7 @@ def main(argv: list[str] | None = None) -> int:
     logger = get_logger(
         verbosity=cfg.verbosity,
         backend=backend,
-        csv_path=cfg.visualization.input if cfg.visualization else None,
+        csv_path=cfg.logging.metrics_output_path if cfg.logging else None,
     )
 
     modelHarness = get_example(cfg=cfg)

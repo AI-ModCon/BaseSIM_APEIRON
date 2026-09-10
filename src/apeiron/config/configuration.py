@@ -183,17 +183,13 @@ class DriftDetectionCfg:
 
 
 @dataclass(frozen=True)
-class VisualizationCfg:
-    input: str = "output/output.csv"  # CSV path where run metrics are written
-
-
-@dataclass(frozen=True)
 class LoggingCfg:
-    backend: MetricsBackend = "wandb"  # "wandb", "mlflow", or "none"
+    backend: MetricsBackend = "none"  # "wandb", "mlflow", or "none"
     experiment_name: str | None = (
         None  # Project name for WandB/Experiment name for MLflow
     )
     mlflow_tracking_uri: str | None = None  # MLflow tracking server URI
+    metrics_output_path: str | None = None  # CSV path where run metrics are written
 
 
 @dataclass(frozen=True)
@@ -208,7 +204,6 @@ class Config:
     device: str
     multi_gpu: bool = False
     verbosity: str = "INFO"
-    visualization: VisualizationCfg | None = None
     logging: LoggingCfg | None = None
 
 
@@ -362,7 +357,6 @@ def build_config(argv=None) -> Config:
     train = TrainCfg(**cfg["train"])
     dd = DriftDetectionCfg(**cfg["drift_detection"])
     cl = ContinualLearningCfg(**cfg.get("continual_learning", {}))
-    viz = VisualizationCfg(**cfg["visualization"]) if "visualization" in cfg else None
     log_cfg = LoggingCfg(**cfg["logging"]) if "logging" in cfg else None
 
     raw_device = str(
@@ -385,7 +379,6 @@ def build_config(argv=None) -> Config:
         "train",
         "continual_learning",
         "drift_detection",
-        "visualization",
         "logging",
         "device",
         "multi_gpu",
@@ -400,7 +393,6 @@ def build_config(argv=None) -> Config:
         train=train,
         continual_learning=cl,
         drift_detection=dd,
-        visualization=viz,
         logging=log_cfg,
         device=resolved_device,
         multi_gpu=multi_gpu_flag,
