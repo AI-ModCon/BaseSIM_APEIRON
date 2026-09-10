@@ -93,7 +93,7 @@ def _run_mnist_until_first_drift(output_csv: Path) -> None:
     _set_deterministic_seed(cfg.seed)
 
     logger_module._default_logger = None
-    logger = get_logger(verbosity="WARNING", wandb_enabled=False, csv_path=output_csv)
+    logger = get_logger(verbosity="WARNING", backend="none", csv_path=output_csv)
     logger.init(cfg, project="mnist-validation")
 
     harness = get_example(cfg)

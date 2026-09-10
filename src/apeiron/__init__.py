@@ -7,7 +7,6 @@ from apeiron.config.configuration import (
     TrainCfg,
     ContinualLearningCfg,
     DriftDetectionCfg,
-    VisualizationCfg,
     LoggingCfg,
     build_config,
 )
@@ -35,7 +34,6 @@ __all__ = [
     "TrainCfg",
     "ContinualLearningCfg",
     "DriftDetectionCfg",
-    "VisualizationCfg",
     "LoggingCfg",
     "build_config",
     "BaseModelHarness",
