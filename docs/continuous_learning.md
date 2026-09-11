@@ -52,6 +52,38 @@ Defined in `ContinualLearningCfg`:
 | `ewc_ema_decay` | `0.95` | EMA decay for online Fisher prior in EWC. |
 | `kfac_lambda` | `0.01` | KFAC penalty strength (`kfac_online` mode). |
 | `kfac_ema_decay` | `0.95` | EMA decay for running Kronecker factors in KFAC mode. |
+| `importance_weighting` | `false` | Enable prioritized sampling based on per-sample loss deltas. |
+| `importance_alpha` | `1.0` | Priority exponent: `1.0` = linear, `<1.0` = flatter, `>1.0` = sharper prioritization. |
+
+## Prioritized Sampling
+
+When `importance_weighting = true`, the trainer rebuilds DataLoaders at the start of each CL round to use `WeightedRandomSampler` with per-sample priorities:
+
+```
+priority_i = (L(w_current, x_i) - L(theta_star, x_i))^importance_alpha
+```
+
+where `theta_star` is a snapshot of the model weights from the previous CL round.
+
+- Samples the model has "forgotten" (higher loss vs. anchor) are sampled more frequently
+- Training loss remains unchanged (no gradient distortion)
+- Default `importance_alpha = 1.0` gives linear prioritization; increase for sharper, decrease for flatter
+
+### Mutual Exclusivity with `mix_historic_data`
+
+**Prioritized sampling and `mix_historic_data` are mutually exclusive.** When `importance_weighting = true`, the framework automatically disables `mix_historic_data` (with a warning) because:
+
+- Prioritized sampling uses weighted sampling to focus on forgotten samples
+- Mixing concatenates historical data directly into batches
+- These are two different replay strategies that should not be combined
+
+### Which Loaders Get Prioritized?
+
+- **Current task loader**: Always prioritized when `importance_weighting = true`
+- **Historical loader**: Only prioritized for `jvp_reg` (which always reads `hist_batch` directly)
+- **For `base`, `ewc_online`, `kfac_online`**: Only current loader is prioritized; historical data is accessed via prioritized sampling on the current loader
+
+Reference: Raghavan & Papadimitriou, FGCS 2025.
 
 ## Updater Modes (`update_mode`)
 
@@ -140,6 +172,10 @@ ewc_lambda = 1000.0
 ewc_ema_decay = 0.95
 kfac_lambda = 1e-2
 kfac_ema_decay = 0.95
+
+# Optional: enable prioritized sampling
+importance_weighting = true
+importance_alpha = 1.0
 ```
 
 Codes wanting to do continual learning should use the `ContinuousTrainer` class that takes the configuration parameters, model harness, logger and the profiler.
