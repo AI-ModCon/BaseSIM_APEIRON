@@ -360,3 +360,67 @@ class TestConfigFields:
         updater = create_updater(cfg, harness)
         assert updater.importance_weighting is True
         assert updater.importance_alpha == 2.0
+
+
+# ---------------------------------------------------------------------------
+# TestUsesHistBatchFlag
+# ---------------------------------------------------------------------------
+class TestUsesHistBatchFlag:
+    """Verify uses_hist_batch is only True for JVP."""
+
+    def test_base_always_false(self, default_cfg, make_harness):
+        """BaseUpdater should have uses_hist_batch=False."""
+        cfg = replace(
+            default_cfg,
+            continual_learning=ContinualLearningCfg(update_mode="base"),
+        )
+        harness = make_harness(cfg)
+        updater = create_updater(cfg, harness)
+        assert updater.uses_hist_batch is False
+
+    def test_jvp_always_true(self, default_cfg, make_harness):
+        """JVPRegUpdater should have uses_hist_batch=True."""
+        cfg = replace(
+            default_cfg,
+            continual_learning=ContinualLearningCfg(update_mode="jvp_reg"),
+        )
+        harness = make_harness(cfg)
+        updater = create_updater(cfg, harness)
+        assert updater.uses_hist_batch is True
+
+
+# ---------------------------------------------------------------------------
+# TestMutualExclusivity
+# ---------------------------------------------------------------------------
+class TestMutualExclusivity:
+    """Verify importance_weighting disables mix_historic_data."""
+
+    def test_priorities_disable_mixing(self, default_cfg, make_harness, caplog):
+        """When importance_weighting=True, mix_historic_data is disabled with warning."""
+        cfg = replace(
+            default_cfg,
+            continual_learning=ContinualLearningCfg(
+                importance_weighting=True,
+                mix_historic_data=True,
+            ),
+        )
+        harness = make_harness(cfg)
+        with caplog.at_level("WARNING"):
+            updater = create_updater(cfg, harness)
+        assert updater.importance_weighting is True
+        assert updater.mix_historic_data is False
+        assert "importance_weighting=True overrides mix_historic_data" in caplog.text
+
+    def test_no_priorities_preserves_mixing(self, default_cfg, make_harness):
+        """When importance_weighting=False, mix_historic_data is preserved."""
+        cfg = replace(
+            default_cfg,
+            continual_learning=ContinualLearningCfg(
+                importance_weighting=False,
+                mix_historic_data=True,
+            ),
+        )
+        harness = make_harness(cfg)
+        updater = create_updater(cfg, harness)
+        assert updater.importance_weighting is False
+        assert updater.mix_historic_data is True
