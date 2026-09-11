@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import logging
+
 from apeiron.config.configuration import Config
 from apeiron.model.torch_model_harness import BaseModelHarness
 from apeiron.training.updater.base import BaseUpdater
+
+logger = logging.getLogger(__name__)
 
 
 def create_updater(cfg: Config, modelHarness: BaseModelHarness) -> BaseUpdater:
@@ -45,4 +49,16 @@ def create_updater(cfg: Config, modelHarness: BaseModelHarness) -> BaseUpdater:
 
     updater.importance_weighting = cfg.continual_learning.importance_weighting
     updater.importance_alpha = cfg.continual_learning.importance_alpha
+
+    # Prioritized sampling and mix_historic_data are mutually exclusive:
+    # priorities use weighted sampling to focus on forgotten samples, while
+    # mixing concatenates historical data into the batch. When priorities are
+    # enabled, disable mixing and rely on the prioritization instead.
+    if updater.importance_weighting and updater.mix_historic_data:
+        logger.warning(
+            "importance_weighting=True overrides mix_historic_data. "
+            "Disabling mix_historic_data to use prioritized sampling instead."
+        )
+        updater.mix_historic_data = False
+
     return updater

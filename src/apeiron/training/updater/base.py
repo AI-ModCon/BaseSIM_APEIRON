@@ -24,10 +24,9 @@ class BaseUpdater:
         model: Neural network model to update.
         uses_hist_batch: True iff fwd_bwd consumes hist_batch directly.
             Read by the trainer to decide whether prioritizing the
-            *historical* loader has any effect. Default False — EWC / KFAC
-            receive their historical-data signal through mixing into the
-            current loader, not through the hist_batch argument, so
-            reweighting hist_train_loader for them would be wasted work.
+            *historical* loader has any effect. False in BaseUpdater
+            (priorities and mix_historic_data are mutually exclusive).
+            JVPRegUpdater overrides to True since it always reads hist_batch.
     """
 
     uses_hist_batch: bool = False
