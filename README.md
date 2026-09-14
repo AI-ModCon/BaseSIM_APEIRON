@@ -2,7 +2,9 @@
 [![Build Status](https://github.com/AI-ModCon/BaseSim_Framework/actions/workflows/build-test.yml/badge.svg)](https://github.com/AI-ModCon/BaseSim_Framework/actions/workflows/build-test.yml)
 [![Coverage Status](https://codecov.io/gh/AI-ModCon/BaseSim_Framework/badge.svg?branch=main)](https://codecov.io/gh/AI-ModCon/BaseSim_Framework?branch=main)
 
-A PyTorch framework for continual learning that automatically detects concept drift in data streams and adapts models through JVP regularized retraining.
+<img src="./docs/apeiron_logo.png" align="left" alt="Apeiron Logo" width="250"/>
+
+A PyTorch framework for continual learning that automatically detects concept drift in data streams and adapts models through JVP regularized retraining. For more information on Apeiron modules and a Quickstart guide, please refer to the [Apeiron Documentation](https://basesim-apeiron.readthedocs.io/en/latest/).
 
 ## What This Repository Does
 
