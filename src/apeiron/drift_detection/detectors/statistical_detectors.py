@@ -28,6 +28,10 @@ class ADWINDetector(BaseDriftDetector):
     Use case: Monitor model loss, accuracy, or prediction errors over time.
     """
 
+    # The river detector carries ADWIN's variable-length window; the histories
+    # back the drift score. Together they are everything update() accumulates.
+    _STATE_ATTRS = ("detector", "_drift_history", "_value_history")
+
     def __init__(
         self,
         delta: float = 0.002,
@@ -118,6 +122,10 @@ class KSWINDetector(BaseDriftDetector):
     Best for: Detecting changes in data distributions (not just mean).
     Use case: Monitor prediction distributions, feature statistics.
     """
+
+    # Pickling the river detector also captures its reference window and the
+    # RNG that drew it, so a resumed run samples exactly as it would have.
+    _STATE_ATTRS = ("detector", "_drift_history")
 
     def __init__(
         self,
@@ -220,6 +228,10 @@ class PageHinkleyDetector(BaseDriftDetector):
     Best for: Fast detection of abrupt changes in mean values.
     Use case: Real-time monitoring of model performance metrics.
     """
+
+    # The river detector holds the running mean and cumulative sum that the
+    # Page-Hinkley statistic is built from.
+    _STATE_ATTRS = ("detector", "_drift_history")
 
     def __init__(
         self,
