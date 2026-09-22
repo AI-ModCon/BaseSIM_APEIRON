@@ -1,0 +1,4 @@
+# sha256  filename
+# Filled in when a tier is published. A tier with no entry here is refused by
+# download_data.sh rather than fetched unverified -- see STANDALONE.md for which
+# tiers are cleared for distribution and which are still awaiting permission.
