@@ -65,6 +65,20 @@ The CL trainer, the updater modes, and what runs after drift is detected.
 6. {doc}`continuous_learning` — what happens after drift is detected.
 7. {doc}`tracking` — sending run metrics to Weights & Biases or MLflow.
 
+## Contributing
+
+Contribution guidelines, including our guidelines for AI/LLM-assisted contributions, are in
+[CONTRIBUTING.md](https://github.com/AI-ModCon/BaseSIM_APEIRON/blob/main/CONTRIBUTING.md).
+
+## License
+
+Apeiron is released under the
+[Apache License 2.0](https://github.com/AI-ModCon/BaseSIM_APEIRON/blob/main/LICENSE).
+
+## Support
+
+This project acknowledges support from the U.S. Department of Energy's Genesis Mission.
+
 ```{toctree}
 :maxdepth: 2
 :caption: Getting started

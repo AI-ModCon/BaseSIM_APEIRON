@@ -1,6 +1,7 @@
 # Apeiron
-[![Build Status](https://github.com/AI-ModCon/BaseSim_Framework/actions/workflows/build-test.yml/badge.svg)](https://github.com/AI-ModCon/BaseSim_Framework/actions/workflows/build-test.yml)
-[![Coverage Status](https://codecov.io/gh/AI-ModCon/BaseSim_Framework/badge.svg?branch=main)](https://codecov.io/gh/AI-ModCon/BaseSim_Framework?branch=main)
+[![Build Status](https://github.com/AI-ModCon/BaseSIM_APEIRON/actions/workflows/build-test.yml/badge.svg)](https://github.com/AI-ModCon/BaseSIM_APEIRON/actions/workflows/build-test.yml)
+[![Coverage Status](https://codecov.io/gh/AI-ModCon/BaseSIM_APEIRON/badge.svg?branch=main)](https://codecov.io/gh/AI-ModCon/BaseSIM_APEIRON?branch=main)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE)
 
 <div align="center">
 <img src="./docs/images/apeiron_logo.png" alt="Apeiron Logo" width="250"/>
@@ -157,11 +158,21 @@ Detailed docs are in `docs/`:
 
 ## Development Commands
 
+Common tasks are wrapped in the `Makefile`:
+
 ```bash
-poetry run pytest
-poetry run ruff check .
-poetry run mypy .
+make install      # poetry install
+make test         # pytest
+make test-cov     # pytest with an HTML + terminal coverage report
+make lint         # ruff check . and ruff format --check .
+make format       # ruff format .
+make type-check   # mypy .
+make docs         # build the Sphinx docs into docs/_build/html
+make clean        # remove build artifacts and caches
 ```
+
+Run `make help` for the full list. These are the same checks CI runs, so a clean
+`make lint && make type-check && make test` should mean a green build.
 
 
 ### What `main.py` Does
@@ -188,3 +199,31 @@ Platform-specific deployment guides:
 
 - [OLCF Frontier](./src/apeiron/deployment/frontier/README.md)
 - [NERSC Perlmutter](./src/apeiron/deployment/perlmutter/README.md)
+
+## Contributing
+
+We welcome contributions! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines on how to
+contribute to this project, including our guidelines for AI/LLM-assisted contributions.
+
+Changes are recorded in [CHANGELOG.md](./CHANGELOG.md).
+
+## Support
+
+This project acknowledges support from the U.S. Department of Energy's Genesis Mission.
+
+## License
+
+This project is licensed under the Apache License 2.0 - see the [LICENSE](./LICENSE) file for details.
+
+## Code of Conduct
+
+Please note that this project is released with a [Contributor Code of Conduct](./CODE_OF_CONDUCT.md). By participating in this project you agree to abide by its terms.
+
+## Security
+
+To report a security vulnerability, please follow the process in [SECURITY.md](./SECURITY.md) —
+please do not open a public issue.
+
+## Questions or Issues?
+
+For questions or to report issues, please open an issue on [GitHub](https://github.com/AI-ModCon/BaseSIM_APEIRON/issues).
