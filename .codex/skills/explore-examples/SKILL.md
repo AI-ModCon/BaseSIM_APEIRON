@@ -56,7 +56,7 @@ Summarize the selected config: dataset, model, detector, updater, device, and ba
 Run from the project root:
 
 ```bash
-poetry run python -m src.main --config <config_path> --set logging.backend=<choice>
+uv run python -m src.main --config <config_path> --set logging.backend=<choice>
 ```
 
 This is a real training and monitoring run. Stream output and do not silently background it.
@@ -77,7 +77,7 @@ The package emits a CSV for inspection; it does not ship a built-in dashboard re
 Quick local first run:
 
 ```bash
-poetry run python -m src.main --config examples/mnist/mnist.toml --set logging.backend=none
+uv run python -m src.main --config examples/mnist/mnist.toml --set logging.backend=none
 ```
 
 Useful overrides:
@@ -88,4 +88,4 @@ Useful overrides:
 --set device=cpu
 ```
 
-If Poetry is not set up, complete the repo's development install before running examples.
+If the environment is not set up, complete the repo's development install (`uv sync`) before running examples.

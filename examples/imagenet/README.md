@@ -79,7 +79,7 @@ own fine-tune; `_orig_mod.` prefixes from `torch.compile` are stripped on load.
 From the **repository root**:
 
 ```bash
-poetry run python -m src.main --config examples/imagenet/imagenet_vit.toml
+uv run python -m src.main --config examples/imagenet/imagenet_vit.toml
 ```
 
 Sanity-check the wiring on a small subset before committing real compute — point
@@ -87,7 +87,7 @@ Sanity-check the wiring on a small subset before committing real compute — poi
 `train/`+`val/` layout:
 
 ```bash
-poetry run python -m src.main --config examples/imagenet/imagenet_vit.toml \
+uv run python -m src.main --config examples/imagenet/imagenet_vit.toml \
   --set data.path=\"/path/to/imagenet-subset\" \
   --set drift_detection.max_stream_updates=1 \
   --set train.max_iter=5

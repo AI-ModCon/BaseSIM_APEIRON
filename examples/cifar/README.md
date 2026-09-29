@@ -48,10 +48,10 @@ From the **repository root**:
 
 ```bash
 # ViT-B/16 — 224x224 inputs, needs a GPU
-poetry run python -m src.main --config examples/cifar/cifar10_vit.toml
+uv run python -m src.main --config examples/cifar/cifar10_vit.toml
 
 # VGG-11 — 32x32 inputs, much lighter
-poetry run python -m src.main --config examples/cifar/cifar10_vgg11.toml
+uv run python -m src.main --config examples/cifar/cifar10_vgg11.toml
 ```
 
 CIFAR-10 downloads to `./data` on first run. Neither config sets
@@ -70,7 +70,7 @@ why the two configs use such different batch sizes.
 `inception`. Anything else raises `NotImplementedError`.
 
 ```bash
-poetry run python -m src.main --config examples/cifar/cifar10_vgg11.toml \
+uv run python -m src.main --config examples/cifar/cifar10_vgg11.toml \
   --set model.name=\"resnet18\" \
   --set model.pretrained_path=\"examples/cifar/cifar10_resnet18.pth\"
 ```

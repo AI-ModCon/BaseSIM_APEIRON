@@ -11,7 +11,7 @@ resuming.
 ```{code-block} bash
 :caption: Run a bundled example
 
-poetry run python -m src.main --config examples/mnist/mnist.toml
+uv run python -m src.main --config examples/mnist/mnist.toml
 ```
 
 ## The loop
@@ -64,6 +64,20 @@ The CL trainer, the updater modes, and what runs after drift is detected.
 5. {doc}`drift_detectors` — how monitoring decisions are made.
 6. {doc}`continuous_learning` — what happens after drift is detected.
 7. {doc}`tracking` — sending run metrics to Weights & Biases or MLflow.
+
+## Contributing
+
+Contribution guidelines, including our guidelines for AI/LLM-assisted contributions, are in
+[CONTRIBUTING.md](https://github.com/AI-ModCon/BaseSIM_APEIRON/blob/main/CONTRIBUTING.md).
+
+## License
+
+Apeiron is released under the
+[Apache License 2.0](https://github.com/AI-ModCon/BaseSIM_APEIRON/blob/main/LICENSE).
+
+## Support
+
+This work was supported by the U.S. Department of Energy (DOE), Office of Science, Office of Advanced Scientific Computing Research in alignment with DOE's Genesis Mission.
 
 ```{toctree}
 :maxdepth: 2

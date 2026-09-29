@@ -81,7 +81,7 @@ For the full path:
 
 - Write a `BaseModelHarness` subclass wrapping the existing model and data loaders.
 - Read `src/apeiron/model/torch_model_harness.py` and `examples/mnist/model.py` for the current abstract methods.
-- Preserve current method names exactly, including `get_optmizer` if that is what the ABC declares.
+- Preserve current method names exactly. Note that `get_optmizer` is a deprecated alias for `get_optimizer`; implement `get_optimizer`.
 - Build a config with `build_config` from a small TOML or construct the current config object directly.
 - Construct and run `ContinuousMonitor` using `src/main.py` as the wiring reference.
 

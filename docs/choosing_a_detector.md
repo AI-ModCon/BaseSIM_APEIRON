@@ -230,7 +230,7 @@ Build the config and instantiate the detector to confirm the TOML parses and the
 detector name is accepted — no training required:
 
 ```bash
-poetry run python -c "
+uv run python -c "
 from apeiron import build_config
 from apeiron.drift_detection.load_drift_detector import load_drift_detector
 cfg = build_config(['--config', 'examples/mnist/mnist.toml'])

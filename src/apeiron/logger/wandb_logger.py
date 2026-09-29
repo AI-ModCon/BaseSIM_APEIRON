@@ -189,4 +189,4 @@ class WandBLogger:
 
     @property
     def url(self) -> str | None:
-        return self.run.get_url() if self.run else None
+        return self.run.url if self.run else None

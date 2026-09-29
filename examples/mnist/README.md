@@ -33,21 +33,21 @@ checkpoint (`mnist.pth`) is committed — so a full run finishes in minutes on C
 From the **repository root** (paths in the TOML are root-relative):
 
 ```bash
-poetry run python -m src.main --config examples/mnist/mnist.toml
+uv run python -m src.main --config examples/mnist/mnist.toml
 ```
 
 MNIST downloads to `./data` on first run. The default config logs to Weights &
 Biases; to skip that:
 
 ```bash
-poetry run python -m src.main --config examples/mnist/mnist.toml \
+uv run python -m src.main --config examples/mnist/mnist.toml \
   --set logging.backend=\"none\"
 ```
 
 For a quick smoke test (~3 stream windows, 20 CL steps per drift event):
 
 ```bash
-poetry run python -m src.main --config examples/mnist/mnist.toml \
+uv run python -m src.main --config examples/mnist/mnist.toml \
   --set logging.backend=\"none\" \
   --set train.max_iter=20 \
   --set drift_detection.max_stream_updates=3
@@ -58,13 +58,13 @@ poetry run python -m src.main --config examples/mnist/mnist.toml \
 ```bash
 # MLflow instead of W&B  (then `mlflow ui` → http://localhost:5000)
 # See ../../docs/tracking.md for the metric namespace and how to read the charts
-poetry run python -m src.main --config examples/mnist/mnist-mlflow.toml
+uv run python -m src.main --config examples/mnist/mnist-mlflow.toml
 
 # Monitoring only, no drift detection and no CL
-poetry run python -m src.main --config examples/mnist/mnist-generic.toml
+uv run python -m src.main --config examples/mnist/mnist-generic.toml
 
 # EWC instead of vanilla SGD updates
-poetry run python -m src.main --config examples/mnist/mnist.toml \
+uv run python -m src.main --config examples/mnist/mnist.toml \
   --set continual_learning.update_mode=\"ewc_online\"
 ```
 
@@ -156,7 +156,7 @@ they run fast. `sweep/metrics/` holds the CSVs already recorded from them, so
 you can compare detector behaviour without re-running anything.
 
 ```bash
-poetry run python -m src.main --config examples/mnist/sweep/configs/KSWINDetector__ewc_online.toml
+uv run python -m src.main --config examples/mnist/sweep/configs/KSWINDetector__ewc_online.toml
 ```
 
 Each config writes to its own CSV under `sweep/metrics/`, so running one
