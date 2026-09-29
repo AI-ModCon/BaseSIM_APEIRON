@@ -15,7 +15,7 @@ A clear and concise description of what the bug is.
 
 Steps to reproduce the behavior:
 1. Config used (paste the TOML, or link the example under `examples/`)
-2. Command run (e.g. `poetry run python -m src.main --config examples/mnist/mnist.toml`)
+2. Command run (e.g. `uv run python -m src.main --config examples/mnist/mnist.toml`)
 3. Point in the run where it goes wrong (during monitoring, on drift detection, during the CL update, ...)
 4. See error
 

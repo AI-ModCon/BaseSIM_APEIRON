@@ -8,7 +8,7 @@ learning → resumed monitoring.
 All examples run through the same entry point:
 
 ```bash
-poetry run python -m src.main --config <path_to_toml>
+uv run python -m src.main --config <path_to_toml>
 ```
 
 ## Available Examples
@@ -82,19 +82,19 @@ lot of ground:
 
 ```bash
 # Swap the CL strategy
-poetry run python -m src.main --config examples/mnist/mnist.toml \
+uv run python -m src.main --config examples/mnist/mnist.toml \
   --set continual_learning.update_mode=\"ewc_online\"
 
 # Swap the detector
-poetry run python -m src.main --config examples/mnist/mnist.toml \
+uv run python -m src.main --config examples/mnist/mnist.toml \
   --set drift_detection.detector_name=\"KSWINDetector\"
 
 # Shorten a run while iterating
-poetry run python -m src.main --config examples/mnist/mnist.toml \
+uv run python -m src.main --config examples/mnist/mnist.toml \
   --set train.max_iter=20 --set drift_detection.max_stream_updates=3
 
 # Turn off experiment tracking
-poetry run python -m src.main --config examples/mnist/mnist.toml \
+uv run python -m src.main --config examples/mnist/mnist.toml \
   --set logging.backend=\"none\"
 ```
 

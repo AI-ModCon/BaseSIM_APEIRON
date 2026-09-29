@@ -50,7 +50,7 @@ The config default is `wandb`. Before running, ask the user to choose, and pass 
 - Briefly summarize the chosen config (dataset, model, detector, updater, device, batch size) so the user can confirm.
 - Run from the project root:
   ```bash
-  poetry run python -m src.main --config <config_path> --set logging.backend=<choice>
+  uv run python -m src.main --config <config_path> --set logging.backend=<choice>
   ```
 - This is a real training/monitoring run and may take a while. Stream output; do not silently background it.
 
@@ -60,6 +60,6 @@ The config default is `wandb`. Before running, ask the user to choose, and pass 
 - The CSV carries one row per drift event for `eval/fwt` (what adapting gained on the triggering window) and `eval/bwt` (how far past tasks moved since they were learned; absent on the first event). They are the quickest read on whether adaptation is trading history away — worth quoting alongside `eval/test_curr_acc` and `eval/test_hist_acc`. Sign follows the metric's direction, so for accuracy examples negative `bwt` means forgetting. See `docs/tracking.md` "Transfer Metrics".
 
 ## Notes
-- Quick first run, copy-paste safe: `poetry run python -m src.main --config examples/mnist/mnist.toml --set logging.backend=none`
+- Quick first run, copy-paste safe: `uv run python -m src.main --config examples/mnist/mnist.toml --set logging.backend=none`
 - Useful overrides to demonstrate capabilities: `--set drift_detection.detector_name=PageHinkleyDetector`, `--set continual_learning.update_mode=ewc_online`, `--set device=cpu`.
-- If `poetry` isn't set up yet, point the user at the install/dev-setup step first.
+- If the environment isn't set up yet (no `.venv`), point the user at the dev-setup step (`uv sync`) first.

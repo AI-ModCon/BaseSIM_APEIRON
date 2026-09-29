@@ -63,14 +63,14 @@ elif cfg.data.name == "$1":
 ### 5. Validate
 ```bash
 python -c "import tomllib; tomllib.load(open('$2','rb')); print('TOML OK')"
-poetry run python -c "from examples.utils import get_example; print('factory OK')"
+uv run python -c "from examples.utils import get_example; print('factory OK')"
 ```
 If `pretrained_path` is set, confirm the file exists; warn if missing (run will train from scratch).
 
 ### 6. Smoke-test before the full run
 Run a tiny, fast pass to catch wiring errors cheaply, then **confirm with the user** before the real run:
 ```bash
-poetry run python -m src.main --config $2 \
+uv run python -m src.main --config $2 \
   --set train.max_iter=2 \
   --set drift_detection.max_stream_updates=2 \
   --set drift_detection.detection_interval=1 \
@@ -81,7 +81,7 @@ If it fails, read the traceback, fix the harness/config, and re-run the smoke te
 
 ### 7. Full run and report
 ```bash
-poetry run python -m src.main --config $2
+uv run python -m src.main --config $2
 ```
 Report drift events, final accuracy, and the output CSV path (the config's `visualization.input`). Note the package emits this CSV for inspection; it does not ship a built-in dashboard renderer.
 

@@ -68,7 +68,7 @@ score, regime and confidence.
 ```{code-block} bash
 :caption: Detection trace, no adaptation
 
-poetry run python -m src.drift_only --config examples/mnist/mnist.toml
+uv run python -m src.drift_only --config examples/mnist/mnist.toml
 ```
 
 **Adaptation only** (`src/cl_only.py`): triggers the CL loop on a fixed schedule
@@ -80,7 +80,7 @@ actually worth their cost.
 ```{code-block} bash
 :caption: Budget-matched control — 3 triggers over the run
 
-poetry run python -m src.cl_only --config examples/mnist/mnist.toml \
+uv run python -m src.cl_only --config examples/mnist/mnist.toml \
     --schedule periodic --period 14
 ```
 

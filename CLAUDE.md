@@ -6,19 +6,19 @@ A PyTorch continuous learning framework for real-time concept drift detection an
 
 ### Running experiments
 ```bash
-poetry run python -m src.main --config <path_to_toml>
+uv run python -m src.main --config <path_to_toml>
 ```
 
 ### Running tests
 ```bash
-poetry run pytest
+uv run pytest
 ```
 
 ### Linting and type checks
 ```bash
-poetry run ruff check .
-poetry run ruff format --check .
-poetry run mypy .
+uv run ruff check .
+uv run ruff format --check .
+uv run mypy .
 ```
 
 ## Architecture
@@ -90,4 +90,4 @@ loss). `none` skips training entirely.
 - Frozen dataclasses for config
 - ABC pattern for extension points (BaseModelHarness, BaseDriftDetector, BaseUpdater)
 - Factory functions for dynamic loading (get_example, create_updater, load_drift_detector)
-- Poetry for dependency management
+- uv for dependency management (`uv sync`; run `uv lock` after changing dependencies)

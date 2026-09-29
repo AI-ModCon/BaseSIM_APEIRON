@@ -12,32 +12,29 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
+    # The torch/CUDA wheels are several GB, so don't push them through the
+    # GitHub Actions cache on every run; download them fresh instead.
+    - name: Set up uv
+      uses: astral-sh/setup-uv@v10
       with:
         python-version: '3.13'
+        enable-cache: false
 
-    # We're doing this craziness because of limitations on the github CI runners. They're quite small
-    # some of our dependencies like torch are kind large. Poetry install takes up a bit more space than
-    # delegating to pip.
+    # --locked fails the build if uv.lock is out of date with pyproject.toml.
     - name: Install dependencies
-      run: |
-        pip install --no-cache-dir poetry poetry-plugin-export
-        poetry config virtualenvs.create false
-        poetry export -f requirements.txt -o requirements.txt --without-hashes --with dev
-        pip install --no-cache-dir -r requirements.txt && rm requirements.txt
+      run: uv sync --locked
 
-    - name: Run ruff
-      run: poetry run ruff check
+    - name: Lint with ruff
+      run: uv run ruff check
 
-    - name: Run ruff
-      run: poetry run ruff format --check
+    - name: Check formatting with ruff
+      run: uv run ruff format --check
 
     - name: Run mypy
-      run: poetry run mypy .
+      run: uv run mypy .
 
     - name: Run tests with coverage
-      run: poetry run pytest --cov=src --cov-report=term --cov-report=xml
+      run: uv run pytest --cov=src --cov-report=term --cov-report=xml
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
@@ -55,20 +52,17 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
+    - name: Set up uv
+      uses: astral-sh/setup-uv@v10
       with:
         python-version: '3.13'
+        enable-cache: false
 
     - name: Install dependencies
-      run: |
-        pip install --no-cache-dir poetry poetry-plugin-export
-        poetry config virtualenvs.create false
-        poetry export -f requirements.txt -o requirements.txt --without-hashes --with dev
-        pip install --no-cache-dir -r requirements.txt && rm requirements.txt
+      run: uv sync --locked
 
     - name: Run mnist
-      run: poetry run python -m src.main --config examples/mnist/mnist.toml
+      run: uv run python -m src.main --config examples/mnist/mnist.toml
 
     - name: Run cifar
-      run: poetry run python -m src.main --config examples/cifar/cifar10_vit.toml
+      run: uv run python -m src.main --config examples/cifar/cifar10_vit.toml

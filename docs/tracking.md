@@ -26,7 +26,7 @@ run is:
 
 ```bash
 wandb login   # once; or export WANDB_API_KEY=...
-poetry run python -m src.main --config examples/mnist/mnist.toml
+uv run python -m src.main --config examples/mnist/mnist.toml
 ```
 
 The run prints its URL on startup. To record locally without an account, run
@@ -44,7 +44,7 @@ experiment_name = "mnist-continual-learning"
 `examples/mnist/mnist-mlflow.toml` ships with this already set:
 
 ```bash
-poetry run python -m src.main --config examples/mnist/mnist-mlflow.toml
+uv run python -m src.main --config examples/mnist/mnist-mlflow.toml
 mlflow ui   # in a second terminal → http://localhost:5000
 ```
 
@@ -56,7 +56,7 @@ implies) to log remotely.
 ### Switching Without Editing the Config
 
 ```bash
-poetry run python -m src.main --config examples/mnist/mnist.toml \
+uv run python -m src.main --config examples/mnist/mnist.toml \
   --set logging.backend=\"mlflow\" \
   --set logging.experiment_name=\"my-experiment\"
 ```
@@ -245,13 +245,13 @@ MLflow, select them in the experiment table and hit **Compare**.
 ```bash
 # with vs. without historical replay, as in the first figure
 for mix in true false; do
-  poetry run python -m src.main --config examples/mnist/mnist.toml \
+  uv run python -m src.main --config examples/mnist/mnist.toml \
     --set continual_learning.mix_historic_data=$mix
 done
 
 # or sweep the update strategy
 for mode in base ewc_online kfac_online; do
-  poetry run python -m src.main --config examples/mnist/mnist.toml \
+  uv run python -m src.main --config examples/mnist/mnist.toml \
     --set continual_learning.update_mode=\"$mode\"
 done
 ```

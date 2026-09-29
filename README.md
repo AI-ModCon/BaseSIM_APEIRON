@@ -34,13 +34,18 @@ Core modules:
 
 ### As a dependency in your project
 
-```toml
-# pyproject.toml
-[tool.poetry.dependencies]
-apeiron = "^0.1.0"  # once published to PyPI
+Install from GitHub. Don't `pip install apeiron`: that name on PyPI belongs to an
+unrelated project.
 
-# Or as a path dependency during development
-apeiron = { path = "../apeiron/", develop = true }
+```bash
+# A uv project, pinned to a release tag
+uv add "git+https://github.com/AI-ModCon/BaseSIM_APEIRON" --tag v0.1.0
+
+# Or an editable local checkout, during development
+uv add --editable ../BaseSIM_APEIRON
+
+# Or with pip
+pip install "apeiron @ git+https://github.com/AI-ModCon/BaseSIM_APEIRON@v0.1.0"
 ```
 
 ```python
@@ -51,27 +56,30 @@ from apeiron.training.updater import BaseUpdater
 
 ### For development in this repo
 
-Requires Python `>=3.13,<3.14` and Poetry.
+Requires Python `>=3.13,<3.14` and [uv](https://docs.astral.sh/uv/).
 
 ```bash
-poetry install
+uv sync
 ```
+
+This creates `.venv` with exactly the versions pinned in `uv.lock`. See
+[`docs/installation.md`](docs/installation.md) for CPU-only and ROCm machines.
 
 ## Running Experiments
 
 From the project root:
 
 ```bash
-poetry run python -m src.main --config examples/mnist/mnist.toml
-poetry run python -m src.main --config examples/cifar/cifar10_vit.toml
-poetry run python -m src.main --config examples/imagenet/imagenet_vit.toml  # requires ImageNet data at data.path
+uv run python -m src.main --config examples/mnist/mnist.toml
+uv run python -m src.main --config examples/cifar/cifar10_vit.toml
+uv run python -m src.main --config examples/imagenet/imagenet_vit.toml  # requires ImageNet data at data.path
 ```
 
 ## Metrics Logging
 Currently, we support two metrics logging backends: Weights & Biases (WandB) and MLflow. You can configure the desired `backend` in the `config` file's `logging` section. To disable logging, you can set the `logging` section to `none` to disable logging. Alternatively, you can set the logging choice via command line arguments, for example:
 
 ```bash
-poetry run python -m src.main --config examples/mnist/mnist.toml --set logging.backend=mlflow --set logging.experiment_name="My Experiment"
+uv run python -m src.main --config examples/mnist/mnist.toml --set logging.backend=mlflow --set logging.experiment_name="My Experiment"
 # To view results for MLflow, run `mlflow ui` in another terminal and navigate to http://localhost:5000
 ```
 
@@ -104,7 +112,7 @@ Override precedence:
 Example override:
 
 ```bash
-poetry run python -m src.main \
+uv run python -m src.main \
   --config examples/mnist/mnist.toml \
   --set drift_detection.detector_name=\"KSWINDetector\" \
   --set train.max_iter=200
@@ -161,7 +169,8 @@ Detailed docs are in `docs/`:
 Common tasks are wrapped in the `Makefile`:
 
 ```bash
-make install      # poetry install
+make install      # uv sync
+make lock         # uv lock, after changing dependencies
 make test         # pytest
 make test-cov     # pytest with an HTML + terminal coverage report
 make lint         # ruff check . and ruff format --check .

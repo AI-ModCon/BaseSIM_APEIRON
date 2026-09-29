@@ -39,10 +39,12 @@ Enhancement suggestions are tracked as GitHub issues. When creating an enhanceme
 - Add tests for any new functionality
 - Include appropriate commit messages
 - Update `CHANGELOG.md` under `[Unreleased]` for any user-visible change
+- If you change dependencies in `pyproject.toml`, run `uv lock` (or `make lock`) and commit the
+  updated `uv.lock` — CI fails when the lock is out of date
 
 ## Development Setup
 
-Apeiron requires Python `>=3.13,<3.14` and uses [Poetry](https://python-poetry.org/) for
+Apeiron requires Python `>=3.13,<3.14` and uses [uv](https://docs.astral.sh/uv/) for
 dependency management.
 
 1. Fork the repository
@@ -50,7 +52,7 @@ dependency management.
 3. Create a new branch: `git checkout -b feature/my-feature`
 4. Set up development environment:
    ```bash
-   poetry install
+   uv sync
    ```
 5. Make your changes
 6. Run the checks:
@@ -60,8 +62,8 @@ dependency management.
    make test        # pytest
    ```
    Run `make help` to see all available targets. The equivalent direct commands are
-   `poetry run ruff check .`, `poetry run ruff format --check .`, `poetry run mypy .`, and
-   `poetry run pytest`.
+   `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy .`, and
+   `uv run pytest`.
 7. Commit your changes: `git commit -am "Add my feature"`
 8. Push to the branch: `git push origin feature/my-feature`
 9. Submit a pull request

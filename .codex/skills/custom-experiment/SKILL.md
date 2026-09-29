@@ -91,7 +91,7 @@ Run:
 
 ```bash
 python -c "import tomllib; tomllib.load(open('<config_path>', 'rb')); print('TOML OK')"
-poetry run python -c "from examples.utils import get_example; print('factory OK')"
+uv run python -c "from examples.utils import get_example; print('factory OK')"
 ```
 
 If `pretrained_path` is configured, confirm the file exists. Warn if it is missing and make the harness tolerate training from scratch when possible.
@@ -101,7 +101,7 @@ If `pretrained_path` is configured, confirm the file exists. Warn if it is missi
 Run a small CPU-only smoke test before any full run:
 
 ```bash
-poetry run python -m src.main --config <config_path> \
+uv run python -m src.main --config <config_path> \
   --set train.max_iter=2 \
   --set drift_detection.max_stream_updates=2 \
   --set drift_detection.detection_interval=1 \
@@ -118,7 +118,7 @@ Confirm with the user before starting a full experiment run.
 Run:
 
 ```bash
-poetry run python -m src.main --config <config_path>
+uv run python -m src.main --config <config_path>
 ```
 
 Report drift events, final accuracy or metric, and the output CSV path from `visualization.input`.

@@ -12,7 +12,8 @@ authors = [
 ]
 readme = "README.md"
 requires-python = ">=3.13,<3.14"
-license = { text = "Apache-2.0" }
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 keywords = [
     "continual learning",
     "concept drift",
@@ -23,7 +24,6 @@ keywords = [
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
@@ -63,13 +63,8 @@ Repository = "https://github.com/AI-ModCon/BaseSIM_APEIRON"
 Changelog = "https://github.com/AI-ModCon/BaseSIM_APEIRON/blob/main/CHANGELOG.md"
 
 [build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
-
-[tool.poetry]
-packages = [
-    { include = "apeiron", from = "src" },
-]
+requires = ["uv_build>=0.12.20,<0.13"]
+build-backend = "uv_build"
 
 [tool.ruff]
 

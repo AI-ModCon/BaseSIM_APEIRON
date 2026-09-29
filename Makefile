@@ -1,10 +1,11 @@
-.PHONY: help install test test-cov lint format type-check docs clean
+.PHONY: help install lock test test-cov lint format type-check docs clean
 
 help:
 	@echo "Apeiron - Development Tasks"
 	@echo ""
 	@echo "Available commands:"
-	@echo "  make install          Install the project and dev dependencies with poetry"
+	@echo "  make install          Sync the project environment and dev dependencies with uv"
+	@echo "  make lock             Update uv.lock after changing dependencies in pyproject.toml"
 	@echo "  make test             Run tests with pytest"
 	@echo "  make test-cov         Run tests with coverage report"
 	@echo "  make lint             Run ruff lint and format checks"
@@ -15,30 +16,33 @@ help:
 	@echo "  make help             Show this help message"
 
 install:
-	poetry install
+	uv sync
+
+lock:
+	uv lock
 
 test:
-	poetry run pytest
+	uv run pytest
 
 test-cov:
-	poetry run pytest --cov=src --cov-report=html --cov-report=term-missing
+	uv run pytest --cov=src --cov-report=html --cov-report=term-missing
 
 lint:
-	poetry run ruff check .
-	poetry run ruff format --check .
+	uv run ruff check .
+	uv run ruff format --check .
 
 format:
-	poetry run ruff format .
+	uv run ruff format .
 
 type-check:
-	poetry run mypy .
+	uv run mypy .
 
-# Docs build in their own venv: the heavy runtime deps are mocked in conf.py, so
-# docs/requirements.txt is all that is needed. See docs/README.md.
+# Docs build in a throwaway environment without the project: the heavy runtime
+# deps are mocked in conf.py, so docs/requirements.txt is all that is needed.
+# See docs/README.md.
 docs:
-	test -d .venv-docs || python3 -m venv .venv-docs
-	.venv-docs/bin/pip install -q -r docs/requirements.txt
-	.venv-docs/bin/sphinx-build -b html -W docs docs/_build/html
+	uv run --no-project --with-requirements docs/requirements.txt \
+		sphinx-build -b html -W docs docs/_build/html
 	@echo "Built docs/_build/html/index.html"
 
 clean:

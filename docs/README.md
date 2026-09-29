@@ -11,21 +11,27 @@ Heavy runtime dependencies (torch, river, evidently, wandb, ...) are mocked in
 `conf.py`, so a docs build does **not** need the full project environment:
 
 ```bash
-python -m venv .venv-docs && source .venv-docs/bin/activate
-pip install -r docs/requirements.txt
-sphinx-build -b html docs docs/_build/html
+make docs
 open docs/_build/html/index.html
 ```
 
-Add `-W` to turn warnings into errors, and `-a -E` to force a full rebuild after
-changing `conf.py`.
+`make docs` runs Sphinx with `-W` (warnings are errors, matching Read the Docs)
+in a throwaway uv environment built from `docs/requirements.txt`. Without uv:
+
+```bash
+python -m venv .venv-docs && source .venv-docs/bin/activate
+pip install -r docs/requirements.txt
+sphinx-build -b html docs docs/_build/html
+```
+
+Add `-a -E` to force a full rebuild after changing `conf.py`.
 
 ## Page map
 
 | Page | Contents |
 | --- | --- |
 | `index.md` | Landing page and the toctrees that define site navigation. |
-| `installation.md` | Python/Poetry setup, using Apeiron as a dependency, dev commands. |
+| `installation.md` | Python/uv setup, using Apeiron as a dependency, dev commands. |
 | `quickstart.md` | First run, reading the metrics CSV, config overrides. |
 | `architecture.md` | Runtime flow, module map, the four extension points. |
 | `configurations.md` | Every TOML section and key the config parser accepts. |

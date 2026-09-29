@@ -416,7 +416,7 @@ python -c "import tomllib; tomllib.load(open('examples/mydataset/mydataset.toml'
 Validate factory registration:
 
 ```bash
-poetry run python -c "from examples.utils import get_example; print('factory OK')"
+uv run python -c "from examples.utils import get_example; print('factory OK')"
 ```
 
 ## Step 8: Run a Smoke Test
@@ -424,7 +424,7 @@ poetry run python -c "from examples.utils import get_example; print('factory OK'
 Before running a full experiment, execute a small CPU-only test:
 
 ```bash
-poetry run python -m src.main \
+uv run python -m src.main \
   --config examples/mydataset/mydataset.toml \
   --set train.max_iter=2 \
   --set drift_detection.max_stream_updates=2 \

@@ -20,6 +20,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `get_optmizer()`
 
 ### Changed
+- Migrated dependency management from Poetry to [uv](https://docs.astral.sh/uv/). `poetry.lock`
+  is replaced by `uv.lock`, the build backend is now `uv_build`, and `uv sync` replaces
+  `poetry install`. CI, the Dockerfile, the Makefile, the HPC install scripts, the docs, and the
+  agent skills are updated to match. CI and Docker now install with `uv sync --locked`, which
+  fails when `uv.lock` is out of date.
+- `[project.license]` uses a PEP 639 SPDX expression (`Apache-2.0`) with `license-files`; the
+  deprecated `License ::` classifier is removed.
+- `make docs` builds in a throwaway uv environment instead of a hand-made `.venv-docs`.
 - Copyright holder filled in on the Apache 2.0 `LICENSE` appendix
 - CI now also runs on `pull_request`, so status checks are reported on pull requests
 - Renamed `tests/test_valiadation_tests.py` to `tests/test_validation_tests.py`
@@ -36,6 +44,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ruff format` — and it carried three advisories.
 
 ### Fixed
+- The Poetry lock was unsatisfiable on Linux: `torch` 2.13 reaches `nvidia-cublas` and
+  `nvidia-cuda-nvrtc` through two paths with differently shaped markers, and Poetry locked two
+  versions of each whose markers overlap. uv resolves a single version, which is what broke the
+  CI install and `poetry install` on Linux.
+- The Frontier and Perlmutter install scripts ran `poetry lock` on the cluster, re-resolving
+  dependencies at install time instead of using the lock. They now run `uv sync --locked`.
+- The Frontier install script pinned `torch==2.9.1`, left over from before the `torch` upgrade.
+  It now reads the `torch` and `torchvision` versions from `uv.lock`.
+- Install docs suggested `pip install apeiron` / `apeiron = "^0.1.0"`; the `apeiron` name on PyPI
+  belongs to an unrelated project. They now install from GitHub.
 - README build and coverage badges pointed at the former `BaseSim_Framework` repository instead
   of `BaseSIM_APEIRON`
 - Stale `BaseSim_Framework` clone URLs in the Frontier and Perlmutter deployment guides

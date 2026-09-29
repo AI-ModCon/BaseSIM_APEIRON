@@ -11,7 +11,7 @@ resuming.
 ```{code-block} bash
 :caption: Run a bundled example
 
-poetry run python -m src.main --config examples/mnist/mnist.toml
+uv run python -m src.main --config examples/mnist/mnist.toml
 ```
 
 ## The loop

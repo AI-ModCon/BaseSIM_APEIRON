@@ -51,7 +51,7 @@ fix(io): handle empty files in reader
 - [ ] Unit tests
 - [ ] Integration tests
 - [ ] e2e / smoke test
-- [ ] Manual steps: <!-- e.g. `poetry run python -m src.main --config examples/mnist/mnist.toml` -->
+- [ ] Manual steps: <!-- e.g. `uv run python -m src.main --config examples/mnist/mnist.toml` -->
 
 ## Documentation
 <!-- Docs and examples updated? Docstrings? Changelog entry? -->
