@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Copyright holder filled in on the Apache 2.0 `LICENSE` appendix
+- CI now also runs on `pull_request`, so status checks are reported on pull requests
+- Renamed `tests/test_valiadation_tests.py` to `tests/test_validation_tests.py`
 
 ### Deprecated
 
@@ -27,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - README build and coverage badges pointed at the former `BaseSim_Framework` repository instead
   of `BaseSIM_APEIRON`
+- Stale `BaseSim_Framework` clone URLs in the Frontier and Perlmutter deployment guides
+- Typos: "Froniter", "Requirested", "beecause"
 
 ### Security
 

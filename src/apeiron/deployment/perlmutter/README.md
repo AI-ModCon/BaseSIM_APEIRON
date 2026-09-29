@@ -8,8 +8,8 @@ Clone the repo into your scratch directory and run the install script:
 
 ```bash
 cd $SCRATCH
-git clone https://github.com/AI-ModCon/BaseSim_Framework.git
-cd BaseSim_Framework
+git clone https://github.com/AI-ModCon/BaseSIM_APEIRON.git
+cd BaseSIM_APEIRON
 source ./src/apeiron/deployment/perlmutter/install_venv.sh
 ```
 

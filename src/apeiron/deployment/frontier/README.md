@@ -1,6 +1,6 @@
 # Deployment
 
-## OLCF Froniter
+## OLCF Frontier
 
 ### Setup
 
@@ -8,8 +8,8 @@ Clone the repo into your scratch directory and run the install script:
 
 ```bash
 cd $MEMBERWORK
-git clone https://github.com/AI-ModCon/BaseSim_Framework.git
-cd BaseSim_Framework
+git clone https://github.com/AI-ModCon/BaseSIM_APEIRON.git
+cd BaseSIM_APEIRON
 source ./src/apeiron/deployment/frontier/install_venv.sh
 ```
 

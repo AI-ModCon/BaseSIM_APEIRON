@@ -393,7 +393,7 @@ Create:
 examples/<example_name>/<example_name>.toml
 ```
 
-Requirested and optional parameters are described in [configurations.md](configurations.md).
+Required and optional parameters are described in [configurations.md](configurations.md).
 
 Only keys defined in `configuration.py` are allowed. Custom dataset-specific parameters should be implemented inside the harness or utility code unless the configuration dataclasses are extended.
 

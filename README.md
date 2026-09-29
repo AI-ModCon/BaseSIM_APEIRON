@@ -209,7 +209,7 @@ Changes are recorded in [CHANGELOG.md](./CHANGELOG.md).
 
 ## Support
 
-This project acknowledges support from the U.S. Department of Energy's Genesis Mission.
+This work was supported by the U.S. Department of Energy (DOE), Office of Science, Office of Advanced Scientific Computing Research in alignment with DOE's Genesis Mission.
 
 ## License
 
