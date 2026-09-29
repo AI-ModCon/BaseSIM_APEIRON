@@ -32,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and warns.
 
 ### Removed
+- `black` from the dev dependency group. Nothing used it — formatting is enforced with
+  `ruff format` — and it carried three advisories.
 
 ### Fixed
 - README build and coverage badges pointed at the former `BaseSim_Framework` repository instead
@@ -40,6 +42,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Typos: "Froniter", "Requirested", "beecause"
 
 ### Security
+- Updated locked dependencies to clear 121 of 122 open Dependabot alerts (6 critical, 69 high,
+  38 medium, 9 low). Notable bumps: `torch` 2.9.1 -> 2.13.0, `torchvision` 0.24.1 -> 0.28.0,
+  `transformers` 5.8.1 -> 5.17.0, `mlflow` 3.12.0 -> 3.16.1, `nltk` 3.9.4 -> 3.10.3,
+  `gitpython` 3.1.50 -> 3.1.62, `aiohttp` 3.13.5 -> 3.14.3, `pillow` 12.2.0 -> 12.3.0,
+  `cryptography` 46.0.7 -> 50.0.1, `starlette` 0.52.1 -> 1.7.0.
+- Widened the `torch` and `torchvision` constraints to `>=2.13.0` and `>=0.28.0,<0.29.0`.
+  `torchvision` pins `torch` exactly, so the previous `torchvision <0.25.0` bound held `torch`
+  at 2.9.1 and blocked four upstream fixes.
+- One alert remains open and has no published fix: `nltk` GHSA-8mgp-746c-j5xp (high). `nltk`
+  3.10.3 is the latest release and is still listed as affected. It reaches the project
+  transitively through `evidently`; Apeiron does not call `nltk` directly.
 
 ## [0.1.0]
 
