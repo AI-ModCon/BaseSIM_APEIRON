@@ -28,7 +28,7 @@ An example becomes runnable through three pieces:
 
 1. **`examples/<name>/model.py`** — subclasses `BaseModelHarness` and implements
    `get_stream_dataloader()`, `get_train_dataloaders()`, `get_hist_dataloaders()`,
-   `update_data_stream()`, `get_criterion()`, `get_optmizer()`, plus the
+   `update_data_stream()`, `get_criterion()`, `get_optimizer()`, plus the
    `eval_metrics` / `higher_is_better` dicts.
 2. **`examples/<name>/*.toml`** — the config. The `[data] name` field is the key
    the factory dispatches on.

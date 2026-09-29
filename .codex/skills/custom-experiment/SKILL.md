@@ -36,7 +36,7 @@ cat examples/utils.py
 grep -nA6 "class .*Cfg" src/apeiron/config/configuration.py
 ```
 
-Implement exactly the abstract methods declared by the current harness ABC. Preserve known current spelling such as `get_optmizer` if the source still declares it that way.
+Implement exactly the abstract methods declared by the current harness ABC. Note that `get_optmizer` is a deprecated alias for `get_optimizer`; implement `get_optimizer`.
 
 Set `self.eval_metrics` with at least an `accuracy` entry from `apeiron.evaluation.metrics` when the task is classification.
 

@@ -10,12 +10,20 @@ Required methods:
 
 | Method | Return | Purpose |
 | --- | --- | --- |
-| `get_optmizer()` | `torch.optim.Optimizer` | Returns optimizer used by continual learning loops. |
+| `get_optimizer()` | `torch.optim.Optimizer` | Returns optimizer used by continual learning loops. |
 | `update_data_stream()` | `None` | Advances stream state and rebuilds current loaders. |
 | `get_stream_dataloader()` | `data_loader` | Returns the loader for the current stream of data. |
 | `get_train_dataloaders()` | `(train_loader, val_loader)` | Returns loaders for the current drift state. |
 | `get_hist_dataloaders()` | `(hist_train_loader, hist_val_loader)` or `(None, None)` | Returns historical replay loaders used by CL methods. |
 | `get_criterion()` | callable loss fn | Returns criterion compatible with model output/labels. |
+
+```{deprecated} 0.1.0
+Earlier versions spelled the optimizer hook `get_optmizer()`. That name still
+works: a harness that implements `get_optmizer()` is bridged onto
+`get_optimizer()` automatically and raises a `DeprecationWarning` at class
+definition. Rename the method to `get_optimizer()` — the misspelled alias will
+be removed in a future release.
+```
 
 Important inherited behavior:
 
@@ -251,7 +259,7 @@ which refers to the first metric in `eval_metrics`.
 ### Optimizer
 
 ```python
-def get_optmizer(self):
+def get_optimizer(self):
     return torch.optim.Adam(
         self.model.parameters(),
         lr=self.cfg.train.init_lr,

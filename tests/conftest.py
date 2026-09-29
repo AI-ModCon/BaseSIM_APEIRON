@@ -84,7 +84,7 @@ class DummyHarness(BaseModelHarness):
 
         self.eval_metrics = {"accuracy": accuracy}
 
-    def get_optmizer(self):
+    def get_optimizer(self):
         return SGD(self.model.parameters(), lr=self.cfg.train.init_lr)
 
     def update_data_stream(self):

@@ -1,4 +1,5 @@
 from __future__ import annotations
+import warnings
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Optional, Callable, Tuple, List, Dict
@@ -39,13 +40,52 @@ class BaseModelHarness(ABC):
         self._task_records: List[Tuple[DataLoader, List[float]]] = []
         self.max_task_records: int = 50
 
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        """
+        Bridge the deprecated ``get_optmizer`` spelling onto ``get_optimizer``.
+
+        A harness written against the old misspelled name keeps working: its
+        implementation is aliased onto the new name, so the framework only ever
+        has to call ``get_optimizer``.
+        """
+        super().__init_subclass__(**kwargs)
+
+        legacy = cls.__dict__.get("get_optmizer")
+        if legacy is None or "get_optimizer" in cls.__dict__:
+            return
+
+        cls.get_optimizer = legacy  # type: ignore[method-assign]
+        warnings.warn(
+            f"{cls.__name__} implements 'get_optmizer', which is deprecated and "
+            "will be removed in a future release. Rename the method to "
+            "'get_optimizer'.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
     @abstractmethod
-    def get_optmizer(self) -> Optimizer:
+    def get_optimizer(self) -> Optimizer:
         """
         Returns the optimizer object compatible with the trainable parameters
         supports parameter groups for, e.g., different learning rates
         """
         raise NotImplementedError
+
+    def get_optmizer(self) -> Optimizer:
+        """
+        Deprecated misspelled alias for :meth:`get_optimizer`.
+
+        .. deprecated::
+            Use :meth:`get_optimizer` instead. This alias will be removed in a
+            future release.
+        """
+        warnings.warn(
+            "BaseModelHarness.get_optmizer() is deprecated and will be removed "
+            "in a future release. Use get_optimizer() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.get_optimizer()
 
     # ----- subclass hooks -----
 

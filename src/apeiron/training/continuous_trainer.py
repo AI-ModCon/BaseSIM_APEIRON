@@ -31,7 +31,7 @@ class ContinuousTrainer:
 
         self.profiler = profiler
         self.criterion = modelHarness.get_criterion()
-        self.optimizer = modelHarness.get_optmizer()
+        self.optimizer = modelHarness.get_optimizer()
 
         self.cl_updater = create_updater(cfg=self.cfg, modelHarness=self.modelHarness)
 

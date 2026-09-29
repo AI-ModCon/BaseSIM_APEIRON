@@ -44,7 +44,7 @@ cat examples/mnist/utils.py                       # data-loading + drift-sim pat
 cat examples/utils.py                             # get_example() factory to extend
 grep -nA6 "class .*Cfg" src/apeiron/config/configuration.py  # config fields
 ```
-Implement exactly the `@abstractmethod`s the ABC declares (currently includes `get_optmizer` — note that spelling — `update_data_stream`, `get_stream_dataloader`, `get_hist_dataloaders`, `get_train_dataloaders`, `get_criterion`). Set `self.eval_metrics` with at least an `accuracy` entry from `apeiron.evaluation.metrics`.
+Implement exactly the `@abstractmethod`s the ABC declares (currently includes `get_optimizer`, `update_data_stream`, `get_stream_dataloader`, `get_hist_dataloaders`, `get_train_dataloaders`, `get_criterion`). Set `self.eval_metrics` with at least an `accuracy` entry from `apeiron.evaluation.metrics`.
 
 ### 3. Scaffold the files
 - `examples/$1/__init__.py` — empty.

@@ -68,7 +68,7 @@ Wire the hook into their loop with a minimal, clearly-marked edit.
 
 ### 4b. Harness + monitor adapter (full)
 When CL adaptation is wanted:
-- Write a `BaseModelHarness` subclass in their repo that wraps their existing model and data loaders, implementing the abstract methods (read `src/apeiron/model/torch_model_harness.py` and `examples/mnist/model.py` for the current set — includes `get_optmizer`, `update_data_stream`, `get_stream_dataloader`, `get_hist_dataloaders`, `get_train_dataloaders`, `get_criterion`).
+- Write a `BaseModelHarness` subclass in their repo that wraps their existing model and data loaders, implementing the abstract methods (read `src/apeiron/model/torch_model_harness.py` and `examples/mnist/model.py` for the current set — includes `get_optimizer`, `update_data_stream`, `get_stream_dataloader`, `get_hist_dataloaders`, `get_train_dataloaders`, `get_criterion`).
 - Build a `Config` (via `build_config` from a small TOML, or constructed directly) selecting the detector and `continual_learning.update_mode`.
 - Construct and run `ContinuousMonitor` exactly as `src/main.py` does.
 
