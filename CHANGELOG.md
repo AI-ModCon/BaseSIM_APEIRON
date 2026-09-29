@@ -44,6 +44,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ruff format` — and it carried three advisories.
 
 ### Fixed
+- `WandBLogger.url` called `Run.get_url()`, which wandb removed in the upgrade to 0.30; it
+  raised `AttributeError`. It now reads the `Run.url` property, which exists across the whole
+  supported range (`wandb>=0.22.0`).
 - The Poetry lock was unsatisfiable on Linux: `torch` 2.13 reaches `nvidia-cublas` and
   `nvidia-cuda-nvrtc` through two paths with differently shaped markers, and Poetry locked two
   versions of each whose markers overlap. uv resolves a single version, which is what broke the
