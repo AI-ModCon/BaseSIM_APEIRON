@@ -12,6 +12,7 @@ from unittest.mock import patch
 import h5py
 import numpy as np
 import pytest
+import torch
 import yaml
 
 from examples.well import datasets as well_datasets
@@ -26,6 +27,7 @@ from examples.well.datasets import (
     trailing_number,
     writing,
 )
+from examples.well.unet import UNetClassic
 
 # Small, but a multiple of 16 on both axes so the U-Net's four poolings work.
 N_TRAJ, N_TIME, HEIGHT, WIDTH = 2, 9, 32, 48
@@ -304,3 +306,35 @@ class TestRemoteCache:
 # ---------------------------------------------------------------------------
 # the dataset
 # ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# the model
+# ---------------------------------------------------------------------------
+
+
+class TestUNet:
+    def test_shapes_match_the_data(self):
+        model = UNetClassic(
+            dim_in=16, dim_out=4, spatial_resolution=(HEIGHT, WIDTH), init_features=4
+        )
+        out = model(torch.randn(2, 16, HEIGHT, WIDTH))
+        assert out.shape == (2, 4, HEIGHT, WIDTH)
+
+    def test_published_layer_names_are_kept(self):
+        # The point of vendoring this: a published checkpoint has to load into
+        # it by name. Renaming any of these silently breaks that.
+        keys = UNetClassic(dim_in=4, dim_out=4, init_features=4).state_dict().keys()
+        for expected in (
+            "encoder1.enc1conv1.weight",
+            "encoder1.enc1norm1.weight",
+            "bottleneck.bottleneckconv2.weight",
+            "decoder4.dec4conv1.weight",
+            "upconv4.weight",
+            "conv.weight",
+        ):
+            assert expected in keys
+
+    def test_a_resolution_it_cannot_pool_is_refused(self):
+        with pytest.raises(ValueError, match="multiple of 16"):
+            UNetClassic(dim_in=4, dim_out=4, spatial_resolution=(30, 48))
