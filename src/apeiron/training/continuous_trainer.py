@@ -42,24 +42,38 @@ class ContinuousTrainer:
         min_batch: Optional[int] = None,
     ) -> tuple[Iterator, list[torch.Tensor]]:
         """Get next batch from iterator, restarting on exhaustion and enforcing min batch size."""
+        passes = 0
+        largest = 0
         while True:
             try:
                 batch = next(current_iter)
             except StopIteration:
+                passes += 1
+                if passes > 1:
+                    # A whole pass was rejected and the next one holds the same
+                    # data, so restarting again would never terminate.
+                    raise ValueError(
+                        f"no batch in this loader holds the {min_batch} samples "
+                        f"min_batch asks for -- the largest is {largest}. The "
+                        "window is smaller than one batch."
+                    ) from None
                 current_iter = iter(loader)
-                batch = next(current_iter)
+                continue
 
             if min_batch is None:
                 return current_iter, [b.to(self.cfg.device) for b in batch]
 
             # Try to enforce batch-size on the second element (x, y)
             try:
-                y = batch[1]
-                if getattr(y, "shape", None) is not None and y.shape[0] >= min_batch:
-                    return current_iter, [b.to(self.cfg.device) for b in batch]
+                shape = getattr(batch[1], "shape", None)
             except (IndexError, TypeError):
                 # If we cannot inspect batch size, just accept the batch
                 return current_iter, [b.to(self.cfg.device) for b in batch]
+
+            if shape is not None:
+                if shape[0] >= min_batch:
+                    return current_iter, [b.to(self.cfg.device) for b in batch]
+                largest = max(largest, int(shape[0]))
 
     def _log_validation(
         self,

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import replace
+from itertools import count
 from unittest.mock import patch, MagicMock
 
 import pytest
@@ -72,6 +73,39 @@ class TestSafeNext:
         it = iter(loader)
         it, batch = trainer._safe_next(it, loader, min_batch=4)
         assert batch[1].shape[0] >= 4
+
+    def test_an_unsatisfiable_min_batch_fails_instead_of_spinning(
+        self, default_cfg, dummy_harness
+    ):
+        """``_safe_next`` rebuilds the loader until a batch meets ``min_batch``.
+
+        When the window holds fewer samples than one batch, no batch ever can,
+        and the loop used to have no exit: it rebuilt DataLoaders forever.
+        """
+        trainer = ContinuousTrainer(
+            cfg=default_cfg,
+            modelHarness=dummy_harness,
+            logger=MagicMock(),
+            profiler=None,
+        )
+        short = DataLoader(
+            TensorDataset(torch.randn(5, 4), torch.randint(0, 3, (5,))), batch_size=8
+        )
+
+        rebuilds = count()
+        real_iter = DataLoader.__iter__
+
+        def bounded_iter(self):
+            if next(rebuilds) > 4:
+                raise AssertionError(
+                    "_safe_next rebuilt the loader five times looking for a "
+                    "batch that cannot exist; it is spinning, not failing"
+                )
+            return real_iter(self)
+
+        with patch.object(DataLoader, "__iter__", bounded_iter):
+            with pytest.raises(ValueError, match="min_batch"):
+                trainer._safe_next(iter(short), short, min_batch=8)
 
 
 class TestInnerCLLoop:
