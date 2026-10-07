@@ -1,6 +1,3 @@
-# Data and configs
-*.toml
-
 # Logging files
 *.db
 wandb/

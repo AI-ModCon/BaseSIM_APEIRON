@@ -319,6 +319,36 @@ files = [
 ]
 
 [[package]]
+name = "botorch"
+version = "0.18.1"
+description = "Bayesian Optimization in PyTorch"
+optional = false
+python-versions = ">=3.11"
+groups = ["main"]
+files = [
+    {file = "botorch-0.18.1-py3-none-any.whl", hash = "sha256:fa1cd4483fbc21087dcc40088b6031661e46ce5fe9d0b47a56ebcd578c260f33"},
+    {file = "botorch-0.18.1.tar.gz", hash = "sha256:f3e444efae2622b3ad88a5efe1859583ba2cd0913761f76677a189b2fd1aee99"},
+]
+
+[package.dependencies]
+gpytorch = ">=1.15.2"
+linear_operator = ">=0.6.1"
+multipledispatch = "*"
+ninja = "*"
+pyre_extensions = "*"
+scipy = "*"
+threadpoolctl = "*"
+torch = ">=2.4"
+typing_extensions = "*"
+
+[package.extras]
+dev = ["botorch[test]", "flake8", "flake8-docstrings", "sphinx", "sphinx-rtd-theme", "ufmt"]
+fully-bayesian = ["jax (>=0.4.35,<0.10)", "jaxlib (>=0.4.35,<0.10)", "numpyro (>=0.18.0)"]
+pymoo = ["pymoo"]
+test = ["botorch[fully-bayesian]", "pfns", "pymoo", "pytest", "pytest-cov", "requests"]
+tutorials = ["botorch[fully-bayesian]", "cma", "jupyter", "lxml", "matplotlib", "mdformat", "mdformat-myst", "memory_profiler", "pandas", "papermill", "pykeops", "tabulate", "torchvision"]
+
+[[package]]
 name = "cachetools"
 version = "6.2.6"
 description = "Extensible memoizing collections and decorators"
@@ -1459,6 +1489,32 @@ testing = ["aiohttp (<3.10.0)", "aiohttp (>=3.6.2,<4.0.0)", "aioresponses", "fla
 urllib3 = ["packaging", "urllib3"]
 
 [[package]]
+name = "gpytorch"
+version = "1.15.2"
+description = "An implementation of Gaussian Processes in Pytorch"
+optional = false
+python-versions = ">=3.10"
+groups = ["main"]
+files = [
+    {file = "gpytorch-1.15.2-py3-none-any.whl", hash = "sha256:2112fdc7c0c0bf56a7f2444663cfc80fdfc3e19724399d6303a83d8efdd71e9e"},
+    {file = "gpytorch-1.15.2.tar.gz", hash = "sha256:380625e93f851b85f772b25c5fb0a6c6d2e3eb2ef667f1e566ab4f95b8775361"},
+]
+
+[package.dependencies]
+linear_operator = ">=0.6.1"
+mpmath = ">=0.19,<=1.3"
+scikit-learn = "*"
+scipy = ">=1.6.0"
+
+[package.extras]
+dev = ["pre-commit", "setuptools_scm", "twine", "ufmt"]
+docs = ["ipykernel (<=6.17.1)", "ipython (<=8.6.0)", "lxml_html_clean", "m2r2 (<=0.3.3.post2)", "nbclient (<=0.7.3)", "nbformat (<=5.8.0)", "nbsphinx (<=0.9.1)", "platformdirs (<=3.2.0)", "setuptools_scm (<=7.1.0)", "sphinx (<=6.2.1)", "sphinx_autodoc_typehints (<=1.23.0)", "sphinx_rtd_theme (<0.5)"]
+examples = ["ipython", "jupyter", "matplotlib", "scipy", "torchvision", "tqdm"]
+keops = ["pykeops (>=1.1.1)"]
+pyro = ["pyro-ppl (>=1.8)"]
+test = ["flake8 (==4.0.1)", "flake8-print (==4.0.0)", "nbval", "pytest"]
+
+[[package]]
 name = "graphene"
 version = "3.4.3"
 description = "GraphQL Framework for Python"
@@ -2025,6 +2081,27 @@ files = [
     {file = "kiwisolver-1.4.9-pp311-pypy311_pp73-win_amd64.whl", hash = "sha256:fb940820c63a9590d31d88b815e7a3aa5915cad3ce735ab45f0c730b39547de1"},
     {file = "kiwisolver-1.4.9.tar.gz", hash = "sha256:c3b22c26c6fd6811b0ae8363b95ca8ce4ea3c202d3d0975b2914310ceb1bcc4d"},
 ]
+
+[[package]]
+name = "linear-operator"
+version = "0.6.1"
+description = "A linear operator implementation, primarily designed for finite-dimensional positive definite operators (i.e. kernel matrices)."
+optional = false
+python-versions = ">=3.10"
+groups = ["main"]
+files = [
+    {file = "linear_operator-0.6.1-py3-none-any.whl", hash = "sha256:a5981c1fcda08df3a210dffb6e8019b4751f4afaf3ffc822c24eaaf56b11eed9"},
+    {file = "linear_operator-0.6.1.tar.gz", hash = "sha256:3fba49a8080d16f822a5d870f462279cd6afbcf4ed670f4511b38fad96f61831"},
+]
+
+[package.dependencies]
+scipy = "*"
+torch = ">=2.0"
+
+[package.extras]
+dev = ["pre-commit", "setuptools_scm", "twine", "ufmt"]
+docs = ["myst-parser", "setuptools_scm", "six", "sphinx", "sphinx-autodoc-typehints", "sphinx_rtd_theme"]
+test = ["flake8 (==5.0.4)", "flake8-print (==5.0.0)", "pytest"]
 
 [[package]]
 name = "litestar"
@@ -2686,6 +2763,18 @@ dev = ["build", "pytest", "pytest-cov", "tox", "tox-uv", "twine"]
 docs = ["sphinx (>=8,<9)", "sphinx-autobuild"]
 
 [[package]]
+name = "multipledispatch"
+version = "1.0.0"
+description = "Multiple dispatch"
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "multipledispatch-1.0.0-py3-none-any.whl", hash = "sha256:0c53cd8b077546da4e48869f49b13164bebafd0c2a5afceb6bb6a316e7fb46e4"},
+    {file = "multipledispatch-1.0.0.tar.gz", hash = "sha256:5c839915465c68206c3e9c473357908216c28383b425361e5d144594bf85a7e0"},
+]
+
+[[package]]
 name = "mypy"
 version = "1.18.2"
 description = "Optional static typing for Python"
@@ -2777,6 +2866,35 @@ example = ["cairocffi (>=1.7)", "contextily (>=1.6)", "igraph (>=0.11)", "momepy
 extra = ["lxml (>=4.6)", "pydot (>=3.0.1)", "pygraphviz (>=1.14)", "sympy (>=1.10)"]
 test = ["pytest (>=7.2)", "pytest-cov (>=4.0)", "pytest-xdist (>=3.0)"]
 test-extras = ["pytest-mpl", "pytest-randomly"]
+
+[[package]]
+name = "ninja"
+version = "1.13.0"
+description = "Ninja is a small build system with a focus on speed"
+optional = false
+python-versions = ">=3.8"
+groups = ["main"]
+files = [
+    {file = "ninja-1.13.0-py3-none-macosx_10_9_universal2.whl", hash = "sha256:fa2a8bfc62e31b08f83127d1613d10821775a0eb334197154c4d6067b7068ff1"},
+    {file = "ninja-1.13.0-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:3d00c692fb717fd511abeb44b8c5d00340c36938c12d6538ba989fe764e79630"},
+    {file = "ninja-1.13.0-py3-none-manylinux2014_i686.manylinux_2_17_i686.whl", hash = "sha256:be7f478ff9f96a128b599a964fc60a6a87b9fa332ee1bd44fa243ac88d50291c"},
+    {file = "ninja-1.13.0-py3-none-manylinux2014_ppc64le.manylinux_2_17_ppc64le.whl", hash = "sha256:60056592cf495e9a6a4bea3cd178903056ecb0943e4de45a2ea825edb6dc8d3e"},
+    {file = "ninja-1.13.0-py3-none-manylinux2014_s390x.manylinux_2_17_s390x.whl", hash = "sha256:1c97223cdda0417f414bf864cfb73b72d8777e57ebb279c5f6de368de0062988"},
+    {file = "ninja-1.13.0-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:fb46acf6b93b8dd0322adc3a4945452a4e774b75b91293bafcc7b7f8e6517dfa"},
+    {file = "ninja-1.13.0-py3-none-manylinux_2_28_armv7l.manylinux_2_31_armv7l.whl", hash = "sha256:4be9c1b082d244b1ad7ef41eb8ab088aae8c109a9f3f0b3e56a252d3e00f42c1"},
+    {file = "ninja-1.13.0-py3-none-manylinux_2_31_riscv64.whl", hash = "sha256:6739d3352073341ad284246f81339a384eec091d9851a886dfa5b00a6d48b3e2"},
+    {file = "ninja-1.13.0-py3-none-musllinux_1_2_aarch64.whl", hash = "sha256:11be2d22027bde06f14c343f01d31446747dbb51e72d00decca2eb99be911e2f"},
+    {file = "ninja-1.13.0-py3-none-musllinux_1_2_armv7l.whl", hash = "sha256:aa45b4037b313c2f698bc13306239b8b93b4680eb47e287773156ac9e9304714"},
+    {file = "ninja-1.13.0-py3-none-musllinux_1_2_i686.whl", hash = "sha256:5f8e1e8a1a30835eeb51db05cf5a67151ad37542f5a4af2a438e9490915e5b72"},
+    {file = "ninja-1.13.0-py3-none-musllinux_1_2_ppc64le.whl", hash = "sha256:3d7d7779d12cb20c6d054c61b702139fd23a7a964ec8f2c823f1ab1b084150db"},
+    {file = "ninja-1.13.0-py3-none-musllinux_1_2_riscv64.whl", hash = "sha256:d741a5e6754e0bda767e3274a0f0deeef4807f1fec6c0d7921a0244018926ae5"},
+    {file = "ninja-1.13.0-py3-none-musllinux_1_2_s390x.whl", hash = "sha256:e8bad11f8a00b64137e9b315b137d8bb6cbf3086fbdc43bf1f90fd33324d2e96"},
+    {file = "ninja-1.13.0-py3-none-musllinux_1_2_x86_64.whl", hash = "sha256:b4f2a072db3c0f944c32793e91532d8948d20d9ab83da9c0c7c15b5768072200"},
+    {file = "ninja-1.13.0-py3-none-win32.whl", hash = "sha256:8cfbb80b4a53456ae8a39f90ae3d7a2129f45ea164f43fadfa15dc38c4aef1c9"},
+    {file = "ninja-1.13.0-py3-none-win_amd64.whl", hash = "sha256:fb8ee8719f8af47fed145cced4a85f0755dd55d45b2bddaf7431fa89803c5f3e"},
+    {file = "ninja-1.13.0-py3-none-win_arm64.whl", hash = "sha256:3c0b40b1f0bba764644385319028650087b4c1b18cdfa6f45cb39a3669b81aa9"},
+    {file = "ninja-1.13.0.tar.gz", hash = "sha256:4a40ce995ded54d9dc24f8ea37ff3bf62ad192b547f6c7126e7e25045e76f978"},
+]
 
 [[package]]
 name = "nltk"
@@ -4010,6 +4128,22 @@ files = [
 
 [package.extras]
 diagrams = ["jinja2", "railroad-diagrams"]
+
+[[package]]
+name = "pyre-extensions"
+version = "0.0.32"
+description = "Type system extensions for use with the pyre type checker"
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "pyre_extensions-0.0.32-py3-none-any.whl", hash = "sha256:a63ba6883ab02f4b1a9f372ed4eb4a2f4c6f3d74879aa2725186fdfcfe3e5c68"},
+    {file = "pyre_extensions-0.0.32.tar.gz", hash = "sha256:5396715f14ea56c4d5fd0a88c57ca7e44faa468f905909edd7de4ad90ed85e55"},
+]
+
+[package.dependencies]
+typing-extensions = "*"
+typing-inspect = "*"
 
 [[package]]
 name = "pytest"
@@ -5353,6 +5487,18 @@ files = [
 ]
 
 [[package]]
+name = "types-pyyaml"
+version = "6.0.12.20260724"
+description = "Typing stubs for PyYAML"
+optional = false
+python-versions = ">=3.10"
+groups = ["main"]
+files = [
+    {file = "types_pyyaml-6.0.12.20260724-py3-none-any.whl", hash = "sha256:d57db930a4b2efbc57cf430ec8882765d246929432fa253092f383902329a453"},
+    {file = "types_pyyaml-6.0.12.20260724.tar.gz", hash = "sha256:3c1ce1bb73cd5ec02e90390c2b1f00e810d241d8825fd73ff359696839271b6b"},
+]
+
+[[package]]
 name = "types-requests"
 version = "2.32.4.20250913"
 description = "Typing stubs for requests"
@@ -6154,4 +6300,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13,<3.14"
-content-hash = "98a4b09d08bfbd332266d02866b7ffdf266b0ec01736902c169cc80cca046fcb"
+content-hash = "91c6cfdb6efa69fd7c9385f775386f15374d66cc2638240331173f8dcf8a79d7"
