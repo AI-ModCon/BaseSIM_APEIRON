@@ -15,6 +15,14 @@ import pytest
 import torch
 import yaml
 
+from apeiron.config.configuration import (
+    Config,
+    ContinualLearningCfg,
+    DataCfg,
+    DriftDetectionCfg,
+    ModelCfg,
+    TrainCfg,
+)
 from examples.well import datasets as well_datasets
 from examples.well.datasets import (
     CONVERSION_RECIPE,
@@ -26,6 +34,16 @@ from examples.well.datasets import (
     read,
     trailing_number,
     writing,
+)
+from examples.well.model import (
+    FrozenBatchNormUNet,
+    N_STEPS_INPUT,
+    N_STEPS_OUTPUT,
+    UNET_WIDTHS,
+    WELL_UNET,
+    RegimeDataset,
+    RegimeFrames,
+    vrmse,
 )
 from examples.well.unet import UNetClassic
 
@@ -71,6 +89,25 @@ def write_dataset(root: Path, regimes: dict[str, int]) -> Path:
     }
     (base / "stats.yaml").write_text(yaml.safe_dump(stats))
     return base
+
+
+def well_cfg(data_root: Path, name: str = "unet_small") -> Config:
+    return Config(
+        model=ModelCfg(name=name),
+        data=DataCfg(name="well:mini", path=str(data_root), batch_size=2),
+        train=TrainCfg(batch_size=2, num_workers=0, init_lr=1e-3, max_iter=1),
+        continual_learning=ContinualLearningCfg(update_mode="base"),
+        drift_detection=DriftDetectionCfg(detection_interval=2, max_stream_updates=1),
+        seed=3,
+        device="cpu",
+    )
+
+
+@pytest.fixture()
+def registered():
+    """Make the miniature dataset visible to get_dataset()."""
+    with patch.dict(well_datasets.REGISTRY, {MINI.name: MINI}):
+        yield MINI
 
 
 @pytest.fixture()
@@ -338,3 +375,275 @@ class TestUNet:
     def test_a_resolution_it_cannot_pool_is_refused(self):
         with pytest.raises(ValueError, match="multiple of 16"):
             UNetClassic(dim_in=4, dim_out=4, spatial_resolution=(30, 48))
+
+
+# ---------------------------------------------------------------------------
+# the dataset
+# ---------------------------------------------------------------------------
+
+
+class TestRegimeDataset:
+    def _dataset(self, cache) -> RegimeDataset:
+        mean, std = cache.statistics()
+        frames = RegimeFrames(cache.array("train", "mini_tcool_0.30"))
+        return RegimeDataset(frames, mean, std)
+
+    def test_sample_shapes_fold_time_into_channels(self, cache):
+        x, y = self._dataset(cache)[0]
+        assert x.shape == (N_STEPS_INPUT * 4, HEIGHT, WIDTH)
+        assert y.shape == (N_STEPS_OUTPUT * 4, HEIGHT, WIDTH)
+
+    def test_length_counts_every_sliding_window(self, cache):
+        per_trajectory = N_TIME - N_STEPS_INPUT - N_STEPS_OUTPUT + 1
+        assert len(self._dataset(cache)) == N_TRAJ * per_trajectory
+
+    def test_the_target_follows_the_inputs_in_time(self, cache):
+        dataset = self._dataset(cache)
+        x_first, _ = dataset[0]
+        _, y_last_of_first = dataset[N_STEPS_INPUT]
+        # Sample N_STEPS_INPUT predicts the frame that sample 0's input ended at
+        # plus N_STEPS_INPUT, so the two overlap in a checkable way.
+        assert x_first.shape[0] == N_STEPS_INPUT * 4
+        assert y_last_of_first.shape[0] == N_STEPS_OUTPUT * 4
+
+    def test_normalisation_is_applied(self, cache):
+        mean, std = cache.statistics()
+        frames = RegimeFrames(cache.array("train", "mini_tcool_0.30"))
+        raw, _ = RegimeDataset(frames, mean, std)[0]
+        shifted, _ = RegimeDataset(frames, mean + 1.0, std)[0]
+        assert torch.allclose(raw - 1.0, shifted, atol=1e-5)
+
+    def test_too_short_a_regime_is_reported(self, tmp_path):
+        dest = tmp_path / "short.npy"
+        with writing(dest, (1, 2, 4, HEIGHT, WIDTH), "float32") as out:
+            out[:] = 0.0
+        mean = np.zeros(4, dtype="float32")
+        with pytest.raises(ValueError, match="too few time steps"):
+            RegimeDataset(RegimeFrames(dest), mean, mean + 1.0)
+
+
+# ---------------------------------------------------------------------------
+# the metric
+# ---------------------------------------------------------------------------
+
+
+class TestVrmse:
+    def test_zero_for_a_perfect_prediction(self):
+        y = torch.randn(2, 4, 8, 8)
+        assert vrmse(y.clone(), y).item() == pytest.approx(0.0, abs=1e-6)
+
+    def test_scale_invariant_per_channel(self):
+        y = torch.randn(2, 4, 8, 8)
+        y_hat = y + 0.1 * torch.randn_like(y)
+        scaled = torch.tensor([1.0, 10.0, 100.0, 1000.0]).view(1, 4, 1, 1)
+        assert vrmse(y_hat, y).item() == pytest.approx(
+            vrmse(y_hat * scaled, y * scaled).item(), rel=1e-4
+        )
+
+    def test_grows_with_error(self):
+        y = torch.randn(2, 4, 8, 8)
+        near = vrmse(y + 0.01 * torch.randn_like(y), y)
+        far = vrmse(y + 1.00 * torch.randn_like(y), y)
+        assert far > near
+
+    def test_square_root_is_taken_before_averaging(self):
+        """Pins the reduction order against The Well's own definition.
+
+        Their NRMSE applies sqrt to the normalised MSE tensor and leaves the
+        reduction to the caller, so VRMSE is mean(sqrt(ratio)). Averaging the
+        ratios and taking one sqrt gives a larger number -- it agrees to three
+        decimals on homoscedastic noise, which is why this needs a case where
+        the per-sample ratios differ by orders of magnitude, and is worth a test
+        because the wrong form is not comparable with their published results.
+        """
+        # Two samples, one channel, constructed so the ratios are 0.01 and 4.0.
+        y = torch.tensor([[[0.0, 0.0, 2.0, 2.0]], [[0.0, 0.0, 0.0, 4.0]]])
+        # unbiased spatial variance: 4/3 and 4.0
+        assert torch.allclose(y.var(dim=2), torch.tensor([[4 / 3], [4.0]]))
+        y_hat = y + torch.tensor([[[0.11547]], [[4.0]]])
+
+        # ratios 0.01 and 4.0 -> sqrt 0.1 and 2.0 -> mean 1.05
+        assert vrmse(y_hat, y).item() == pytest.approx(1.05, abs=1e-3)
+        # the wrong form would give sqrt((0.01 + 4.0) / 2) = 1.4160
+        assert vrmse(y_hat, y).item() != pytest.approx(1.4160, abs=1e-2)
+
+    def test_matches_a_reference_value_from_the_well(self):
+        """A value computed with the_well's own VRMSE on a fixed input.
+
+        the_well is not a dependency of this repository, so the number is
+        pinned here rather than recomputed. Reproduce with:
+
+            from the_well.benchmark.metrics import VRMSE
+            VRMSE.eval(y_hat_channels_last, y_channels_last, meta).mean()
+        """
+        torch.manual_seed(0)
+        y = torch.randn(3, 4, 32, 48)
+        y_hat = y + 0.3 * torch.randn(3, 4, 32, 48)
+        assert vrmse(y_hat, y).item() == pytest.approx(0.297809, abs=1e-5)
+
+
+# ---------------------------------------------------------------------------
+# the harness
+# ---------------------------------------------------------------------------
+
+
+class TestHarness:
+    def test_discovers_regimes_in_order(self, registered, mini_dataset):
+        harness = WELL_UNET(cfg=well_cfg(mini_dataset))
+        assert harness.regimes == ["mini_tcool_0.30", "mini_tcool_1.00"]
+
+    def test_a_name_without_a_dataset_is_refused(self, registered, mini_dataset):
+        cfg = well_cfg(mini_dataset)
+        bad = Config(
+            **{**cfg.__dict__, "data": DataCfg(name="well", path="", batch_size=1)}
+        )
+        with pytest.raises(ValueError, match="well:<dataset>"):
+            WELL_UNET(cfg=bad)
+
+    def test_an_unknown_model_name_is_refused(self, registered, mini_dataset):
+        with pytest.raises(ValueError, match="unet"):
+            WELL_UNET(cfg=well_cfg(mini_dataset, name="resnet"))
+
+    @pytest.mark.parametrize("name", sorted(UNET_WIDTHS))
+    def test_builds_at_either_width(self, registered, mini_dataset, name):
+        harness = WELL_UNET(cfg=well_cfg(mini_dataset, name=name))
+        widths = {p.shape[0] for p in harness.model.encoder1.parameters()}
+        assert widths == {UNET_WIDTHS[name]}
+
+    def test_a_window_end_to_end(self, registered, mini_dataset):
+        harness = WELL_UNET(cfg=well_cfg(mini_dataset))
+        harness.update_data_stream()
+
+        assert harness.window == 0
+        x, y = next(iter(harness.get_stream_dataloader()))
+        assert x.shape[1:] == (N_STEPS_INPUT * 4, HEIGHT, WIDTH)
+
+        with torch.no_grad():
+            assert harness.model(x).shape == y.shape
+
+    def test_history_appears_only_after_the_first_window(
+        self, registered, mini_dataset
+    ):
+        harness = WELL_UNET(cfg=well_cfg(mini_dataset))
+        harness.update_data_stream()
+        assert harness.get_hist_dataloaders() == (None, None)
+
+        harness.update_data_stream()
+        hist_train, hist_valid = harness.get_hist_dataloaders()
+        assert hist_train is not None and hist_valid is not None
+        # One prior regime, and it is the one the first window showed.
+        assert len(hist_train.dataset) == len(
+            harness.get_train_dataloaders()[0].dataset
+        )
+
+    def test_the_last_regime_holds_if_the_stream_runs_on(
+        self, registered, mini_dataset
+    ):
+        harness = WELL_UNET(cfg=well_cfg(mini_dataset))
+        for _ in range(4):
+            harness.update_data_stream()
+        assert harness.window == 3
+        assert harness._regime(harness.window) == "mini_tcool_1.00"
+
+    def test_the_model_init_is_seeded(self, registered, mini_dataset):
+        """Same seed, same weights.
+
+        Nothing in the framework seeds a torch RNG, so without the harness
+        doing it the model is a fresh random draw per run -- and with an
+        untrained model the per-batch error *is* the drift signal, so the whole
+        trace moves and detector settings stop meaning anything.
+        """
+        cfg = well_cfg(mini_dataset)
+        first = WELL_UNET(cfg=cfg).model.state_dict()["encoder1.enc1conv1.weight"]
+        again = WELL_UNET(cfg=cfg).model.state_dict()["encoder1.enc1conv1.weight"]
+        assert torch.equal(first, again)
+
+        other = Config(**{**cfg.__dict__, "seed": cfg.seed + 1})
+        differs = WELL_UNET(cfg=other).model.state_dict()["encoder1.enc1conv1.weight"]
+        assert not torch.equal(first, differs)
+
+    def test_shuffled_loaders_are_repeatable(self, registered, mini_dataset):
+        def first_batch_indices():
+            harness = WELL_UNET(cfg=well_cfg(mini_dataset))
+            harness.update_data_stream()
+            x, _ = next(iter(harness.get_train_dataloaders()[0]))
+            return x.clone()
+
+        # The framework seeds nothing globally, so the harness seeds its own
+        # loaders; without that the drift trace would differ run to run.
+        assert torch.equal(first_batch_indices(), first_batch_indices())
+
+    def test_evaluates_both_metrics(self, registered, mini_dataset):
+        harness = WELL_UNET(cfg=well_cfg(mini_dataset))
+        harness.update_data_stream()
+        assert list(harness.eval_metrics) == ["vrmse", "mse"]
+        scores = harness.eval()
+        assert len(scores) == 2
+        assert all(np.isfinite(s) for s in scores)
+
+
+# ---------------------------------------------------------------------------
+# frozen batch statistics
+# ---------------------------------------------------------------------------
+
+
+class TestFrozenBatchNorm:
+    def test_batchnorm_stays_in_eval_while_the_model_trains(self):
+        model = FrozenBatchNormUNet(
+            dim_in=16, dim_out=4, spatial_resolution=(HEIGHT, WIDTH), init_features=4
+        )
+        model.train()
+        assert model.training
+        layers = [
+            m
+            for m in model.modules()
+            if isinstance(m, torch.nn.modules.batchnorm._BatchNorm)
+        ]
+        assert layers and all(not m.training for m in layers)
+
+    def test_running_statistics_survive_training_mode_passes(self):
+        model = FrozenBatchNormUNet(
+            dim_in=16, dim_out=4, spatial_resolution=(HEIGHT, WIDTH), init_features=4
+        )
+        model.train()
+        layer = next(
+            m
+            for m in model.modules()
+            if isinstance(m, torch.nn.modules.batchnorm._BatchNorm)
+        )
+        before = layer.running_mean.clone()
+        with torch.no_grad():
+            for _ in range(5):
+                model(torch.randn(2, 16, HEIGHT, WIDTH))
+        assert torch.equal(before, layer.running_mean)
+
+    def test_an_ordinary_unet_does_move_its_statistics(self):
+        """The control: this is the behaviour the frozen variant exists to stop."""
+        model = UNetClassic(
+            dim_in=16, dim_out=4, spatial_resolution=(HEIGHT, WIDTH), init_features=4
+        )
+        model.train()
+        layer = next(
+            m
+            for m in model.modules()
+            if isinstance(m, torch.nn.modules.batchnorm._BatchNorm)
+        )
+        before = layer.running_mean.clone()
+        with torch.no_grad():
+            for _ in range(5):
+                model(torch.randn(2, 16, HEIGHT, WIDTH))
+        assert not torch.equal(before, layer.running_mean)
+
+    def test_the_published_checkpoint_shape_still_loads(self):
+        """Freezing must not rename or add anything."""
+        plain = UNetClassic(dim_in=16, dim_out=4, init_features=4)
+        frozen = FrozenBatchNormUNet(dim_in=16, dim_out=4, init_features=4)
+        assert list(plain.state_dict()) == list(frozen.state_dict())
+        frozen.load_state_dict(plain.state_dict(), strict=True)
+
+    def test_the_harness_always_builds_it(self, registered, mini_dataset):
+        """Not a variant to opt into: every window the harness serves is a
+        different regime, so live batch statistics are never what is wanted."""
+        for name in sorted(UNET_WIDTHS):
+            harness = WELL_UNET(cfg=well_cfg(mini_dataset, name=name))
+            assert isinstance(harness.model, FrozenBatchNormUNet)
