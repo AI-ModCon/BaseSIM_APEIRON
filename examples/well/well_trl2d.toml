@@ -1,0 +1,114 @@
+# The Well -- 2D turbulent radiative layer, with The Well's own U-Net baseline.
+#
+#   poetry run python -m src.main --config examples/well/well_trl2d.toml
+#
+# Nine physical regimes, one per stream window, walked in order of cooling time
+# from tcool=0.03 to tcool=3.16. Drift is not simulated here: the inputs are
+# untouched and what changes is the physics.
+#
+# Splits: the stream and the CL rounds read train, evaluation reads valid, and
+# test is left alone for examples/well/evaluate.py to score checkpoints with.
+#
+# Expect roughly 40 minutes end to end on a laptop CPU, most of it in the
+# backward-transfer evaluation, which re-scores every regime adapted to so far
+# after every drift event and so grows as the run goes on. The first window
+# downloads about 1.2 GB; each later one adds the same. See the README.
+
+seed = 1337
+# Happy on MPS -- there are no FFTs in this model, and the same run on CPU
+# agrees to three decimals over four regimes.
+device = "auto"
+multi_gpu = false
+verbosity = "INFO"
+
+[model]
+# UNetClassic at init_features=16. "unet" is 48, the width The Well's published
+# checkpoints were trained at; this is the same architecture narrowed until a
+# training step fits on a CPU, so those checkpoints will not load into it.
+name = "unet_small"
+pretrained_path = ""     # random initialisation
+
+# One snapshot per drift event, kept rather than rotated: evaluate.py scores
+# all of them against the test split to show how adaptation moved the model
+# through the sweep. The budget is a FIFO, so a small number would silently
+# drop the early events, which are the interesting ones. ~7 MB each here.
+max_ckpts = 100
+ckpts_path = "output/well/checkpoints"
+
+[data]
+name = "well:turbulent_radiative_layer_2D"
+# The published collection, downloaded a regime at a time into ./data/well.
+# A local directory laid out the way The Well lays it out also works, and is
+# read in place.
+path = "hf://datasets/polymathic-ai"
+batch_size = 4
+
+[train]
+batch_size = 4
+# 0 on purpose: a sample is a slice of a memory-mapped file, so the work
+# per item is a memcpy rather than a decode, and worker processes mostly
+# add overhead.
+num_workers = 0
+# Much lower than this model would want on a static dataset. It carries batch
+# norm, and at 1e-4 a round overshoots: VRMSE improves on one drift event and
+# gets worse on the next, and the run climbs away over nine regimes rather than
+# settling.
+init_lr = 3e-5
+# 200, not 20. The detector fires a few times over nine regimes, not once per
+# window, so at 20 a whole run was a few dozen gradient steps and the model
+# barely moved. Adapting hard when it does fire is what matters: 200 steps
+# takes the first adaptation from 2.23 to 1.15 mean test VRMSE against 2.65
+# untrained, improving every one of the nine regimes at once, and costs about
+# three minutes over the whole run.
+max_iter = 200
+grad_accumulation_steps = 1
+
+[continual_learning]
+update_mode = "ewc_online"
+# Replay earlier regimes alongside the current one. This is what the historical
+# dataloaders are for, and what EWC anchors against.
+mix_historic_data = true
+ewc_lambda = 1000.0
+ewc_ema_decay = 0.95
+
+[drift_detection]
+# Page-Hinkley accumulates a one-sided departure from a running mean, which is
+# the shape a regime change leaves in a model's error.
+detector_name = "PageHinkleyDetector"
+# Chosen by replaying one real monitoring pass -- 1744 batches over all nine
+# regimes, learning switched off -- and scoring settings two ways: boundaries
+# found, and how often the same settings fire on shuffled copies of the same
+# values, where there are no boundaries left to find. The second number is the
+# one that matters. These settings fire 4 times on the real stream against 1.75
+# on shuffled, a ratio of 2.3; settings that fire 9 times and "find" all eight
+# boundaries fire 10 times on shuffled, which is detection by arithmetic.
+#
+# Four of eight boundaries is what this signal supports. The fifth, tcool
+# 1.78 -> 3.16, is a +0.5 sigma step arriving straight after a +1.75 sigma one,
+# and no single absolute threshold spans both.
+#
+# A run that adapts fires three times, not four: each adaptation flattens the
+# error climb, so later regimes arrive at a model that already handles them.
+ph_min_instances = 8
+ph_threshold = 3.0
+ph_delta = 0.01
+ph_alpha = 0.9999
+# The detector sees one aggregated value per interval, not one per batch, so
+# the interval sets the noise floor: averaging shrinks the within-regime
+# scatter by sqrt(interval) while leaving the between-regime shift alone. It
+# also caps how often a run can adapt -- at interval 40 the whole run is only
+# 43 observations, and ph_min_instances 20 made two fires the arithmetic
+# maximum regardless of signal.
+detection_interval = 20
+aggregation = "mean"
+metric_index = 0         # vrmse; lower is better
+# Page-Hinkley accumulates a one-sided departure from its running mean, so
+# after adapting, the pre-adaptation climb is still in the sum and it would
+# fire again immediately. Reset and let it re-measure the adapted model.
+reset_after_learning = true
+max_stream_updates = 9
+
+[logging]
+backend = "none"         # "wandb", "mlflow", or "none"
+experiment_name = "well-turbulent-radiative-layer"
+metrics_output_path = "output/well_trl2d.csv"
