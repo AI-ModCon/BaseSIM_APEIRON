@@ -9,10 +9,10 @@
 # Splits: the stream and the CL rounds read train, evaluation reads valid, and
 # test is left alone for examples/well/evaluate.py to score checkpoints with.
 #
-# Expect roughly 40 minutes end to end on a laptop CPU, most of it in the
-# backward-transfer evaluation, which re-scores every regime adapted to so far
-# after every drift event and so grows as the run goes on. The first window
-# downloads about 1.2 GB; each later one adds the same. See the README.
+# Measured end to end on an M-series laptop with the regimes already local:
+# 3 min 55 s for all nine windows and three adaptations. Each regime costs about
+# 0.7 GB on disk once converted (train plus valid), so all nine is about 6 GB,
+# downloaded a window at a time. See the README.
 
 seed = 1337
 # Happy on MPS -- there are no FFTs in this model, and the same run on CPU

@@ -18,9 +18,15 @@ poetry run python -m src.main --config <path_to_toml>
 | [`mnist/`](mnist/README.md) | `mnist` | 3-layer CNN (`Cnn`, ~1M params) | Simulated: cumulative random affine per stream window | Auto-downloaded to `./data` | Yes — CPU is fine |
 | [`cifar/`](cifar/README.md) | `cifar10` | ViT-B/16 or VGG-11 (`VisionModelCifar`) | Simulated: random affine per stream window | Auto-downloaded to `./data` | GPU strongly recommended |
 | [`imagenet/`](imagenet/README.md) | `imagenet` | ViT-B/16 (`VisionModelImageNet`) | Simulated: cumulative random affine per stream window | **You provide** ILSVRC-2012 in `ImageFolder` layout | No — multi-GPU scale |
+| [`well/`](well/README.md) | `well:turbulent_radiative_layer_2D` | `UNetClassic` at `init_features=16` (~1.9M params) | **Real**: one physical regime per stream window, cooling time 0.03 → 3.16 | Auto-downloaded a regime at a time to `./data/well` (~0.68 GB each) | Yes — 4 min, ~6 GB disk |
 
 **Start with `mnist/`.** It is the only example that ships a pretrained
 checkpoint, downloads its own data, and finishes in minutes on CPU.
+
+**`well/` is the one where the drift is real.** The other three manufacture
+their drift by perturbing inputs; the Well walks a model through a parameter
+sweep of an actual simulation, so what moves is the physics. See
+[`well/README.md`](well/README.md).
 
 ## How an Example Is Wired Up
 
@@ -41,8 +47,8 @@ See [`docs/model_harness.md`](../docs/model_harness.md) for the full contract.
 
 ## How Drift Is Simulated
 
-None of these datasets drift on their own, so each harness manufactures drift the
-same way: `update_data_stream()` draws a seeded random affine transform
+MNIST, CIFAR and ImageNet do not drift on their own, so each of those harnesses
+manufactures drift the same way: `update_data_stream()` draws a seeded random affine transform
 (rotation / scale / shear / translation) and rebuilds the train, validation, and
 stream loaders through it. Every time the stream is exhausted, another transform
 is drawn, so the input distribution keeps moving away from what the model was
@@ -55,6 +61,11 @@ the same convention — MNIST replays *every* prior regime, CIFAR replays only t
 immediately preceding one.
 
 The number of windows is capped by `[drift_detection] max_stream_updates`.
+
+`well/` is the exception: it does not transform anything. Each stream window is
+a different file from a Well parameter sweep, so the input distribution moves
+because the simulated system does. Its historical replay loaders concatenate
+*every* regime seen so far.
 
 ## What Every Run Produces
 
