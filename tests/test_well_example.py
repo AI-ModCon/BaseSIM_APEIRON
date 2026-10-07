@@ -24,6 +24,7 @@ from apeiron.config.configuration import (
     TrainCfg,
 )
 from examples.well import datasets as well_datasets
+from examples.well import evaluate
 from examples.well.datasets import (
     CONVERSION_RECIPE,
     RECIPE_SUFFIX,
@@ -647,3 +648,162 @@ class TestFrozenBatchNorm:
         for name in sorted(UNET_WIDTHS):
             harness = WELL_UNET(cfg=well_cfg(mini_dataset, name=name))
             assert isinstance(harness.model, FrozenBatchNormUNet)
+
+
+# ---------------------------------------------------------------------------
+# the test-split evaluation pass
+# ---------------------------------------------------------------------------
+
+
+class TestEvaluate:
+    def _checkpoint_dir(self, tmp_path, events=(1, 2, 10)) -> Path:
+        """A directory shaped like what save_ckpt leaves behind."""
+        directory = tmp_path / "ckpts"
+        directory.mkdir()
+        for event in events:
+            model = evaluate.build_model(MINI, 4)
+            torch.save(model.state_dict(), directory / f"drift_adaptation_{event}.pt")
+        (directory / "latest").write_text(f"drift_adaptation_{max(events)}.pt")
+        return directory
+
+    def test_checkpoints_are_found_in_event_order(self, tmp_path):
+        directory = self._checkpoint_dir(tmp_path, events=(10, 2, 1))
+        found = evaluate.checkpoints(directory)
+        assert [label for label, _ in found] == ["event_001", "event_002", "event_010"]
+
+    def test_the_latest_marker_is_not_mistaken_for_a_checkpoint(self, tmp_path):
+        directory = self._checkpoint_dir(tmp_path, events=(1,))
+        assert len(evaluate.checkpoints(directory)) == 1
+
+    def test_weights_round_trip_through_a_checkpoint(self, tmp_path):
+        model = evaluate.build_model(MINI, 4)
+        path = tmp_path / "drift_adaptation_1.pt"
+        torch.save(model.state_dict(), path)
+        loaded = evaluate.load_weights(path)
+        assert set(loaded) == set(model.state_dict())
+
+    def test_a_payload_wrapping_the_state_dict_is_accepted(self, tmp_path):
+        model = evaluate.build_model(MINI, 4)
+        path = tmp_path / "wrapped.pt"
+        torch.save({"state_dict": model.state_dict(), "window": 3}, path)
+        assert set(evaluate.load_weights(path)) == set(model.state_dict())
+
+    def test_persistence_repeats_the_last_input_frame(self):
+        channels = MINI.n_channels
+        x = torch.arange(float(N_STEPS_INPUT * channels)).reshape(1, -1, 1, 1)
+        last = evaluate.persistence(x, channels)
+        assert last.shape[1] == N_STEPS_OUTPUT * channels
+        assert torch.equal(last, x[:, -N_STEPS_OUTPUT * channels :])
+
+    def test_scores_checkpoints_and_baselines_against_the_test_split(
+        self, tmp_path, mini_dataset, capsys
+    ):
+        write_regime(
+            mini_dataset / MINI.name / "data" / "test" / "mini_tcool_0.30.hdf5", 5
+        )
+        write_regime(
+            mini_dataset / MINI.name / "data" / "test" / "mini_tcool_1.00.hdf5", 6
+        )
+        config = tmp_path / "mini.toml"
+        config.write_text(
+            "seed = 3\n"
+            'device = "cpu"\n'
+            "[model]\n"
+            'name = "unet_small"\n'
+            f'ckpts_path = "{self._checkpoint_dir(tmp_path, events=(1, 2))}"\n'
+            "max_ckpts = 5\n"
+            "[data]\n"
+            'name = "well:mini"\n'
+            f'path = "{mini_dataset}"\n'
+            "batch_size = 2\n"
+            "[train]\n"
+            "batch_size = 2\n"
+            "num_workers = 0\n"
+            "init_lr = 1e-3\n"
+            "[drift_detection]\n"
+            'detector_name = "PageHinkleyDetector"\n'
+        )
+        narrow = WellDataset(
+            name="mini",
+            fields=MINI.fields,
+            spatial_resolution=MINI.spatial_resolution,
+        )
+        with (
+            patch.dict(well_datasets.REGISTRY, {"mini": narrow}),
+            patch.dict(evaluate.UNET_WIDTHS, {"unet_small": 4}),
+        ):
+            assert evaluate.main(["--config", str(config), "--baselines"]) == 0
+
+        out = capsys.readouterr().out
+        # every scored model, and both regimes as columns
+        for expected in ("persistence", "zero", "event_001", "event_002", "MEAN"):
+            assert expected in out
+
+    def test_the_initial_model_row_is_reproducible(self, tmp_path, mini_dataset):
+        """The baseline has to be the model the run started from, every time.
+
+        An unseeded draw makes "did adapting help?" meaningless, because the
+        reference moves between invocations.
+        """
+        import torch as _torch
+
+        from apeiron.config.configuration import DataCfg as _DataCfg
+
+        cfg = well_cfg(mini_dataset)
+        narrow = WellDataset(
+            name="mini",
+            fields=MINI.fields,
+            spatial_resolution=MINI.spatial_resolution,
+        )
+
+        def draw():
+            _torch.manual_seed(cfg.seed)
+            return evaluate.build_model(narrow, 4).state_dict()[
+                "encoder1.enc1conv1.weight"
+            ]
+
+        _torch.manual_seed(999)  # disturb the global RNG between draws
+        first = draw()
+        _torch.manual_seed(12345)
+        assert _torch.equal(first, draw())
+        assert isinstance(_DataCfg, type)
+
+    def test_writes_the_matrix_to_csv(self, tmp_path, mini_dataset):
+        for regime, seed in (("mini_tcool_0.30", 5), ("mini_tcool_1.00", 6)):
+            write_regime(
+                mini_dataset / MINI.name / "data" / "test" / f"{regime}.hdf5", seed
+            )
+        config = tmp_path / "mini.toml"
+        config.write_text(
+            "seed = 3\n"
+            'device = "cpu"\n'
+            "[model]\n"
+            'name = "unet_small"\n'
+            'ckpts_path = ""\n'
+            "[data]\n"
+            'name = "well:mini"\n'
+            f'path = "{mini_dataset}"\n'
+            "batch_size = 2\n"
+            "[train]\n"
+            "batch_size = 2\n"
+            "num_workers = 0\n"
+            "init_lr = 1e-3\n"
+            "[drift_detection]\n"
+            'detector_name = "PageHinkleyDetector"\n'
+        )
+        out_csv = tmp_path / "matrix.csv"
+        narrow = WellDataset(
+            name="mini",
+            fields=MINI.fields,
+            spatial_resolution=MINI.spatial_resolution,
+        )
+        with (
+            patch.dict(well_datasets.REGISTRY, {"mini": narrow}),
+            patch.dict(evaluate.UNET_WIDTHS, {"unet_small": 4}),
+        ):
+            evaluate.main(
+                ["--config", str(config), "--baselines", "--out", str(out_csv)]
+            )
+        header, *body = out_csv.read_text().splitlines()
+        assert header.startswith("model,mini_tcool_0.30,mini_tcool_1.00,mean")
+        assert len(body) == 2
