@@ -127,11 +127,12 @@ class ContinuousTrainer:
         cur_train_loader, cur_test_loader = self.modelHarness.get_train_dataloaders()
         hist_train_loader, hist_test_loader = self.modelHarness.get_hist_dataloaders()
 
-        train_iter = iter(cur_train_loader)
+        # Annotated, because these are rebound from what the inner loop hands
+        # back -- a plain Iterator, not a DataLoader's own iterator type.
+        train_iter: Iterator = iter(cur_train_loader)
+        hist_train_iter: Optional[Iterator] = None
         if hist_train_loader is not None:
             hist_train_iter = iter(hist_train_loader)
-        else:
-            hist_train_iter = None
 
         cur_validation_metrics = self.modelHarness.eval()
         hist_validation_metrics = self.modelHarness.history_eval()
@@ -159,7 +160,12 @@ class ContinuousTrainer:
         iter_count = self.cfg.train.max_iter
         if self.cl_updater is not None:  # default: do nothing
             for iter_count in progress_bar:
-                generation_loss, forgetting_loss = self.inner_cl_training_loop(
+                (
+                    generation_loss,
+                    forgetting_loss,
+                    train_iter,
+                    hist_train_iter,
+                ) = self.inner_cl_training_loop(
                     iter_count=iter_count,
                     cur_train_loader=cur_train_loader,
                     train_iter=train_iter,
@@ -245,8 +251,14 @@ class ContinuousTrainer:
         train_iter: Iterator,
         hist_train_loader: Optional[DataLoader] = None,
         hist_train_iter: Optional[Iterator] = None,
-    ) -> tuple[float, float]:
-        """Run a single inner training iteration with forward/backward and optimizer step."""
+    ) -> tuple[float, float, Iterator, Optional[Iterator]]:
+        """Run a single inner training iteration with forward/backward and optimizer step.
+
+        Returns the training iterators alongside the losses. They are where the
+        step left off, which is not where it started: a loader that runs out is
+        replaced here, and a caller that keeps the old one would restart it on
+        every later step.
+        """
         self.optimizer.zero_grad()
         self.cl_updater.update_pre_fwd_bwd()
 
@@ -295,4 +307,4 @@ class ContinuousTrainer:
 
         self.cl_updater.update_post_optimizer_call()
 
-        return loss, reg_loss
+        return loss, reg_loss, train_iter, hist_train_iter

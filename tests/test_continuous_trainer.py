@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import replace
 from unittest.mock import patch, MagicMock
 
@@ -191,13 +192,16 @@ class TestInnerCLLoop:
         cur_train, _ = dummy_harness.get_train_dataloaders()
         train_iter = iter(cur_train)
 
-        gen_loss, reg_loss = trainer.inner_cl_training_loop(
+        gen_loss, reg_loss, used_iter, hist_iter = trainer.inner_cl_training_loop(
             iter_count=0,
             cur_train_loader=cur_train,
             train_iter=train_iter,
         )
         assert isinstance(gen_loss, float)
         assert isinstance(reg_loss, float)
+        # Where the step left off, so the next one can carry on from it.
+        assert used_iter is not None
+        assert hist_iter is None
 
 
 class TestOuterCLLoop:
@@ -328,3 +332,63 @@ class TestOuterCLLoop:
         for c in mock_updater.fwd_bwd.call_args_list:
             _, hist_batch = c[0]
             assert hist_batch is not None
+
+
+class TestTrainingLoaderPosition:
+    """A round of learning walks its window; it does not restart it."""
+
+    def test_a_round_walks_its_window_evenly(self, default_cfg, make_harness):
+        """Twelve steps over a four-batch window is three passes, so every
+        sample in the window is trained on exactly three times.
+
+        ``inner_cl_training_loop`` advances the training iterator but used to
+        return only the losses, so the outer loop handed the original iterator
+        back on the next step. Once that iterator is exhausted, every later
+        step rebuilds the loader and takes only its first batch: the first
+        batch is then trained on nine times and the rest once each.
+        """
+        samples, batch, steps = 32, 8, 12
+        cfg = replace(
+            default_cfg,
+            train=replace(default_cfg.train, batch_size=batch, max_iter=steps),
+            continual_learning=replace(
+                default_cfg.continual_learning, update_mode="base"
+            ),
+        )
+        harness = make_harness(cfg)
+
+        # x[i, 0] == i, so a batch reports exactly which samples it carried.
+        features = torch.zeros(samples, 4)
+        features[:, 0] = torch.arange(samples, dtype=torch.float32)
+        window = TensorDataset(features, torch.randint(0, 3, (samples,)))
+        # Unshuffled, and a whole number of batches: a restart then shows up as
+        # a repeat rather than as noise.
+        train = DataLoader(window, batch_size=batch)
+        harness.get_train_dataloaders = lambda: (train, train)  # type: ignore[method-assign]
+        harness.get_hist_dataloaders = lambda: (None, None)  # type: ignore[method-assign]
+
+        trainer = ContinuousTrainer(
+            cfg=cfg, modelHarness=harness, logger=MagicMock(), profiler=None
+        )
+
+        visits: Counter[int] = Counter()
+        fwd_bwd = trainer.cl_updater.fwd_bwd
+
+        def recording_fwd_bwd(cur_batch, hist_batch=None):
+            visits.update(int(i) for i in cur_batch[0][:, 0].tolist())
+            return fwd_bwd(cur_batch, hist_batch)
+
+        trainer.cl_updater.fwd_bwd = recording_fwd_bwd  # type: ignore[method-assign]
+        trainer.outer_cl_training_loop(drift_event_id=1)
+
+        passes = steps * batch // samples
+        assert visits.total() == steps * batch, "a step delivered the wrong batch size"
+        assert set(visits) == set(range(samples)), (
+            f"the round trained on {len(visits)} of {samples} samples; "
+            "part of the window was never reached"
+        )
+        assert set(visits.values()) == {passes}, (
+            f"samples were trained on between {min(visits.values())} and "
+            f"{max(visits.values())} times instead of {passes} each -- the round "
+            "is restarting its loader rather than advancing it"
+        )
