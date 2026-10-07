@@ -58,6 +58,22 @@ class FELDataset(Dataset):
 # ---------------------------------------------------------------------------
 # DataLoader helper
 # ---------------------------------------------------------------------------
+def _seed_worker(_worker_id: int) -> None:
+    """Seed a DataLoader worker's NumPy/random RNGs from its Torch seed.
+
+    Torch already gives each worker a distinct, run-reproducible base seed
+    (derived from the loader's ``generator``); this propagates it so any
+    NumPy/``random`` usage inside ``__getitem__`` is reproducible too.
+    """
+    import random as _random
+
+    import numpy as _np
+
+    worker_seed = torch.initial_seed() % 2**32
+    _np.random.seed(worker_seed)
+    _random.seed(worker_seed)
+
+
 def make_loader(
     ds: Dataset,
     batch_size: int,
@@ -67,6 +83,7 @@ def make_loader(
     persistent_workers: bool = True,
     prefetch_factor: int = 2,
     sampler: Optional[Sampler] = None,
+    generator: Optional[torch.Generator] = None,
 ) -> DataLoader:
     """Build a ``DataLoader`` from a ``Dataset``.
 
@@ -80,6 +97,8 @@ def make_loader(
         prefetch_factor: Samples to prefetch per worker.
         sampler: Optional sampler; mutually exclusive with ``shuffle``. When
             provided, ``shuffle`` is not passed to the ``DataLoader``.
+        generator: Optional RNG that seeds shuffling and worker base seeds so
+            batch order is reproducible run-to-run.
 
     Returns:
         DataLoader built from *ds* with the given settings.
@@ -89,6 +108,8 @@ def make_loader(
         kwargs["sampler"] = sampler
     else:
         kwargs["shuffle"] = shuffle
+    if generator is not None:
+        kwargs["generator"] = generator
     if num_workers > 0:
         kwargs.update(
             dict(
@@ -96,6 +117,7 @@ def make_loader(
                 pin_memory=pin_memory,
                 persistent_workers=persistent_workers,
                 prefetch_factor=prefetch_factor,
+                worker_init_fn=_seed_worker,
             )
         )
     return DataLoader(ds, **kwargs)  # type: ignore[arg-type]

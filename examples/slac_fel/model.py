@@ -212,8 +212,10 @@ class SLAC_FEL(BaseModelHarness):
         super().__init__(cfg=cfg, model=model)
 
         # ----- eval metrics (regression) -------------------------------------
-        self.eval_metrics = {"mae": mae_metric}
-        self.higher_is_better = {"mae": False}
+        # "mae" is the scaled-space error used for drift detection (metric_index
+        # 0). "mae_mj" untransforms to physical mJ so logs/CSV expose real error.
+        self.eval_metrics = {"mae": mae_metric, "mae_mj": self._mae_mj}
+        self.higher_is_better = {"mae": False, "mae_mj": False}
 
         # ----- streaming state -----------------------------------------------
         self.window_idx: int = 0
@@ -227,10 +229,24 @@ class SLAC_FEL(BaseModelHarness):
         self._cur_train_loader: Optional[DataLoader] = None
         self._cur_val_loader: Optional[DataLoader] = None
 
+        # Dedicated RNGs so batch shuffle and replay sampling are reproducible
+        # run-to-run, decoupled from other global-RNG usage (e.g. dropout).
+        self._loader_gen = torch.Generator()
+        self._loader_gen.manual_seed(cfg.seed)
+        self._hist_gen = torch.Generator()
+        self._hist_gen.manual_seed(cfg.seed + 1)
+
         # ----- early-stopping state (per drift event) ------------------------
         self._es_best_metric: Optional[float] = None
         self._es_best_state: Optional[dict] = None
         self._es_evals_no_improve: int = 0
+
+    @torch.no_grad()
+    def _mae_mj(self, y_hat: Tensor, y: Tensor) -> Tensor:
+        """Mean-absolute error in physical mJ (untransform before comparing)."""
+        y_hat_mj = self.output_scaler.untransform(y_hat)  # type: ignore[operator]
+        y_mj = self.output_scaler.untransform(y)  # type: ignore[operator]
+        return F.l1_loss(y_hat_mj, y_mj)
 
     # --------------------------------------------------------------------- #
     # Required overrides
@@ -295,6 +311,7 @@ class SLAC_FEL(BaseModelHarness):
             weights=train_sample_weights,
             num_samples=len(ds_hist_train),
             replacement=True,
+            generator=self._hist_gen,
         )
 
         return (
@@ -483,7 +500,12 @@ class SLAC_FEL(BaseModelHarness):
         pin = torch.cuda.is_available()
 
         self._cur_train_loader = make_loader(
-            ds_train, bs, shuffle=True, num_workers=nw, pin_memory=pin
+            ds_train,
+            bs,
+            shuffle=True,
+            num_workers=nw,
+            pin_memory=pin,
+            generator=self._loader_gen,
         )
         self._cur_val_loader = make_loader(
             ds_val, bs, shuffle=False, num_workers=nw, pin_memory=pin

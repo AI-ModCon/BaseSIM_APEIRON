@@ -30,6 +30,32 @@ if TYPE_CHECKING:
     from apeiron.logger.logger import MetricsBackend
 
 
+def seed_everything(seed: int) -> None:
+    """Seed Python, NumPy and Torch RNGs for repeatable runs.
+
+    Also pins cuDNN into deterministic mode and requests deterministic algorithms
+    (``warn_only`` so ops without a deterministic implementation degrade to a
+    warning rather than raising). Note: MPS is not guaranteed bit-reproducible
+    even after seeding -- use CPU or CUDA for exact reproducibility.
+    """
+    import random
+
+    import numpy as np
+
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    try:
+        torch.use_deterministic_algorithms(True, warn_only=True)
+    except Exception:
+        pass
+
+
 def get_available_device(multi_gpu: bool = False) -> torch.device:
     """
     Returns a torch.device with sensible fallbacks:

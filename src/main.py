@@ -1,7 +1,7 @@
 import sys
 
 from apeiron.logger import get_logger, configure_backend
-from apeiron.config.configuration import build_config, Config
+from apeiron.config.configuration import build_config, seed_everything, Config
 
 from examples.utils import get_example
 
@@ -10,6 +10,10 @@ from apeiron.driver.continuous_monitor import ContinuousMonitor
 
 def main(argv: list[str] | None = None) -> int:
     cfg: Config = build_config(argv)
+
+    # Seed all RNGs before anything random (model init, shuffling, replay).
+    seed_everything(cfg.seed)
+
     modelHarness = get_example(cfg=cfg)
 
     # Configure logger
