@@ -666,6 +666,22 @@ class TestEvaluate:
         (directory / "latest").write_text(f"drift_adaptation_{max(events)}.pt")
         return directory
 
+    def test_a_reference_is_built_at_the_width_in_its_own_file(self, tmp_path):
+        """The Well's published weights are 48 whatever width a run used.
+
+        Reading the width from the file is what lets them be scored beside
+        checkpoints from a narrower run, in one table.
+        """
+        wide = evaluate.build_model(MINI, 8)
+        path = tmp_path / "wide.pt"
+        torch.save(wide.state_dict(), path)
+
+        weights = evaluate.load_weights(path)
+        assert evaluate.width_of(weights) == 8
+
+        rebuilt = evaluate.build_model(MINI, evaluate.width_of(weights))
+        rebuilt.load_state_dict(weights, strict=True)
+
     def test_checkpoints_are_found_in_event_order(self, tmp_path):
         directory = self._checkpoint_dir(tmp_path, events=(10, 2, 1))
         found = evaluate.checkpoints(directory)

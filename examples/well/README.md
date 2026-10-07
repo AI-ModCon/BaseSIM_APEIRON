@@ -89,19 +89,43 @@ never reads data the model has already fitted.
 `evaluate.py` scores every model a run produced against all nine regimes of the
 test split.
 
-Rows are the models scored: three reference points, then the run's three
+Rows are the models scored: four reference points, then the run's three
 checkpoints in the order it wrote them. Columns are the nine test regimes,
 labelled by cooling time `tcool`. Cells are mean VRMSE on that regime, the last
 column averages the nine, and lower is better.
 
 | model scored | 0.03 | 0.06 | 0.10 | 0.18 | 0.32 | 0.56 | 1.00 | 1.78 | 3.16 | mean |
 |---|---|---|---|---|---|---|---|---|---|---|
+| published (The Well's own, all nine regimes jointly) | 0.298 | 0.308 | 0.284 | 0.248 | 0.223 | 0.209 | 0.183 | 0.200 | 0.212 | **0.240** |
 | persistence (repeat the last input frame) | 0.620 | 0.644 | 0.593 | 0.608 | 0.576 | 0.555 | 0.530 | 0.523 | 0.536 | **0.576** |
 | zero (predict a zero field) | 1.200 | 1.180 | 1.301 | 1.205 | 1.588 | 1.826 | 2.640 | 3.506 | 5.861 | **2.256** |
 | untrained (what the run started from) | 1.186 | 1.163 | 1.354 | 1.293 | 1.865 | 2.296 | 3.288 | 4.383 | 7.025 | **2.650** |
 | after drift event 1 (fired in window 4) | 0.800 | 0.783 | 0.884 | 0.834 | 1.246 | 1.569 | 2.305 | 3.159 | 5.096 | **1.853** |
 | after drift event 2 (window 5) | 0.713 | 0.699 | 0.696 | 0.702 | 0.849 | 0.905 | 1.136 | 1.487 | 2.313 | **1.055** |
 | after drift event 3 (window 7) | 0.692 | 0.679 | 0.655 | 0.661 | 0.737 | 0.740 | 0.844 | 1.076 | 1.617 | **0.856** |
+
+The published row is a check on everything upstream of it. Those are The Well's
+own weights, trained on all nine regimes jointly at `init_features=48`, scored
+here through this example's conversion, normalisation and VRMSE. The result,
+0.2405, sits between the two figures they publish: 0.2394 on the model card for
+these weights, 0.2418 for the U-Net baseline on the dataset page. Agreement to
+within half a percent means the data pipeline, the metric and the vendored
+architecture are all doing what they should.
+
+To reproduce that row, download the checkpoint and pass it as a reference:
+
+```bash
+curl -LO https://huggingface.co/polymathic-ai/UNetClassic-turbulent_radiative_layer_2D/resolve/main/model.safetensors
+
+poetry run python -m examples.well.evaluate \
+    --config examples/well/well_trl2d.toml --baselines --random \
+    --reference model.safetensors --reference-name published
+```
+
+`evaluate.py` reads each reference's width from its own file, so a 48-wide
+reference scores beside checkpoints from a run that used 16.
+
+Three readings of the run's own rows:
 
 Every column decreases at every drift event, including for regimes the stream
 had not reached and regimes it had left. No forgetting shows up at all. That
@@ -110,15 +134,17 @@ anything it learns anywhere helps everywhere. Forgetting becomes measurable
 when a run starts from a trained checkpoint, and this matrix is the right shape
 to read it off.
 
-The model does not beat persistence anywhere: 0.856 against 0.576, after
-improving 3.1x from where it started. Persistence is the floor for next-step
-prediction on a smooth field and is hard to beat at short horizons, which is
-why The Well reports it beside their own baselines. A 1.94M-parameter U-Net
-with 600 gradient steps in total demonstrates the monitoring loop; it is not an
-attempt at the benchmark.
+The model does not beat persistence anywhere: 0.856 against 0.576. It covers
+87% of the distance from untrained to persistence and stops short. Persistence
+is the floor for next-step prediction on a smooth field and is hard to beat at
+short horizons, which is why The Well reports it beside their own baselines.
+The published model clears it by a factor of 2.4, so the gap here is the demo's
+and not the architecture's: 1.94M parameters and 600 gradient steps in total
+exercise the monitoring loop, they are not an attempt at the benchmark.
 
-The high-`tcool` regimes are not harder in themselves. Persistence gets
-slightly better as `tcool` rises, so those fields are smoother in time. What
+The high-`tcool` regimes are not harder in themselves. Both reference models
+get slightly better as `tcool` rises, persistence from 0.620 to 0.536 and the
+published model from 0.298 to 0.212, so those fields are smoother in time. What
 climbs is the error of a model that has not seen them: 1.19 to 7.02 across the
 untrained row. That climb is the signal the detector reads.
 

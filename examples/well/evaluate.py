@@ -80,6 +80,17 @@ def load_weights(path: Path) -> Dict[str, Tensor]:
     return dict(payload)
 
 
+def width_of(weights: Dict[str, Tensor]) -> int:
+    """The ``init_features`` a set of weights was trained at.
+
+    ``encoder1.enc1conv1`` maps the input frames to the first feature map, so
+    its output channel count is the width. Reading it from the file means a
+    reference does not have to match the width the run used: The Well's
+    published weights for this dataset are 48 whatever the config says.
+    """
+    return int(weights["encoder1.enc1conv1.weight"].shape[0])
+
+
 def checkpoints(directory: Path) -> List[Tuple[str, Path]]:
     """``drift_adaptation_<n>.pt`` in event order, labelled by event."""
     found = []
@@ -202,6 +213,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         f"{f', first {args.cap} samples each' if args.cap else ''})"
     )
     print(f"model     UNetClassic init_features={width} ({cfg.model.name})")
+    print("          a --reference is built at whatever width its file holds")
     print(f"device    {device}")
 
     rows: List[Tuple[str, Dict[str, float]]] = []
@@ -222,8 +234,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     for index, source in enumerate(args.reference):
         path = Path(source)
         label = names[index] if index < len(names) else path.stem
-        model = build_model(spec, width)
-        model.load_state_dict(load_weights(path), strict=True)
+        weights = load_weights(path)
+        model = build_model(spec, width_of(weights))
+        model.load_state_dict(weights, strict=True)
         rows.append((label, score(model, **common)))  # type: ignore[arg-type]
 
     directory = Path(args.checkpoints or cfg.model.ckpts_path or "")
@@ -231,8 +244,9 @@ def main(argv: Optional[List[str]] = None) -> int:
         found = checkpoints(directory)
         print(f"checkpoints {len(found)} in {directory}")
         for label, path in found:
-            model = build_model(spec, width)
-            model.load_state_dict(load_weights(path), strict=True)
+            weights = load_weights(path)
+            model = build_model(spec, width_of(weights))
+            model.load_state_dict(weights, strict=True)
             rows.append((label, score(model, **common)))  # type: ignore[arg-type]
     elif not rows:
         parser.error(f"no checkpoints at {directory!r} and nothing else to score")
