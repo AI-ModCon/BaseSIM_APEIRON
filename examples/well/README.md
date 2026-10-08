@@ -219,6 +219,7 @@ better. FLOPs count a run's stream plus its training steps; the three
 | `unet_small` | detect and adapt | 200 | 4, 5, 7 | 0.067 PF | 0.692 | 0.679 | 0.655 | 0.661 | 0.737 | 0.740 | 0.844 | 1.076 | 1.617 | **0.856** |
 | `unet_small` | detect and adapt | 800 | 4, 6 | 0.124 PF | 0.607 | 0.607 | 0.570 | 0.583 | 0.613 | 0.628 | 0.694 | 0.849 | 1.168 | **0.702** |
 | `unet_small` | detect and adapt | 1600 | 4, 7 | 0.215 PF | 0.580 | 0.582 | 0.546 | 0.562 | 0.571 | 0.571 | 0.599 | 0.706 | 0.896 | **0.624** |
+| `unet_small` | detect and adapt | 8500 | 4, 7 | 1.00 PF | 0.453 | 0.462 | 0.441 | 0.428 | 0.439 | 0.451 | 0.482 | 0.628 | 0.777 | **0.507** |
 
 The `unet` row checks the pipeline: The Well's weights scored through this
 example's conversion, normalisation and metric give 0.2405, between the two
@@ -235,17 +236,18 @@ both improve slightly as `tcool` rises. What climbs is the error of a model
 that has not seen those regimes, 1.19 to 7.02 across the untrained row, and
 that climb is what the detector reads.
 
-Two effects as the per-event budget rises. The loss crosses persistence: on no
-regime at 200 steps, on four at 800, on five at 1600 (`tcool` 0.03 through
-0.32). And the detector fires less — three events at 200 steps, two at 800
-and 1600 — because each adaptation flattens the error climb the detector
-reads. Event counts are therefore not comparable across runs; FLOPs are.
+Two effects as the per-event budget rises. The loss crosses persistence: on
+no regime at 200 steps, on four at 800, five at 1600, seven at 8500 — and at
+8500 the mean crosses too, 0.507 against persistence's 0.576. And the
+detector fires less — three events at 200 steps, two at every larger budget —
+because each adaptation flattens the error climb the detector reads. Event
+counts are therefore not comparable across runs; FLOPs are.
 
-The 1600-step run reaches 0.624 at 1/2000th of the published compute. The
-remaining gap to 0.240 is partly training budget and partly `unet_small`
-capacity. The same experiment with `unet` on a GPU is a config change;
-[`perlmutter.sbatch`](perlmutter.sbatch) runs it on NERSC Perlmutter and
-scores the result.
+The 8500-step run beats persistence outright at 1.00 PF, 1/432 of the
+published compute. The remaining gap to 0.240 is partly training budget and
+partly `unet_small` capacity. The same experiment with `unet` on a GPU is a
+config change; [`perlmutter.sbatch`](perlmutter.sbatch) runs it on NERSC
+Perlmutter and scores the result.
 
 ## Adding another Well dataset
 
