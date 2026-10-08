@@ -8,9 +8,9 @@ experiment. If you have not installed Apeiron yet, start with {doc}`installation
 Every experiment is driven by a TOML config file passed to `src/main.py`:
 
 ```bash
-poetry run python -m src.main --config examples/mnist/mnist.toml
-poetry run python -m src.main --config examples/cifar/cifar10_vit.toml
-poetry run python -m src.main --config examples/imagenet/imagenet_vit.toml  # needs ImageNet at data.path
+uv run python -m src.main --config examples/mnist/mnist.toml
+uv run python -m src.main --config examples/cifar/cifar10_vit.toml
+uv run python -m src.main --config examples/imagenet/imagenet_vit.toml  # needs ImageNet at data.path
 ```
 
 MNIST is the fastest way to see the whole loop: the harness applies a random
@@ -47,7 +47,7 @@ Apeiron ships two metrics backends, Weights & Biases and MLflow, selected with
 output is unaffected).
 
 ```bash
-poetry run python -m src.main \
+uv run python -m src.main \
   --config examples/mnist/mnist.toml \
   --set logging.backend=mlflow \
   --set logging.experiment_name="My Experiment"
@@ -66,7 +66,7 @@ Values resolve in this order, later winning over earlier:
 3. Repeated `--set key=value` CLI flags
 
 ```bash
-poetry run python -m src.main \
+uv run python -m src.main \
   --config examples/mnist/mnist.toml \
   --set drift_detection.detector_name=\"KSWINDetector\" \
   --set train.max_iter=200

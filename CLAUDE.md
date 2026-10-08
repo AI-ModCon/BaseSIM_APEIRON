@@ -6,19 +6,19 @@ A PyTorch continuous learning framework for real-time concept drift detection an
 
 ### Running experiments
 ```bash
-poetry run python -m src.main --config <path_to_toml>
+uv run python -m src.main --config <path_to_toml>
 ```
 
 ### Running tests
 ```bash
-poetry run pytest
+uv run pytest
 ```
 
 ### Linting and type checks
 ```bash
-poetry run ruff check .
-poetry run ruff format --check .
-poetry run mypy .
+uv run ruff check .
+uv run ruff format --check .
+uv run mypy .
 ```
 
 ## Architecture
@@ -30,7 +30,7 @@ The installable package lives under `src/apeiron/` (imported as `apeiron`; see `
 
 ### Core Pipeline
 1. **Config** (`src/apeiron/config/configuration.py`): TOML-based config parsed into frozen dataclasses (`Config`, `ModelCfg`, `DataCfg`, `TrainCfg`, `ContinualLearningCfg`, `DriftDetectionCfg`, `LoggingCfg`). Supports `--set key=val` CLI overrides and `APP_` env var overrides.
-2. **Model Harness** (`src/apeiron/model/torch_model_harness.py`): Abstract `BaseModelHarness` providing `get_stream_dataloader()`, `get_train_dataloaders()`, `get_hist_dataloaders()`, `update_data_stream()`, `get_criterion()`, `get_optmizer()`, and `eval_metrics` dict. Also keeps a per-task registry for transfer metrics -- `register_task()`, `eval_past_tasks()`, `task_diagonals` -- which subclasses inherit unchanged (see `docs/tracking.md` "Transfer Metrics").
+2. **Model Harness** (`src/apeiron/model/torch_model_harness.py`): Abstract `BaseModelHarness` providing `get_stream_dataloader()`, `get_train_dataloaders()`, `get_hist_dataloaders()`, `update_data_stream()`, `get_criterion()`, `get_optimizer()`, and `eval_metrics` dict. Also keeps a per-task registry for transfer metrics -- `register_task()`, `eval_past_tasks()`, `task_diagonals` -- which subclasses inherit unchanged (see `docs/tracking.md` "Transfer Metrics").
 3. **Driver** (`src/apeiron/driver/continuous_monitor.py`): `ContinuousMonitor` orchestrates the monitoring loop -- evaluates batches, checks drift at intervals, dispatches CL training on drift.
 4. **Drift Detection** (`src/apeiron/drift_detection/`): `BaseDriftDetector` ABC with `update(value) -> DriftSignal`. Implementations: ADWINDetector, KSWINDetector, PageHinkleyDetector, ModelPerformanceDetector, ModelEvalDetector, EnsembleDetector.
 5. **Training** (`src/apeiron/training/continuous_trainer.py`): `ContinuousTrainer` runs outer/inner CL loops with gradient accumulation.
@@ -90,4 +90,4 @@ loss). `none` skips training entirely.
 - Frozen dataclasses for config
 - ABC pattern for extension points (BaseModelHarness, BaseDriftDetector, BaseUpdater)
 - Factory functions for dynamic loading (get_example, create_updater, load_drift_detector)
-- Poetry for dependency management
+- uv for dependency management (`uv sync`; run `uv lock` after changing dependencies)

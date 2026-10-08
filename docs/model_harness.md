@@ -10,12 +10,20 @@ Required methods:
 
 | Method | Return | Purpose |
 | --- | --- | --- |
-| `get_optmizer()` | `torch.optim.Optimizer` | Returns optimizer used by continual learning loops. |
+| `get_optimizer()` | `torch.optim.Optimizer` | Returns optimizer used by continual learning loops. |
 | `update_data_stream()` | `None` | Advances stream state and rebuilds current loaders. |
 | `get_stream_dataloader()` | `data_loader` | Returns the loader for the current stream of data. |
 | `get_train_dataloaders()` | `(train_loader, val_loader)` | Returns loaders for the current drift state. |
 | `get_hist_dataloaders()` | `(hist_train_loader, hist_val_loader)` or `(None, None)` | Returns historical replay loaders used by CL methods. |
 | `get_criterion()` | callable loss fn | Returns criterion compatible with model output/labels. |
+
+```{deprecated} 0.1.0
+Earlier versions spelled the optimizer hook `get_optmizer()`. That name still
+works: a harness that implements `get_optmizer()` is bridged onto
+`get_optimizer()` automatically and raises a `DeprecationWarning` at class
+definition. Rename the method to `get_optimizer()` — the misspelled alias will
+be removed in a future release.
+```
 
 Important inherited behavior:
 
@@ -251,7 +259,7 @@ which refers to the first metric in `eval_metrics`.
 ### Optimizer
 
 ```python
-def get_optmizer(self):
+def get_optimizer(self):
     return torch.optim.Adam(
         self.model.parameters(),
         lr=self.cfg.train.init_lr,
@@ -393,7 +401,7 @@ Create:
 examples/<example_name>/<example_name>.toml
 ```
 
-Requirested and optional parameters are described in [configurations.md](configurations.md).
+Required and optional parameters are described in [configurations.md](configurations.md).
 
 Only keys defined in `configuration.py` are allowed. Custom dataset-specific parameters should be implemented inside the harness or utility code unless the configuration dataclasses are extended.
 
@@ -408,7 +416,7 @@ python -c "import tomllib; tomllib.load(open('examples/mydataset/mydataset.toml'
 Validate factory registration:
 
 ```bash
-poetry run python -c "from examples.utils import get_example; print('factory OK')"
+uv run python -c "from examples.utils import get_example; print('factory OK')"
 ```
 
 ## Step 8: Run a Smoke Test
@@ -416,7 +424,7 @@ poetry run python -c "from examples.utils import get_example; print('factory OK'
 Before running a full experiment, execute a small CPU-only test:
 
 ```bash
-poetry run python -m src.main \
+uv run python -m src.main \
   --config examples/mydataset/mydataset.toml \
   --set train.max_iter=2 \
   --set drift_detection.max_stream_updates=2 \

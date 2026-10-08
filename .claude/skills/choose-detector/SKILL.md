@@ -174,7 +174,7 @@ Build the config and instantiate the detector — this confirms the TOML parses,
 the dataclass validates, and the detector name + params are accepted, without a
 training run:
 ```bash
-PYTHONPATH=src poetry run python -c "
+PYTHONPATH=src uv run python -c "
 from apeiron.config.configuration import build_config
 from apeiron.drift_detection.load_drift_detector import load_drift_detector
 cfg = build_config(['--config', '<config_path>'])
@@ -202,7 +202,7 @@ detection behavior, hand off to `explore-examples` or `custom-experiment`.
 
 ## Notes
 - Quick way to A/B a detector on a shipped example without editing files:
-  `poetry run python -m src.main --config examples/mnist/mnist.toml --set drift_detection.detector_name=PageHinkleyDetector --set drift_detection.ph_threshold=5`
+  `uv run python -m src.main --config examples/mnist/mnist.toml --set drift_detection.detector_name=PageHinkleyDetector --set drift_detection.ph_threshold=5`
 - `--set` values go through `json.loads`, so a list needs JSON syntax and shell
   quoting: `--set 'drift_detection.ensemble_detectors=["ADWINDetector","KSWINDetector"]'`
 - Precedence when sources disagree: the code in

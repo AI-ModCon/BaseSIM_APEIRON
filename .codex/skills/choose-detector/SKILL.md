@@ -141,7 +141,7 @@ Build the config and instantiate the detector to confirm the TOML parses and the
 detector accepts the params:
 
 ```bash
-PYTHONPATH=src poetry run python -c "
+PYTHONPATH=src uv run python -c "
 from apeiron.config.configuration import build_config
 from apeiron.drift_detection.load_drift_detector import load_drift_detector
 cfg = build_config(['--config', '<config_path>'])
@@ -168,7 +168,7 @@ detector, the reason, the non-default settings, and that the config loaded.
 A/B a detector on a shipped example without editing files:
 
 ```bash
-poetry run python -m src.main --config examples/mnist/mnist.toml \
+uv run python -m src.main --config examples/mnist/mnist.toml \
   --set drift_detection.detector_name=PageHinkleyDetector \
   --set drift_detection.ph_threshold=5
 ```

@@ -44,7 +44,7 @@ cat examples/mnist/utils.py                       # data-loading + drift-sim pat
 cat examples/utils.py                             # get_example() factory to extend
 grep -nA6 "class .*Cfg" src/apeiron/config/configuration.py  # config fields
 ```
-Implement exactly the `@abstractmethod`s the ABC declares (currently includes `get_optmizer` — note that spelling — `update_data_stream`, `get_stream_dataloader`, `get_hist_dataloaders`, `get_train_dataloaders`, `get_criterion`). Set `self.eval_metrics` with at least an `accuracy` entry from `apeiron.evaluation.metrics`.
+Implement exactly the `@abstractmethod`s the ABC declares (currently includes `get_optimizer`, `update_data_stream`, `get_stream_dataloader`, `get_hist_dataloaders`, `get_train_dataloaders`, `get_criterion`). Set `self.eval_metrics` with at least an `accuracy` entry from `apeiron.evaluation.metrics`.
 
 ### 3. Scaffold the files
 - `examples/$1/__init__.py` — empty.
@@ -63,14 +63,14 @@ elif cfg.data.name == "$1":
 ### 5. Validate
 ```bash
 python -c "import tomllib; tomllib.load(open('$2','rb')); print('TOML OK')"
-poetry run python -c "from examples.utils import get_example; print('factory OK')"
+uv run python -c "from examples.utils import get_example; print('factory OK')"
 ```
 If `pretrained_path` is set, confirm the file exists; warn if missing (run will train from scratch).
 
 ### 6. Smoke-test before the full run
 Run a tiny, fast pass to catch wiring errors cheaply, then **confirm with the user** before the real run:
 ```bash
-poetry run python -m src.main --config $2 \
+uv run python -m src.main --config $2 \
   --set train.max_iter=2 \
   --set drift_detection.max_stream_updates=2 \
   --set drift_detection.detection_interval=1 \
@@ -81,7 +81,7 @@ If it fails, read the traceback, fix the harness/config, and re-run the smoke te
 
 ### 7. Full run and report
 ```bash
-poetry run python -m src.main --config $2
+uv run python -m src.main --config $2
 ```
 Report drift events, final accuracy, and the output CSV path (the config's `visualization.input`). Note the package emits this CSV for inspection; it does not ship a built-in dashboard renderer.
 

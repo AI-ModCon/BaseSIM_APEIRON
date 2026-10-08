@@ -8,7 +8,7 @@ learning → resumed monitoring.
 All examples run through the same entry point:
 
 ```bash
-poetry run python -m src.main --config <path_to_toml>
+uv run python -m src.main --config <path_to_toml>
 ```
 
 ## Available Examples
@@ -28,7 +28,7 @@ An example becomes runnable through three pieces:
 
 1. **`examples/<name>/model.py`** — subclasses `BaseModelHarness` and implements
    `get_stream_dataloader()`, `get_train_dataloaders()`, `get_hist_dataloaders()`,
-   `update_data_stream()`, `get_criterion()`, `get_optmizer()`, plus the
+   `update_data_stream()`, `get_criterion()`, `get_optimizer()`, plus the
    `eval_metrics` / `higher_is_better` dicts.
 2. **`examples/<name>/*.toml`** — the config. The `[data] name` field is the key
    the factory dispatches on.
@@ -82,19 +82,19 @@ lot of ground:
 
 ```bash
 # Swap the CL strategy
-poetry run python -m src.main --config examples/mnist/mnist.toml \
+uv run python -m src.main --config examples/mnist/mnist.toml \
   --set continual_learning.update_mode=\"ewc_online\"
 
 # Swap the detector
-poetry run python -m src.main --config examples/mnist/mnist.toml \
+uv run python -m src.main --config examples/mnist/mnist.toml \
   --set drift_detection.detector_name=\"KSWINDetector\"
 
 # Shorten a run while iterating
-poetry run python -m src.main --config examples/mnist/mnist.toml \
+uv run python -m src.main --config examples/mnist/mnist.toml \
   --set train.max_iter=20 --set drift_detection.max_stream_updates=3
 
 # Turn off experiment tracking
-poetry run python -m src.main --config examples/mnist/mnist.toml \
+uv run python -m src.main --config examples/mnist/mnist.toml \
   --set logging.backend=\"none\"
 ```
 

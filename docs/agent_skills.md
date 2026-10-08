@@ -41,7 +41,7 @@ flowchart TD
   for a self-contained Apeiron run; use `integrate-apeiron` when you already have
   a PyTorch / Lightning / HF Trainer loop and want to bolt drift detection onto it.
 - **`install-apeiron`** is only for adding Apeiron to a *separate* project.
-  Developing inside this repo is just `poetry install`.
+  Developing inside this repo is just `uv sync`.
 - **`choose-detector`** stops at a validated config block — it does not run an
   experiment.
 

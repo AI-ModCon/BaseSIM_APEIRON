@@ -120,7 +120,7 @@ class IMAGENET_VISION(BaseModelHarness):
             self._cur_val_loader = None
         gc.collect()
 
-    def get_optmizer(self) -> Optimizer:
+    def get_optimizer(self) -> Optimizer:
         return torch.optim.Adam(self.model.parameters(), lr=self.cfg.train.init_lr)
 
     def get_stream_dataloader(self):

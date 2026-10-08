@@ -61,3 +61,43 @@ class TestHarnessAbstract:
     def test_cannot_instantiate_base(self):
         with pytest.raises(TypeError):
             BaseModelHarness(cfg=None, model=None)  # type: ignore[arg-type]
+
+
+class TestGetOptimizerDeprecation:
+    """The misspelled `get_optmizer` hook is deprecated but must keep working."""
+
+    def test_legacy_subclass_is_bridged_and_warns(self, default_cfg, tiny_model):
+        """A harness implementing only `get_optmizer` still satisfies the ABC."""
+        with pytest.warns(DeprecationWarning, match="get_optmizer"):
+
+            class LegacyHarness(BaseModelHarness):
+                def get_optmizer(self):
+                    return "sentinel-optimizer"
+
+                def update_data_stream(self):
+                    pass
+
+                def get_stream_dataloader(self):
+                    raise NotImplementedError
+
+                def get_hist_dataloaders(self):
+                    raise NotImplementedError
+
+                def get_criterion(self):
+                    raise NotImplementedError
+
+        harness = LegacyHarness(default_cfg, tiny_model)
+        # The framework only calls get_optimizer(); it must reach the legacy impl.
+        assert harness.get_optimizer() == "sentinel-optimizer"
+        assert harness.get_optmizer() == "sentinel-optimizer"
+
+    def test_new_subclass_does_not_warn(self, recwarn, dummy_harness):
+        """The in-repo harnesses use the new spelling and must stay silent."""
+        assert dummy_harness.get_optimizer() is not None
+        assert not [w for w in recwarn if issubclass(w.category, DeprecationWarning)]
+
+    def test_old_name_still_callable_on_new_subclass(self, dummy_harness):
+        """External callers using the old name get a warning but a working result."""
+        with pytest.warns(DeprecationWarning, match="get_optmizer"):
+            legacy_call = dummy_harness.get_optmizer()
+        assert type(legacy_call) is type(dummy_harness.get_optimizer())
