@@ -22,9 +22,15 @@
 #
 #   sbatch -A <account> examples/well/perlmutter.sbatch
 #
-# The first run downloads the regimes into ./data/well, one at a time
-# (~6 GB for train+valid, ~0.7 GB more for test when scoring starts). To use
-# an existing copy of The Well instead, export WELL_DATA before submitting:
+# Compute nodes have no internet access, so fetch everything on the login
+# node first. The prefetch lists the regimes (cached to regimes.json),
+# fetches the statistics, and converts every split into ./data/well (~7 GB):
+#
+#   python -m examples.well.datasets --config examples/well/well_trl2d.toml
+#
+# After that, a run touches the network for nothing. To use an existing copy
+# of The Well instead, export WELL_DATA before submitting; nothing is
+# downloaded or deleted from it:
 #
 #   WELL_DATA=/pscratch/.../the_well/datasets sbatch -A <account> ...
 #

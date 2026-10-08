@@ -265,8 +265,18 @@ class RegimeCache:
         return Path(self.source) / self.spec.name / subpath
 
     def regimes(self) -> List[str]:
-        """Regime names in physical order, without downloading anything."""
+        """Regime names in physical order, without downloading anything.
+
+        A remote listing is written to ``regimes.json`` beside the arrays and
+        read back in preference to the network, so after one listing -- or a
+        prefetch -- a run needs no internet access at all.
+        """
+        manifest = self.root / "regimes.json"
         if self.source.startswith("hf://"):
+            if manifest.is_file():
+                cached = [str(name) for name in json.loads(manifest.read_text())]
+                if cached:
+                    return cached
             owner = self.source[len("hf://") :].removeprefix("datasets/")
             url = (
                 f"{HF_HOST}/api/datasets/{owner}/{self.spec.name}/tree/main/data/train"
@@ -283,6 +293,9 @@ class RegimeCache:
         if not names:
             where = self.source if self.remote else self._local("data/train")
             raise FileNotFoundError(f"no {self.spec.name} HDF5 files under {where}")
+        if self.source.startswith("hf://"):
+            manifest.parent.mkdir(parents=True, exist_ok=True)
+            manifest.write_text(json.dumps(names))
         return names
 
     def _source_file(self, subpath: str) -> Path:
@@ -327,3 +340,47 @@ class RegimeCache:
                 value = stats[key][field]
                 target.append(float(value if component is None else value[component]))
         return np.asarray(mean, dtype="float32"), np.asarray(std, dtype="float32")
+
+
+def main(argv: Optional[List[str]] = None) -> int:
+    """Fetch and convert a whole dataset, so a later run needs no network.
+
+    For machines whose compute nodes have no internet access: run this on a
+    login node, then submit. It lists the regimes (cached to ``regimes.json``),
+    fetches the statistics, and fetches-and-converts every regime of every
+    requested split::
+
+        python -m examples.well.datasets --config examples/well/well_trl2d.toml
+    """
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Prefetch a Well dataset")
+    parser.add_argument("--config", required=True, help="the run's TOML")
+    parser.add_argument(
+        "--splits",
+        default="train,valid,test",
+        help="comma-separated splits to fetch (default: train,valid,test)",
+    )
+    # Unrecognised arguments (--set key=val) pass through to build_config.
+    args, overrides = parser.parse_known_args(argv)
+
+    from apeiron.config.configuration import build_config
+
+    cfg = build_config(["--config", args.config, *overrides])
+    spec = get_dataset(cfg.data.name.split(":", 1)[1])
+    cache = RegimeCache(spec, cfg.data.path)
+
+    names = cache.regimes()
+    cache.statistics()
+    splits = [split.strip() for split in args.splits.split(",") if split.strip()]
+    for split in splits:
+        for regime in names:
+            print(f"{split}/{regime} -> {cache.array(split, regime)}", flush=True)
+    print(f"{len(names)} regimes x {splits} ready under {cache.root}")
+    return 0
+
+
+if __name__ == "__main__":
+    import sys
+
+    sys.exit(main())

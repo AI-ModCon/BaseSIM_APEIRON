@@ -6,6 +6,8 @@ so nothing downloads and nothing depends on the ~0.6 GB regime files.
 
 from __future__ import annotations
 
+import io
+import json
 from pathlib import Path
 from unittest.mock import patch
 
@@ -382,6 +384,63 @@ class TestUNet:
 # ---------------------------------------------------------------------------
 # the dataset
 # ---------------------------------------------------------------------------
+
+
+class TestOfflineUse:
+    def test_a_remote_listing_is_cached_and_reused_without_network(self, tmp_path):
+        """After one listing (or a prefetch), regimes() reads regimes.json and
+        never touches the network -- which is what lets a run start on a
+        compute node that has no internet access."""
+        cache = RegimeCache(MINI, "hf://datasets/polymathic-ai", root=tmp_path / "c")
+        listing = [
+            {"path": "data/train/mini_tcool_1.00.hdf5"},
+            {"path": "data/train/mini_tcool_0.30.hdf5"},
+            {"path": "data/train/README.md"},
+        ]
+        response = io.BytesIO(json.dumps(listing).encode())
+        with patch.object(
+            well_datasets.urllib.request, "urlopen", return_value=response
+        ) as opened:
+            first = cache.regimes()
+        assert opened.call_count == 1
+        assert first == ["mini_tcool_0.30", "mini_tcool_1.00"]
+        assert (tmp_path / "c" / "regimes.json").is_file()
+
+        def no_network(*args, **kwargs):
+            raise AssertionError("regimes() touched the network")
+
+        with patch.object(well_datasets.urllib.request, "urlopen", no_network):
+            assert cache.regimes() == first
+
+    def test_prefetch_converts_every_requested_split(
+        self, registered, mini_dataset, tmp_path, capsys
+    ):
+        config = tmp_path / "mini.toml"
+        config.write_text(
+            "seed = 3\n"
+            'device = "cpu"\n'
+            "[model]\n"
+            'name = "unet_small"\n'
+            "[data]\n"
+            'name = "well:mini"\n'
+            f'path = "{mini_dataset}"\n'
+            "batch_size = 2\n"
+            "[train]\n"
+            "batch_size = 2\n"
+            "num_workers = 0\n"
+            "init_lr = 1e-3\n"
+            "[drift_detection]\n"
+            'detector_name = "PageHinkleyDetector"\n'
+        )
+        with patch.object(well_datasets, "CACHE_ROOT", tmp_path / "root"):
+            assert (
+                well_datasets.main(["--config", str(config), "--splits", "train,valid"])
+                == 0
+            )
+        for split in ("train", "valid"):
+            for regime in ("mini_tcool_0.30", "mini_tcool_1.00"):
+                assert (tmp_path / "root" / "mini" / split / f"{regime}.npy").is_file()
+        assert "2 regimes" in capsys.readouterr().out
 
 
 class TestRegimeDataset:

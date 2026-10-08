@@ -45,6 +45,14 @@ poetry run python -m src.main --config examples/well/well_trl2d.toml \
     --set data.path=/scratch/the_well/datasets
 ```
 
+On a machine whose compute nodes have no internet access, prefetch on a login
+node; afterwards a run touches the network for nothing — the regime list, the
+statistics and every array are read from `./data/well`:
+
+```bash
+poetry run python -m examples.well.datasets --config examples/well/well_trl2d.toml
+```
+
 ## Training overview
 
 The run streams nine windows, one regime per window in `tcool` order, 194
