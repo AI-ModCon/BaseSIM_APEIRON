@@ -25,6 +25,7 @@ from apeiron.config.configuration import (
 )
 from examples.well import datasets as well_datasets
 from examples.well import evaluate
+from examples.well import plot
 from examples.well.datasets import (
     CONVERSION_RECIPE,
     RECIPE_SUFFIX,
@@ -823,3 +824,27 @@ class TestEvaluate:
         header, *body = out_csv.read_text().splitlines()
         assert header.startswith("model,mini_tcool_0.30,mini_tcool_1.00,mean")
         assert len(body) == 2
+
+
+class TestPlot:
+    def test_parse_metrics_recovers_trace_and_firing_batches(self, tmp_path):
+        """A firing's logger step falls between eval steps; its batch index is
+        where that step inserts into the eval sequence."""
+        rows = [
+            ("step", "metric", "value"),
+            (1, "eval/vrmse", 1.0),
+            (2, "eval/vrmse", 1.1),
+            (3, "drift/detected", 0),
+            (4, "eval/vrmse", 1.2),
+            (5, "drift/detected", 1),
+            (6, "eval/vrmse", 2.0),
+            (7, "eval/mse", 9.9),
+            (8, "drift/detected", 1),
+        ]
+        path = tmp_path / "metrics.csv"
+        path.write_text("\n".join(",".join(str(c) for c in r) for r in rows))
+
+        trace, fires = plot.parse_metrics(path)
+        assert trace == [1.0, 1.1, 1.2, 2.0]
+        # First fire lands after the third eval batch, second after the fourth.
+        assert fires == [3, 4]

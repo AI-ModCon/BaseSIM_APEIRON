@@ -133,6 +133,20 @@ per-batch scatter within a regime exceeds the step between neighbouring
 regimes, so adaptive windowing finds no split. See
 [`docs/choosing_a_detector.md`](../../docs/choosing_a_detector.md).
 
+The trace the detector watched, from the shipped run — per-batch VRMSE, its
+20-batch mean (the detector sees one mean per detection interval), regime
+boundaries labelled by `tcool`, and the three firings. Each firing is followed
+by a drop: the adaptation it triggered lowers the error on the regime that
+fired it.
+
+![Per-batch VRMSE across the stream, with regime boundaries and the three drift events](figures/drift_detection.png)
+
+To regenerate from a run's metrics CSV:
+
+```bash
+poetry run python -m examples.well.plot     --config examples/well/well_trl2d.toml --metrics output/well_trl2d.csv
+```
+
 The schedule comparison. Every arm is `unet_small` trained for three 200-step
 rounds; each row is that arm's final checkpoint. Columns are `tcool` regimes;
 cells are VRMSE on the test split, lower is better:
@@ -281,6 +295,7 @@ Nothing else in the example is dataset-specific. The harness reads the row.
 | `model.py` | The harness: one regime per window, VRMSE, replay of earlier regimes |
 | `unet.py` | The Well's U-Net baseline, vendored (BSD-3) |
 | `evaluate.py` | Scores a run's checkpoints against the test split |
+| `plot.py` | Plots a run's stream VRMSE, regime boundaries, and drift events |
 | `well_trl2d.toml` | The config |
 
 ## Citation
