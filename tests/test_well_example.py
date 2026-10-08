@@ -826,6 +826,50 @@ class TestEvaluate:
         assert len(body) == 2
 
 
+class TestEvaluateOverrides:
+    def test_set_overrides_reach_the_config(
+        self, registered, mini_dataset, tmp_path, capsys
+    ):
+        """--set passes through to build_config, so a job script can retarget
+        the config without editing the TOML."""
+        config = tmp_path / "mini.toml"
+        config.write_text(
+            "seed = 3\n"
+            'device = "cpu"\n'
+            "[model]\n"
+            'name = "unet_small"\n'
+            "[data]\n"
+            'name = "well:mini"\n'
+            f'path = "{mini_dataset}"\n'
+            "batch_size = 2\n"
+            "[train]\n"
+            "batch_size = 2\n"
+            "num_workers = 0\n"
+            "init_lr = 1e-3\n"
+            "[drift_detection]\n"
+            'detector_name = "PageHinkleyDetector"\n'
+        )
+        with (
+            patch.dict(well_datasets.REGISTRY, {MINI.name: MINI}),
+            patch.dict(evaluate.UNET_WIDTHS, {"unet": 4}),
+        ):
+            assert (
+                evaluate.main(
+                    [
+                        "--config",
+                        str(config),
+                        "--baselines",
+                        "--set",
+                        "model.name=unet",
+                    ]
+                )
+                == 0
+            )
+        # The TOML says unet_small; the banner reporting unet proves the
+        # override reached build_config.
+        assert "init_features=4 (unet)" in capsys.readouterr().out
+
+
 class TestPlot:
     def test_parse_metrics_recovers_trace_and_firing_batches(self, tmp_path):
         """A firing's logger step falls between eval steps; its batch index is

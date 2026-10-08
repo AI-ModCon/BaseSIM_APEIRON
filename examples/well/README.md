@@ -235,7 +235,9 @@ reads. Event counts are therefore not comparable across runs; FLOPs are.
 
 The 1600-step run reaches 0.624 at 1/2000th of the published compute. The
 remaining gap to 0.240 is partly training budget and partly `unet_small`
-capacity. The same experiment with `unet` on a GPU is a config change.
+capacity. The same experiment with `unet` on a GPU is a config change;
+[`perlmutter.sbatch`](perlmutter.sbatch) runs it on NERSC Perlmutter and
+scores the result.
 
 ## Adding another Well dataset
 
@@ -296,6 +298,7 @@ Nothing else in the example is dataset-specific. The harness reads the row.
 | `unet.py` | The Well's U-Net baseline, vendored (BSD-3) |
 | `evaluate.py` | Scores a run's checkpoints against the test split |
 | `plot.py` | Plots a run's stream VRMSE, regime boundaries, and drift events |
+| `perlmutter.sbatch` | Runs the `unet` experiment on NERSC Perlmutter and scores it |
 | `well_trl2d.toml` | The config |
 
 ## Citation

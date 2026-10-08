@@ -189,9 +189,11 @@ def main(argv: Optional[List[str]] = None) -> int:
     )
     parser.add_argument("--cap", type=int, help="samples per regime (default: all)")
     parser.add_argument("--out", help="write the matrix to this CSV")
-    args = parser.parse_args(argv)
+    # Unrecognised arguments (--set key=val) pass through to build_config,
+    # so a job script can retarget the config: --set model.name=unet.
+    args, overrides = parser.parse_known_args(argv)
 
-    cfg: Config = build_config(["--config", args.config])
+    cfg: Config = build_config(["--config", args.config, *overrides])
     spec = get_dataset(cfg.data.name.split(":", 1)[1])
     cache = RegimeCache(spec, cfg.data.path)
     regimes = cache.regimes()

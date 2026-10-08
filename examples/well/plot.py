@@ -78,9 +78,11 @@ def main(argv: Optional[List[str]] = None) -> int:
         default="examples/well/figures/drift_detection.png",
         help="output image path",
     )
-    args = parser.parse_args(argv)
+    # Unrecognised arguments (--set key=val) pass through to build_config,
+    # so a job script can retarget the config: --set model.name=unet.
+    args, overrides = parser.parse_known_args(argv)
 
-    cfg: Config = build_config(["--config", args.config])
+    cfg: Config = build_config(["--config", args.config, *overrides])
     metrics = Path(
         args.metrics or (cfg.logging.metrics_output_path if cfg.logging else None) or ""
     )
