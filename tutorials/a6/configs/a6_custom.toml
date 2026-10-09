@@ -1,0 +1,53 @@
+# A6 Lab 4 config: the drifting-regression harness template (or your own harness).
+# Run from the Apeiron repo root:
+#   python tutorials/a6/scripts/a6_run.py --config tutorials/a6/configs/a6_custom.toml \
+#       --harness tutorials/a6/scripts/harness_template.py:DriftingRegressionHarness
+seed = 7
+device = "cpu"
+verbosity = "INFO"
+
+[model]
+name = "drifting-regression"
+pretrained_path = ""     # point this at your checkpoint if build_model() loads one
+max_ckpts = 3            # keep the last 3 adapted models under ckpts_path
+ckpts_path = "output/a6/custom_ckpts/"
+
+[data]
+name = "drifting-regression"   # informational; a6_run.py uses --harness instead
+path = ""
+batch_size = 64                # stream batch size
+
+[train]
+batch_size = 128
+num_workers = 0
+init_lr = 0.001
+max_iter = 150
+grad_accumulation_steps = 1
+
+[continual_learning]
+update_mode = "ewc_online"
+mix_historic_data = true
+ewc_lambda = 100.0
+ewc_ema_decay = 0.95
+
+[drift_detection]
+detector_name = "ADWINDetector"
+detection_interval = 2         # 2048 stream samples / 64 per batch = 32 batches -> 16 checks per window
+aggregation = "mean"
+metric_index = 0               # 0 = mae (first entry of eval_metrics)
+reset_after_learning = true
+max_stream_updates = 10
+adwin_delta = 0.002
+adwin_minor_threshold = 0.3
+adwin_moderate_threshold = 0.6
+# If you switch detectors, rescale thresholds to your metric: Page-Hinkley's default
+# threshold (50) suits accuracy in percent, not an MAE around 0.1.
+ph_threshold = 1.0
+ph_delta = 0.005
+kswin_window_size = 60
+kswin_stat_size = 20
+
+[logging]
+backend = "none"
+experiment_name = "a6-custom"
+metrics_output_path = "output/a6/custom.csv"
