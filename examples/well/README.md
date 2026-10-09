@@ -247,7 +247,8 @@ The 8500-step run beats persistence outright at 1.00 PF, 1/432 of the
 published compute. The remaining gap to 0.240 is partly training budget and
 partly `unet_small` capacity. The same experiment with `unet` on a GPU is a
 config change; [`perlmutter.sbatch`](perlmutter.sbatch) runs it on NERSC
-Perlmutter and scores the result.
+Perlmutter and [`frontier.sbatch`](frontier.sbatch) on OLCF Frontier, and
+both score the result.
 
 ## Adding another Well dataset
 
@@ -309,6 +310,7 @@ Nothing else in the example is dataset-specific. The harness reads the row.
 | `evaluate.py` | Scores a run's checkpoints against the test split |
 | `plot.py` | Plots a run's stream VRMSE, regime boundaries, and drift events |
 | `perlmutter.sbatch` | Runs the `unet` experiment on NERSC Perlmutter and scores it |
+| `frontier.sbatch` | The same experiment on OLCF Frontier (one MI250X GCD) |
 | `well_trl2d.toml` | The config |
 
 ## Citation
