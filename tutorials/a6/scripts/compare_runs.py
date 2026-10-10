@@ -25,7 +25,7 @@ from pathlib import Path
 import pandas as pd
 
 
-def max_eval_len(by: dict) -> int:
+def max_eval_len(by: dict[str, pd.Series]) -> int:
     return max(
         (len(v) for k, v in by.items() if k.startswith("eval/") and k != "eval/step"),
         default=0,
@@ -36,7 +36,10 @@ def summarize(csv: Path) -> dict:
     df = pd.read_csv(csv)
     df["value"] = pd.to_numeric(df["value"], errors="coerce")
     df = df.dropna(subset=["value"])
-    by = {m: g.sort_values("step")["value"] for m, g in df.groupby("metric")}
+    # Metric names are strings; str() tells the type checker so (groupby keys are typed loosely).
+    by: dict[str, pd.Series] = {
+        str(m): g.sort_values("step")["value"] for m, g in df.groupby("metric")
+    }
 
     watched = sorted(m for m in by if re.fullmatch(r"drift/metric_\d+", m))
     row: dict = {"run": csv.stem}
@@ -46,7 +49,7 @@ def summarize(csv: Path) -> dict:
         n_batches = max_eval_len(by)
         per_batch = [
             m  # first-appearance order matches the harness's eval_metrics order
-            for m in dict.fromkeys(df.metric)
+            for m in dict.fromkeys(str(x) for x in df.metric)
             if m.startswith("eval/") and m != "eval/step" and len(by[m]) == n_batches
         ]
         idx = int(watched[0].rsplit("_", 1)[1])

@@ -129,7 +129,9 @@ class DriftingRegressionHarness(BaseModelHarness):
     def get_hist_dataloaders(self) -> Tuple[Optional[DataLoader], Optional[DataLoader]]:
         if not self._history:
             return None, None
-        ds = ConcatDataset([TensorDataset(x, y) for x, y in self._history])
+        ds: ConcatDataset[tuple[torch.Tensor, ...]] = ConcatDataset(
+            [TensorDataset(x, y) for x, y in self._history]
+        )
         n_val = min(len(ds), self.N_VAL)
         bs = self.cfg.train.batch_size
         train = DataLoader(
