@@ -7,9 +7,9 @@ Columns
   checks        drift checks performed
   detections    times the detector fired (drift/detected == 1)
   adaptations   continual-learning updates that ran (one per detection in src.main runs)
-  watched       which metric the detector monitored (drift/metric_<metric_index>)
-  stream_mean   mean of the monitored metric over the whole stream  <- the headline number
-  final_mean    mean of the monitored metric over the final 20% of drift checks
+  watched       the metric the detector monitored ([drift_detection] metric_index)
+  stream_mean   mean per-batch score of that metric over the whole stream  <- the headline number
+  final_mean    the same over the final 20% of the stream
   hist_acc      mean score on replayed past windows after each update (retention)
   fwt           mean gain on the current window from each update (post - pre)
   bwt           backward transfer at the last update (negative accuracy = forgetting)
@@ -25,6 +25,13 @@ from pathlib import Path
 import pandas as pd
 
 
+def max_eval_len(by: dict) -> int:
+    return max(
+        (len(v) for k, v in by.items() if k.startswith("eval/") and k != "eval/step"),
+        default=0,
+    )
+
+
 def summarize(csv: Path) -> dict:
     df = pd.read_csv(csv)
     df["value"] = pd.to_numeric(df["value"], errors="coerce")
@@ -34,10 +41,20 @@ def summarize(csv: Path) -> dict:
     watched = sorted(m for m in by if re.fullmatch(r"drift/metric_\d+", m))
     row: dict = {"run": csv.stem}
     if watched:
-        w = by[watched[0]]
+        # Average the watched metric's per-batch scores, so every run type compares fairly
+        # (detector runs check every few batches; scheduled runs once per window).
+        n_batches = max_eval_len(by)
+        per_batch = [
+            m  # first-appearance order matches the harness's eval_metrics order
+            for m in dict.fromkeys(df.metric)
+            if m.startswith("eval/") and m != "eval/step" and len(by[m]) == n_batches
+        ]
+        idx = int(watched[0].rsplit("_", 1)[1])
+        name = per_batch[idx] if idx < len(per_batch) else watched[0]
+        w = by[name]
         tail = w.iloc[int(len(w) * 0.8) :] if len(w) >= 5 else w
-        row["watched"] = watched[0].split("/")[-1]
-        row["checks"] = len(w)
+        row["watched"] = name.split("/")[-1]
+        row["checks"] = len(by[watched[0]])
         row["stream_mean"] = round(w.mean(), 2)
         row["final_mean"] = round(tail.mean(), 2)
     row["detections"] = int(
@@ -79,6 +96,8 @@ def main() -> None:
         if c in table
     ]
     table = table[order]
+    if "seconds" in table:  # whole seconds; "-" when the run's time was not recorded
+        table["seconds"] = table["seconds"].map(lambda v: "-" if pd.isna(v) else int(v))
     if a.markdown:
         try:
             print(table.to_markdown())

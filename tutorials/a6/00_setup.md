@@ -66,7 +66,7 @@ python -m src.main --config tutorials/a6/configs/a6_mnist.toml \
     --set logging.metrics_output_path=output/a6/smoke.csv
 ```
 
-You should see `==== Starting Continuous Monitoring ====`, a progress bar over the stream batches, and finally `==== Continuous Monitoring Complete ====`. Check that `output/a6/smoke.csv` exists. On a laptop CPU this takes [[MEASURE: smoke test time]].
+You should see `==== Starting Continuous Monitoring ====`, a progress bar over the stream batches, and finally `==== Continuous Monitoring Complete ====`. Check that `output/a6/smoke.csv` exists. It should take well under a minute (an estimate from the lab timings on a desktop Linux machine).
 
 If that works, you are ready. Delete `output/a6/smoke.csv` if you like.
 

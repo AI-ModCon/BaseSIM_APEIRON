@@ -4,7 +4,7 @@
 #       --harness tutorials/a6/scripts/harness_template.py:DriftingRegressionHarness
 seed = 7
 device = "cpu"
-verbosity = "INFO"
+verbosity = "INFO:1"     # INFO:1 also prints each update's before/after score
 
 [model]
 name = "drifting-regression"
@@ -31,7 +31,7 @@ ewc_lambda = 100.0
 ewc_ema_decay = 0.95
 
 [drift_detection]
-detector_name = "ADWINDetector"
+detector_name = "PageHinkleyDetector"   # suits a gradual, noisy error rise; see Lab 4 notes
 detection_interval = 2         # 2048 stream samples / 64 per batch = 32 batches -> 16 checks per window
 aggregation = "mean"
 metric_index = 0               # 0 = mae (first entry of eval_metrics)
@@ -40,10 +40,11 @@ max_stream_updates = 10
 adwin_delta = 0.002
 adwin_minor_threshold = 0.3
 adwin_moderate_threshold = 0.6
-# If you switch detectors, rescale thresholds to your metric: Page-Hinkley's default
-# threshold (50) suits accuracy in percent, not an MAE around 0.1.
-ph_threshold = 1.0
+# Page-Hinkley's threshold is in the units of the watched metric. Its default (50) suits
+# accuracy in percent; for an MAE around 0.1, 0.5 catches each change in this stream.
+ph_threshold = 0.5
 ph_delta = 0.005
+ph_min_instances = 16          # one window's worth of checks before it can fire
 kswin_window_size = 60
 kswin_stat_size = 20
 

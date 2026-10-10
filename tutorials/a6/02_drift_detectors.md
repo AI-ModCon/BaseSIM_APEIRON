@@ -21,7 +21,7 @@ Three practical details that trip people up:
 - **Units.** Page-Hinkley's `ph_threshold` is in the units of your metric. The default of 50 suits accuracy in percent; an MAE around 0.1 needs something closer to 1.
 - **Cadence.** ADWIN (the `river` implementation) only tests for a split every 32 observations. Very few checks per window means slow reactions.
 
-## 1. Run the sweep, detect-only (≈ [[MEASURE: run_lab2.sh total time]])
+## 1. Run the sweep, detect-only (about 5 min on a desktop Linux CPU)
 
 To compare detectors fairly, keep the model frozen so every detector sees the identical stream. `src.drift_only` does exactly that: it monitors and records detections, but never adapts.
 
@@ -48,12 +48,23 @@ python -m src.drift_only --config tutorials/a6/configs/a6_mnist.toml \
     --set logging.metrics_output_path=output/a6/lab2_pagehinkley.csv
 ```
 
-Reference result: [[MEASURE: lab2 summary table from verify report]].
+Reference result (seed 1337). The frozen model's accuracy is about 50% in windows 1–2, jumps to about 82% in window 3, falls to about 72% in windows 4–5, and to about 62% in window 6:
+
+| Run | Detections | What it caught |
+|---|---|---|
+| `lab2_adwin` | 1 | the drop into window 4 |
+| `lab2_adwin_touchy` | 1 | the same: raising `adwin_delta` 50× changed nothing |
+| `lab2_kswin` | 2 | two shifts in the distribution of scores, partway into windows 3 and 5 |
+| `lab2_pagehinkley` | 3 | the *rise* into window 3, and both drops |
+| `lab2_ensemble_any` | 3 | the union of the above |
+| `lab2_ensemble_majority` | 0 | the detectors rarely agree on the same check |
+
+Average accuracy is about 65% in every run: these runs only detect, so the model never improves.
 
 ## 2. Read the results (5 min)
 
 - Which detector fires **first** after the stream starts to degrade? Which fires **most often**?
-- `touchy` vs. default ADWIN: how many extra detections did the more sensitive setting buy, and do they line up with real window changes?
+- `touchy` vs. default ADWIN: a 50× more permissive `adwin_delta` bought nothing. Why? (Hint: this ADWIN only tests for a change every 32 values. How many checks does each window give it?)
 - `any` vs. `majority`: how do the voting rules change the count?
 - For your application, which is worse: a late detection or an unneeded adaptation?
 
@@ -84,6 +95,6 @@ python tutorials/a6/scripts/a6_run.py --config tutorials/a6/configs/a6_mnist.tom
     --set logging.metrics_output_path=output/a6/lab2_threshold.csv
 ```
 
-Then change the rule to something that fits your domain: a fixed tolerance from your requirements, a physics-based residual check, a rate-of-change limit.
+With its defaults it never fires on this stream. Look at what it learns as its baseline, and at the plot from step 1, then work out why. Then change the rule to something that fits your domain: a fixed tolerance from your requirements, a physics-based residual check, a rate-of-change limit.
 
 To pick a detector for your own signal with help, the `choose-detector` agent skill asks about your metric and expected drift, then writes a validated `[drift_detection]` block.

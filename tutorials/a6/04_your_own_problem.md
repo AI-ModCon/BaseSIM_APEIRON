@@ -22,7 +22,9 @@ python tutorials/a6/scripts/a6_run.py --config tutorials/a6/configs/a6_custom.to
 python tutorials/a6/scripts/plot_run.py output/a6/custom.csv
 ```
 
-Expected: [[MEASURE: lab4 template result from verify report]]. The detector watches MAE, where lower is better, so drift shows up as the line going *up*.
+Expected (seed 7): **3 detections, each followed by an update**, and an average error (MAE) of about 0.09 over the stream, against about 0.32 for a model that never updates. The detector watches MAE, where lower is better, so drift shows up as the line going *up*. The run takes seconds.
+
+The config uses Page-Hinkley with `ph_threshold = 0.5`, because the error rises gradually and noisily. To see why detector choice matters, rerun with `--set drift_detection.detector_name=ADWINDetector`: with ADWIN's defaults it never fires on this stream, and the error climbs to about 0.55.
 
 Then copy the file and change the three places marked `>>> YOUR PROBLEM <<<`:
 

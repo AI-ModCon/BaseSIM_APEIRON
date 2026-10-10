@@ -4,7 +4,7 @@
 #   python -m src.main --config tutorials/a6/configs/a6_mnist.toml
 seed = 1337
 device = "cpu"          # "auto" picks CUDA / Apple MPS when available
-verbosity = "INFO"
+verbosity = "INFO:1"     # INFO:1 also prints each update's before/after accuracy; "INFO" is quieter
 
 [model]
 name = "mnist-cnn"

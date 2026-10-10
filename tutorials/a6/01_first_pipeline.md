@@ -22,7 +22,7 @@ Open `tutorials/a6/configs/a6_mnist.toml`. Each section is one piece of the loop
 
 `max_stream_updates = 6` means 6 windows, so 6 levels of distortion.
 
-## 2. Run it (≈ [[MEASURE: lab1 run time]])
+## 2. Run it (about 3 min on a desktop Linux CPU; slower laptops can take 10–20 min)
 
 ```bash
 python -m src.main --config tutorials/a6/configs/a6_mnist.toml
@@ -51,7 +51,9 @@ python tutorials/a6/scripts/compare_runs.py output/a6/lab1.csv
 
 Open `output/a6/lab1.png`. The blue line is what the detector saw: accuracy averaged over each group of 10 batches. Red dashed lines are detections, and each one was followed by an adaptation.
 
-What you should see: [[MEASURE: lab1 detections / adaptations / stream_mean / final_mean from verify report]].
+What you should see (reference run, seed 1337): **2 detections, each followed by an update**. The first comes in the 4th window, and the update lifts accuracy on that window from about 72% to 97%. The second, in the 5th window, takes it from about 92–94% to 95%. Accuracy on earlier windows stays around 95% (backward transfer near zero, so very little forgetting). Exact values vary a little between machines. Averaged over the whole stream the watched accuracy is about 78%, and about 94% over the last fifth.
+
+You may also notice accuracy *rise* in the 3rd window, before any update. The deliberately under-trained starting model happens to score better on that window's distortion. Drift detectors watch for any change in the score, and a rise is a change too.
 
 The CSV has one row per logged value (`step, metric, value`). The metrics you will use most:
 
