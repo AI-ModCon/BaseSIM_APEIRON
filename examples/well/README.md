@@ -206,9 +206,8 @@ a `unet` reference scores beside `unet_small` checkpoints.
 
 **Result.** One table, every model scored on the same nine test regimes.
 Columns are `tcool` regimes; cells are VRMSE on the test split, lower is
-better. FLOPs count a run's stream plus its training steps; the three
-`unet_small` runs differ only in `train.max_iter`
-(`--set train.max_iter=800`):
+better. FLOPs count a run's stream plus its training steps; runs at one width
+differ only in `train.max_iter` (`--set train.max_iter=800`):
 
 | Model | Training | Steps per event | Drift fired (window) | FLOPs | 0.03 | 0.06 | 0.10 | 0.18 | 0.32 | 0.56 | 1.00 | 1.78 | 3.16 | Mean |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -216,10 +215,13 @@ better. FLOPs count a run's stream plus its training steps; the three
 | persistence | none; repeats the last input frame | — | — | 0 | 0.620 | 0.644 | 0.593 | 0.608 | 0.576 | 0.555 | 0.530 | 0.523 | 0.536 | **0.576** |
 | zero | none; predicts a zero field | — | — | 0 | 1.200 | 1.180 | 1.301 | 1.205 | 1.588 | 1.826 | 2.640 | 3.506 | 5.861 | **2.256** |
 | `unet_small` | none; the untrained starting model | — | — | 0 | 1.186 | 1.163 | 1.354 | 1.293 | 1.865 | 2.296 | 3.288 | 4.383 | 7.025 | **2.650** |
+| `unet` | none; the untrained starting model | — | — | 0 | 1.274 | 1.249 | 1.366 | 1.253 | 1.610 | 1.808 | 2.603 | 3.428 | 5.804 | **2.266** |
 | `unet_small` | detect and adapt | 200 | 4, 5, 7 | 0.067 PF | 0.692 | 0.679 | 0.655 | 0.661 | 0.737 | 0.740 | 0.844 | 1.076 | 1.617 | **0.856** |
 | `unet_small` | detect and adapt | 800 | 4, 6 | 0.124 PF | 0.607 | 0.607 | 0.570 | 0.583 | 0.613 | 0.628 | 0.694 | 0.849 | 1.168 | **0.702** |
 | `unet_small` | detect and adapt | 1600 | 4, 7 | 0.215 PF | 0.580 | 0.582 | 0.546 | 0.562 | 0.571 | 0.571 | 0.599 | 0.706 | 0.896 | **0.624** |
 | `unet_small` | detect and adapt | 8500 | 4, 7 | 1.00 PF | 0.453 | 0.462 | 0.441 | 0.428 | 0.439 | 0.451 | 0.482 | 0.628 | 0.777 | **0.507** |
+| `unet` | detect and adapt | 700 | 5, 8 | 0.98 PF | 0.521 | 0.531 | 0.497 | 0.501 | 0.501 | 0.501 | 0.516 | 0.599 | 0.751 | **0.546** |
+| `unet` | detect and adapt | 10000 | 5, 8 | 10.1 PF | 0.384 | 0.399 | 0.380 | 0.374 | 0.377 | 0.381 | 0.381 | 0.458 | 0.538 | **0.408** |
 
 The `unet` row checks the pipeline: The Well's weights scored through this
 example's conversion, normalisation and metric give 0.2405, between the two
@@ -229,7 +231,8 @@ The 200-step run's intermediate checkpoints, scored the same way, improve on
 every regime at every event: mean 2.650 untrained, 1.853 after the first
 event, 1.055 after the second, 0.856 after the third. Starting from an
 untrained model, anything learned anywhere helps everywhere, so no forgetting
-is visible at this budget.
+is visible at this budget. Nor at any other here: every run's second event
+improves on every regime, up to `unet` at 10000 steps.
 
 The high-`tcool` regimes are not intrinsically harder: persistence and `unet`
 both improve slightly as `tcool` rises. What climbs is the error of a model
@@ -244,11 +247,42 @@ because each adaptation flattens the error climb the detector reads. Event
 counts are therefore not comparable across runs; FLOPs are.
 
 The 8500-step run beats persistence outright at 1.00 PF, 1/432 of the
-published compute. The remaining gap to 0.240 is partly training budget and
-partly `unet_small` capacity. The same experiment with `unet` on a GPU is a
-config change; [`perlmutter.sbatch`](perlmutter.sbatch) runs it on NERSC
-Perlmutter and [`frontier.sbatch`](frontier.sbatch) on OLCF Frontier, and
-both score the result.
+published compute.
+
+### Which to spend on: steps or width
+
+The two `unet` rows run the same experiment at the published width, 17.5M
+parameters against 1.94M, on one GPU. They were run on OLCF Frontier
+([`frontier.sbatch`](frontier.sbatch); the NERSC Perlmutter equivalent is
+[`perlmutter.sbatch`](perlmutter.sbatch)), one MI250X GCD at 7.8 training
+steps a second, 7 and 47 minutes of wall time.
+
+Width alone does not pay. Held at the same budget — `unet` at 700 steps,
+0.98 PF, against `unet_small` at 8500 steps, 1.00 PF — the wider model is
+worse on the mean, 0.546 against 0.507. At one petaFLOP this experiment is
+bound by training steps, not capacity: nine times the parameters for a
+twelfth of the steps loses. Both still beat persistence on the mean.
+
+Where it loses is the regimes that are already easy. `unet` at 700 steps is
+behind on the seven coolest and ahead on the two hottest, 0.599 against
+0.628 at `tcool` 1.78 and 0.751 against 0.777 at 3.16 — the two the stream
+reaches last and trains least. Capacity shows up first where the error is
+largest.
+
+Width pays once there is budget to train it. At ten times the compute
+`unet` reaches 0.408, better than any `unet_small` run and below persistence
+on eight of the nine regimes — the exception is `tcool` 3.16, 0.538 against
+0.536, the last and least-trained regime. That is 1/43 of the published
+432 PF for 1.7 times its loss, and the first row here to come within a
+factor of two of it.
+
+So the gap `unet_small` left at 1.00 PF was mostly budget, not capacity; the
+capacity matters, but only above about a petaFLOP.
+
+Both `unet` runs fire twice, at windows 5 and 8, where `unet_small` fires at
+4 and 7: the detector reads a different error trace from a different model, so
+firing windows move with width as well as with budget. Within a width they are
+stable — 700 and 10000 steps fire at the same two windows.
 
 ## Adding another Well dataset
 
