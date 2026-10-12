@@ -284,6 +284,14 @@ Both `unet` runs fire twice, at windows 5 and 8, where `unet_small` fires at
 firing windows move with width as well as with budget. Within a width they are
 stable — 700 and 10000 steps fire at the same two windows.
 
+The 10000-step run's stream, plotted as before. The error climbs across the
+six coolest regimes to 2.0, the first firing drops it to 0.45, it climbs again
+across the three hottest, and the second firing drops it to 0.5 — where
+`unet_small` ends at 1.5 after three firings, this ends a factor of three
+lower after two:
+
+![Per-batch VRMSE across the stream for the 10000-step unet run, with regime boundaries and the two drift events](figures/drift_detection_unet.png)
+
 ## Adding another Well dataset
 
 Every dataset-specific detail lives in one row in [`datasets.py`](datasets.py):
