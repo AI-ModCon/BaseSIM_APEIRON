@@ -97,6 +97,12 @@ class OnlineKFACUpdater(BaseUpdater):
     # ------------------------------------------------------------------
     @torch.no_grad()
     def cl_preprocessing(self):
+        """Refreshes KFAC anchor θ* and resets per-round accumulators.
+
+        θ* is set to the current model weights here (not in postprocessing)
+        so that compute_sample_priorities in the outer CL loop reads the
+        previous round's anchor before it gets overwritten.
+        """
         self._A_accum = {
             k: torch.zeros_like(v, device=self.device) for k, v in self.A.items()
         }
@@ -105,8 +111,14 @@ class OnlineKFACUpdater(BaseUpdater):
         }
         self._cl_steps = 0
 
+        # Refresh anchor θ* = current per-module weights (previous-task end).
+        for name, module in self.model.named_modules():
+            if self._supported(module):
+                self.theta_star[name].copy_(module.weight.detach())
+
     @torch.no_grad()
     def cl_postprocessing(self):
+        """Commits KFAC factor EMAs. Anchor θ* is NOT touched here."""
         if self._cl_steps == 0:
             return
         if self._A_accum is None or self._G_accum is None:
@@ -118,11 +130,6 @@ class OnlineKFACUpdater(BaseUpdater):
 
             self.A[name].add_(self._A_accum[name] / self._cl_steps)
             self.G[name].add_(self._G_accum[name] / self._cl_steps)
-
-        with torch.no_grad():
-            for name, module in self.model.named_modules():
-                if self._supported(module):
-                    self.theta_star[name].copy_(module.weight.detach())
 
         self._A_accum = None
         self._G_accum = None

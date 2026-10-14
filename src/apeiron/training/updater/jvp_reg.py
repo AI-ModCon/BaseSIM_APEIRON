@@ -35,6 +35,12 @@ _EPS = 1e-12
 class JVPRegUpdater(BaseUpdater):
     """SAM-based robust updater on a combined current+historical batch."""
 
+    # fwd_bwd reads hist_batch (memory buffer) directly — JVP term and
+    # the explicit historical-replay backward both depend on it. Signals
+    # the trainer that prioritizing hist_train_loader will actually move
+    # the gradient for this updater.
+    uses_hist_batch: bool = True
+
     def __init__(self, cfg: Config, modelHarness: BaseModelHarness) -> None:
         """Initialize the SAM-based updater with config and model harness."""
         super().__init__(cfg, modelHarness)

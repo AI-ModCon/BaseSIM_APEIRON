@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import logging
+
 from apeiron.config.configuration import Config
 from apeiron.model.torch_model_harness import BaseModelHarness
 from apeiron.training.updater.base import BaseUpdater
+
+logger = logging.getLogger(__name__)
 
 
 def create_updater(cfg: Config, modelHarness: BaseModelHarness) -> BaseUpdater:
@@ -18,29 +22,43 @@ def create_updater(cfg: Config, modelHarness: BaseModelHarness) -> BaseUpdater:
     Raises:
         NotImplementedError: If the specified updater mode is not implemented.
     """
-    if cfg.continual_learning.update_mode == "base":
-        return BaseUpdater(cfg=cfg, modelHarness=modelHarness)
+    updater: BaseUpdater
 
-    if cfg.continual_learning.update_mode == "ewc_online":
+    if cfg.continual_learning.update_mode == "base":
+        updater = BaseUpdater(cfg=cfg, modelHarness=modelHarness)
+    elif cfg.continual_learning.update_mode == "ewc_online":
         from apeiron.training.updater.ewc import OnlineEWCUpdater
 
-        return OnlineEWCUpdater(cfg=cfg, modelHarness=modelHarness)
-
-    if cfg.continual_learning.update_mode == "kfac_online":
+        updater = OnlineEWCUpdater(cfg=cfg, modelHarness=modelHarness)
+    elif cfg.continual_learning.update_mode == "kfac_online":
         from apeiron.training.updater.kfac import OnlineKFACUpdater
 
-        return OnlineKFACUpdater(cfg=cfg, modelHarness=modelHarness)
-
-    if cfg.continual_learning.update_mode == "jvp_reg":
+        updater = OnlineKFACUpdater(cfg=cfg, modelHarness=modelHarness)
+    elif cfg.continual_learning.update_mode == "jvp_reg":
         from apeiron.training.updater.jvp_reg import JVPRegUpdater
 
-        return JVPRegUpdater(cfg=cfg, modelHarness=modelHarness)
-
-    if cfg.continual_learning.update_mode == "none":
+        updater = JVPRegUpdater(cfg=cfg, modelHarness=modelHarness)
+    elif cfg.continual_learning.update_mode == "none":
         from apeiron.training.updater.no_updater import NoUpdater
 
-        return NoUpdater(cfg=cfg, modelHarness=modelHarness)
+        updater = NoUpdater(cfg=cfg, modelHarness=modelHarness)
+    else:
+        raise NotImplementedError(
+            f"Unknown update_mode: {cfg.continual_learning.update_mode}"
+        )
 
-    raise NotImplementedError(
-        f"Unknown update_mode: {cfg.continual_learning.update_mode}"
-    )
+    updater.importance_weighting = cfg.continual_learning.importance_weighting
+    updater.importance_alpha = cfg.continual_learning.importance_alpha
+
+    # Prioritized sampling and mix_historic_data are mutually exclusive:
+    # priorities use weighted sampling to focus on forgotten samples, while
+    # mixing concatenates historical data into the batch. When priorities are
+    # enabled, disable mixing and rely on the prioritization instead.
+    if updater.importance_weighting and updater.mix_historic_data:
+        logger.warning(
+            "importance_weighting=True overrides mix_historic_data. "
+            "Disabling mix_historic_data to use prioritized sampling instead."
+        )
+        updater.mix_historic_data = False
+
+    return updater
