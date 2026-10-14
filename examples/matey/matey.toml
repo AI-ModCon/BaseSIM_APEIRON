@@ -1,0 +1,49 @@
+seed = 1337
+device = "auto"
+multi_gpu = false
+verbosity = "INFO"
+
+[model]
+name = "matey_vit"
+pretrained_path = ""
+
+[data]
+name = "matey"
+# User-provided SOLPS dataset root containing train/ and valid/ folders.
+# This path is local-only and should not be tracked in git.
+path = "/path/to/fusionMT-data/solps"
+
+[train]
+batch_size = 16
+num_workers = 2
+init_lr = 0.001
+max_iter = 200
+grad_accumulation_steps = 1
+
+[continual_learning]
+update_mode = "base"
+
+[drift_detection]
+detector_name = "ADWINDetector"
+detection_interval = 5
+aggregation = "last"
+# Index into MATEYHarness.eval_metrics, which is ordered:
+#   0=nrmse_ne2d  1=nrmse_te2d  2=nrmse_ti2d  3=nrmse_mean
+#   4=nrmse       5=rmse        6=loss
+# This said "0=nrmse" and so drove detection off electron density alone; 3 is the
+# across-field aggregate the comment meant, and matches matey_stream.toml.
+metric_index = 3
+reset_after_learning = false
+max_stream_updates = 10
+
+# ADWIN hyperparameters
+adwin_delta = 0.05
+adwin_minor_threshold = 0.3
+adwin_moderate_threshold = 0.6
+
+[logging]
+backend = "wandb" 
+experiment_name = "matey-continual-learning"  # Optional: project/experiment name
+
+[visualization]
+input = "output/matey.csv"
