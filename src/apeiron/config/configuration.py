@@ -159,7 +159,7 @@ class DriftDetectionCfg:
     kswin_alpha: float = 0.005
     kswin_window_size: int = 100
     kswin_stat_size: int = 30
-    kswin_seed: int | None = None  # None = unseeded, as before
+    kswin_seed: int | None = None  # None = derived from the run seed
 
     # PageHinkley hyperparameters
     ph_min_instances: int = 30
