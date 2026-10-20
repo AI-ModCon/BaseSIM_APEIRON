@@ -3,20 +3,21 @@
 [The Well](https://polymathic-ai.org/the_well/) is a collection of physics
 simulation datasets from PolymathicAI. Each dataset is a parameter sweep: one
 HDF5 file per value of a physical parameter. Streamed in parameter order, a
-sweep is data whose distribution shifts for a physical reason — the situation
-APEIRON monitors for. This example streams a sweep one regime per window,
+sweep is data whose distribution shifts for a physical reason. This is used to test
+APEIRON's drift detection and determine how much performance can be attained from
+a randomly intialized model. This example streams a sweep one regime per window,
 detects each regime change in the model's error, and adapts the model with
-continual learning when one is found.
+continual learning at detected drift events.
 
 The dataset is `turbulent_radiative_layer_2D`, the smallest in the collection:
 nine regimes of 2D turbulence swept over cooling time `tcool` from 0.03 to
-3.16.
+3.16. With a `unet_small` configuration, the example can run on locally on a laptop.
 
 | Setting | Value |
 |---|---|
 | `data.name` | `well:turbulent_radiative_layer_2D` |
 | Model `unet_small` | The Well's `UNetClassic` at `init_features=16`, 1.94M parameters; the shipped config, runs without a GPU |
-| Model `unet` | the same architecture at `init_features=48`, 17.5M parameters; the width of The Well's published checkpoint, wants a GPU |
+| Model `unet` | The Well's architecture at `init_features=48`, 17.5M parameters; the width of The Well's published checkpoint, needs a GPU |
 | Detector | Page-Hinkley on per-batch VRMSE |
 | Continual learning | `ewc_online`, replaying all earlier regimes |
 | Data | downloaded one regime at a time into `./data/well`, ~0.68 GB per regime |
@@ -32,7 +33,7 @@ into a memory-mappable array, and drops the HDF5. A shorter run costs
 proportionally less:
 
 ```bash
-# three regimes instead of nine
+# ex. run three regimes instead of nine
 poetry run python -m src.main --config examples/well/well_trl2d.toml \
     --set drift_detection.max_stream_updates=2
 ```
@@ -41,13 +42,13 @@ If you already have The Well on disk, point at it. Nothing is downloaded or
 deleted:
 
 ```bash
+# ex. The Well dataset located at $SCRATCH
 poetry run python -m src.main --config examples/well/well_trl2d.toml \
-    --set data.path=/scratch/the_well/datasets
+    --set data.path=$SCRATCH/the_well/datasets
 ```
 
 On a machine whose compute nodes have no internet access, prefetch on a login
-node; afterwards a run touches the network for nothing — the regime list, the
-statistics and every array are read from `./data/well`:
+node; afterwards a run uses the statistics and data arrays from `./data/well`:
 
 ```bash
 poetry run python -m examples.well.datasets --config examples/well/well_trl2d.toml
@@ -56,10 +57,10 @@ poetry run python -m examples.well.datasets --config examples/well/well_trl2d.to
 ## Training overview
 
 The run streams nine windows, one regime per window in `tcool` order, 194
-batches each. The detector scores every batch's VRMSE before any training
-touches it (test-then-train), so it never reads data the model has already
-fitted. When it fires, the run makes `train.max_iter` gradient steps on the
-current regime mixed half-and-half with replay of all earlier regimes, writes
+batches each. The detector scores every validation batch's VRMSE, so does 
+not read training data until a detection event occurs. When it fires, the 
+run makes `train.max_iter` gradient steps on the current regime mixed 
+half-and-half with replay of all earlier regimes, writes
 a checkpoint, resets the detector, and resumes streaming:
 
 ```
@@ -87,8 +88,8 @@ The Well publishes each regime as HDF5 under `data/train/`, `data/valid/` and
 `data/test/`. Before a regime becomes a window it is fetched (landed through a
 `.part` rename, so a file that exists is complete) and converted once to
 `.npy`, shaped `[trajectory, time, channel, *spatial]`, float32. HDF5 is
-chunked and often compressed, so the operating system cannot map it; `.npy` it
-can, and a sample then faults in only the pages it touches. A downloaded HDF5
+chunked and often compressed, so the operating system cannot map it; `.npy` allow 
+for memmap access, and a sample then faults in only the pages it touches. A downloaded HDF5
 is deleted after conversion: nothing reads it again and it can be fetched
 back. The conversion carries a recipe string; changing the conversion bumps
 `CONVERSION_RECIPE` and existing arrays are rebuilt.
@@ -107,19 +108,20 @@ checkpoints load with `strict=True`. `[model] name` selects the width:
 `init_features=48`. Set `name = "unet"` and `pretrained_path` to a downloaded
 `model.safetensors` to start from the published weights.
 
-One change in the harness: BatchNorm running statistics are held still during
-training. Each window is a different regime, so live batch statistics track
-the current regime underneath the adaptation being measured — twenty forward
-passes in `train()` mode with no optimizer move the published checkpoint from
-0.204 to 1.569 VRMSE on its own regime. Freezing adds no parameters and
-renames nothing, so checkpoints still load. Without it this run's score rises
-after the second event, 1.146 to 1.481.
+> One change in the harness: `BatchNorm` running statistics are held still during
+> training. Each window is a different regime, so live batch statistics track
+> the current regime underneath the adaptation being measured — twenty forward
+> passes in `train()` mode with no optimizer move the published checkpoint from
+> 0.204 to 1.569 VRMSE on its own regime. Freezing adds no parameters and
+> renames nothing, so checkpoints still load. Without it this run's score rises
+> after the second event, 1.146 to 1.481.
 
 ## Validating drift detection across regimes
 
 **Purpose.** The dataset only exercises drift detection if regime boundaries
 leave a detectable mark in the model's error. That is checked before anything
-is claimed about adaptation.
+is claimed about adaptation. This is the first step one would take when introducing 
+a new scientific dataset to APEIRON: check if drift is detectable.
 
 **Method.** One monitoring pass — 1,744 batches over all nine regimes with
 learning switched off — is replayed through candidate detectors offline. Each
@@ -127,7 +129,9 @@ candidate is scored on boundaries found and on how often the same settings
 fire on shuffled copies of the same values, where no boundaries remain.
 Separately, `cl_only.py` runs the same continual learning on fixed, periodic
 and random schedules with no detector, to compare the detector's placement of
-training rounds against schedules chosen by hand.
+training rounds against schedules chosen by hand. This is the second step one
+would take to identify if automated drift detection provides a benefit
+over simply performing continual learning across an arbitrary execution.
 
 **Result.** The shipped Page-Hinkley settings fire four times on the real
 stream against 1.75 on shuffled, a ratio of 2.3, and the four fires land at
@@ -137,14 +141,15 @@ boundaries but fire ten times on shuffled data. The fifth boundary (`tcool`
 reachable with a single absolute threshold; a log transform, the `ph_alpha`
 forgetting factor, and an ensemble over Page-Hinkley, ADWIN and KSWIN all cap
 at four. ADWIN alone never fires at any delta from 0.002 through 0.9: the
-per-batch scatter within a regime exceeds the step between neighbouring
-regimes, so adaptive windowing finds no split. See
-[`docs/choosing_a_detector.md`](../../docs/choosing_a_detector.md).
+per-batch scatter within a regime exceeds the step between neighboring
+regimes, so adaptive windowing finds no split. 
 
-The trace the detector watched, from the shipped run — per-batch VRMSE, its
+> See [`docs/choosing_a_detector.md`](../../docs/choosing_a_detector.md).
+
+The per-batch VRMSE from an un-trained `unet_small`, its
 20-batch mean (the detector sees one mean per detection interval), regime
-boundaries labelled by `tcool`, and the three firings. Each firing is followed
-by a drop: the adaptation it triggered lowers the error on the regime that
+boundaries labelled by `tcool`, and the three firings at windows 4, 5 and 7. 
+Each firing is followed by a drop when the adaptation it triggered lowers the error on the regime that
 fired it.
 
 ![Per-batch VRMSE across the stream, with regime boundaries and the three drift events](figures/drift_detection.png)
@@ -170,8 +175,8 @@ cells are VRMSE on the test split, lower is better:
 Three rows are identical because three schedules trained in the same windows:
 random seed 0 drew exactly the windows the detector chose, and the fixed arm
 replayed them. Identical windows and seed producing an identical model also
-confirms the detector path and `cl_only.py` differ in nothing else. Random
-seed 1 trained early and scores worst on the hottest regimes. No schedule
+confirms the detector arbitrated training and `cl_only.py` produce the same results. 
+Random seed 1 trained early and scores worst on the hottest regimes. No schedule
 beats the detector's placement, and the detector was not told where the
 boundaries were.
 
@@ -179,7 +184,8 @@ boundaries were.
 
 **Purpose.** Measure what detect-and-adapt costs against training on all the
 data at once. The Well's published checkpoint — `unet`,
-trained 500 epochs on all nine regimes jointly — sets the loss target and the cost of the naive approach. Persistence (repeat the last
+trained 500 epochs on all nine regimes jointly. This sets the loss target and 
+the cost of the naive approach. Persistence (repeat the last
 input frame) and a zero prediction bound the loss from below and above at no
 training cost.
 
