@@ -1,5 +1,6 @@
 import sys
 
+from apeiron.determinism import seed_everything
 from apeiron.logger import get_logger, configure_backend
 from apeiron.config.configuration import build_config, Config
 
@@ -10,6 +11,10 @@ from apeiron.driver.continuous_monitor import ContinuousMonitor
 
 def main(argv: list[str] | None = None) -> int:
     cfg: Config = build_config(argv)
+
+    # Must precede get_example(): the harness draws its model init (and any
+    # data synthesis) from the generators seeded here.
+    seed_everything(cfg.seed)
 
     # Must precede get_example(): get_logger() ignores its arguments once an
     # instance exists, so a harness that logs from __init__ would pin the config.

@@ -63,6 +63,7 @@ import torch
 from tqdm import tqdm
 
 from apeiron.config.configuration import build_config, Config
+from apeiron.determinism import seed_everything
 from apeiron.logger import get_logger, configure_backend
 from apeiron.model.torch_model_harness import BaseModelHarness
 from apeiron.profilers import FLOPSProfiler
@@ -570,6 +571,7 @@ def main(argv: list[str] | None = None) -> int:
     args, remaining = build_parser().parse_known_args(argv)
 
     cfg: Config = build_config(remaining)
+    seed_everything(cfg.seed)
     modelHarness = get_example(cfg=cfg)
 
     schedule = make_schedule(args, cfg)

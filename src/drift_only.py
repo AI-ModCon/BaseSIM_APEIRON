@@ -36,6 +36,7 @@ import torch
 from tqdm import tqdm
 
 from apeiron.config.configuration import build_config, Config
+from apeiron.determinism import seed_everything
 from apeiron.drift_detection.detectors.base import DriftSignal
 from apeiron.drift_detection.load_drift_detector import load_drift_detector
 from apeiron.logger import get_logger, configure_backend
@@ -349,6 +350,7 @@ def run_drift_only(
 
 def main(argv: list[str] | None = None) -> int:
     cfg: Config = build_config(argv)
+    seed_everything(cfg.seed)
     modelHarness = get_example(cfg=cfg)
 
     backend = configure_backend(cfg)
