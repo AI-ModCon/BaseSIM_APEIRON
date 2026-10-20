@@ -383,8 +383,15 @@ def build_config(argv=None) -> Config:
         "device",
         "multi_gpu",
     }
-    # also exclude any keys not in Config to avoid surprises
     valid = {f.name for f in _dc.fields(Config)}
+    # A key Config does not know is an error, not a no-op: a misspelled
+    # `seed` silently ignored is a run that quietly stops being reproducible.
+    unknown = set(cfg) - valid
+    if unknown:
+        raise ValueError(
+            f"Unknown top-level config key(s): {', '.join(sorted(unknown))}. "
+            f"Valid keys: {', '.join(sorted(valid))}"
+        )
     extras = {k: v for k, v in cfg.items() if k in valid - explicit}
 
     final = Config(

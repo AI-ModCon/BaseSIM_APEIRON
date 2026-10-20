@@ -250,6 +250,39 @@ class TestBuildConfig:
         cfg = build_config(["--config", str(toml_file), "--set", "seed=99"])
         assert cfg.seed == 99
 
+    def test_unknown_top_level_key_is_an_error(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        # A misspelled top-level key silently ignored is a run that quietly
+        # stops being reproducible (e.g. `sead = 42`).
+        monkeypatch.chdir(tmp_path)
+        toml_file = tmp_path / "cfg.toml"
+        toml_file.write_text(
+            textwrap.dedent("""\
+            seed = 42
+            sead = 7
+            device = "cpu"
+
+            [model]
+            name = "tiny"
+            pretrained_path = ""
+
+            [data]
+            name = "test"
+            path = "/tmp"
+
+            [train]
+            batch_size = 8
+            num_workers = 0
+            init_lr = 0.01
+
+            [drift_detection]
+            detector_name = "ADWINDetector"
+            """)
+        )
+        with pytest.raises(ValueError, match="sead"):
+            build_config(["--config", str(toml_file)])
+
 
 # ---------------------------------------------------------------------------
 # Frozen dataclasses
