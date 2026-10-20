@@ -85,6 +85,7 @@ class ContinuousMonitor:
         self.stream_update_count = 0
         self.batch_count = 0
         self.drift_event_count = 0
+        self.drift_check_count = 0
 
         # Metrics accumulation
         self.metric_buffer: list[list[float]] = []
@@ -339,9 +340,13 @@ class ContinuousMonitor:
         flops_perf = self.flops_profiler.get_performance()
 
         # Log all drift metrics in a single call.
-        # detected=0 is sampled at 10% to reduce log volume; detected=1 is
-        # always included so no true drift events are dropped.
-        log_detected = drift_signal.drift_detected or (np.random.random() <= 0.1)
+        # detected=0 is thinned to every 10th check to reduce log volume;
+        # detected=1 is always included so no true drift events are dropped.
+        # A fixed cadence, not a coin flip: drawing from the global RNG here
+        # would both vary the rows between identical runs and perturb every
+        # downstream consumer of that RNG.
+        self.drift_check_count += 1
+        log_detected = drift_signal.drift_detected or (self.drift_check_count % 10 == 0)
         self.logger.stage("drift")
         # Include data timestamp range if available from the harness
         timerange = getattr(self.modelHarness, "current_window_timerange", None)
