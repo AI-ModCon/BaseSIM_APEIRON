@@ -24,7 +24,7 @@ verbosity = "INFO"
 
 | Option | Type | Description |
 |----------|------|-------------|
-| `seed` | int | Required, random seed used throughout the experiment. |
+| `seed` | int | Required. Applied by every entry point before anything draws randomness, so two runs of one config on one machine produce the same metrics. |
 | `device` | str | Required, execution device (`auto`, `cpu`, `cuda`, `cuda:N`, `mps`). |
 | `multi_gpu` | bool | Enables multi-GPU selection logic when CUDA is available. Default: false. |
 | `verbosity` | str | Logging verbosity level (DEBUG, INFO, INFO:n, WARNING, ERROR, CRITICAL). Default: INFO. |
@@ -167,7 +167,7 @@ kswin_seed = 1337
 | `kswin_alpha` | float | KSWIN significance level. |
 | `kswin_window_size` | int | KSWIN reference window size. |
 | `kswin_stat_size` | int | KSWIN recent sample window size. |
-| `kswin_seed` | int | Seed for KSWIN's reference window sampling. Optional; leave unset for the historical non-reproducible behaviour. |
+| `kswin_seed` | int | Seed for KSWIN's reference window sampling. Optional; unset derives it from the run `seed`. |
 
 Page-Hinkley:
 

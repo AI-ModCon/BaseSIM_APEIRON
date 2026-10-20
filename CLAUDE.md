@@ -38,6 +38,7 @@ The installable package lives under `src/apeiron/` (imported as `apeiron`; see `
 7. **Evaluation** (`src/apeiron/evaluation/metrics.py`): `accuracy()` and `accuracy_topk()`.
 8. **Logger** (`src/apeiron/logger/`): `Logger` with pluggable metrics backends -- `WandBLogger` and `MLFlowLogger` (configured via `[logging] backend = "wandb"|"mlflow"|"none"`), plus console output. Stages: eval, drift, cl. Metrics are written to a CSV file at `[logging] metrics_output_path` for external analysis.
 9. **Profilers** (`src/apeiron/profilers/`): `FLOPSProfiler` (`count_flops.py`) using PyTorch FlopCounterMode.
+10. **Determinism** (`src/apeiron/determinism.py`): `seed_everything(cfg.seed)` is applied by every entry point before anything draws randomness, so two runs of one config on one machine produce the same metrics (`tests/test_determinism.py` holds the end-to-end proof). Components needing their own stream derive it with `stable_seed(*parts)` (hashing, not seed arithmetic).
 
 ### Example Harnesses
 - `examples/mnist/model.py`: `MNIST_CNN` -- CNN on MNIST with affine drift simulation.
