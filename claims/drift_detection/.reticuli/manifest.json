@@ -1,6 +1,20 @@
 {
+  "components": [
+    {
+      "component": "apeiron-config",
+      "input": "apeiron/config/__init__.py",
+      "output": "apeiron/config/__init__.py",
+      "root": "adec2e2bb71cfaec951093e7de99fdf738fd791d5ca3592392baa619e8a1d71d"
+    },
+    {
+      "component": "apeiron-config",
+      "input": "apeiron/config/configuration.py",
+      "output": "apeiron/config/configuration.py",
+      "root": "adec2e2bb71cfaec951093e7de99fdf738fd791d5ca3592392baa619e8a1d71d"
+    }
+  ],
   "digest": "sha256",
   "name": "apeiron-drift-detection",
   "root": "afd55636975d84ad05203fac0120e5891ab46070a8d161b29a97b2c21c5e4a02",
-  "sealed": "2026-10-21T20:01:37Z"
+  "sealed": "2026-10-21T20:13:09Z"
 }
