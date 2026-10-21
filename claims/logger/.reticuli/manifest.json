@@ -1,0 +1,20 @@
+{
+  "components": [
+    {
+      "component": "apeiron-config",
+      "input": "apeiron/config/__init__.py",
+      "output": "apeiron/config/__init__.py",
+      "root": "adec2e2bb71cfaec951093e7de99fdf738fd791d5ca3592392baa619e8a1d71d"
+    },
+    {
+      "component": "apeiron-config",
+      "input": "apeiron/config/configuration.py",
+      "output": "apeiron/config/configuration.py",
+      "root": "adec2e2bb71cfaec951093e7de99fdf738fd791d5ca3592392baa619e8a1d71d"
+    }
+  ],
+  "digest": "sha256",
+  "name": "apeiron-logger",
+  "root": "7bd78fe2654545c5b17c5b4bcf0b37a3040360b72283e81660a1cb4e3cf84121",
+  "sealed": "2026-10-21T20:23:31Z"
+}

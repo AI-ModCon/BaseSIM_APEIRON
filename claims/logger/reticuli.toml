@@ -1,0 +1,49 @@
+# The claim: APEIRON's console and wandb loggers, composed on apeiron-config.
+#
+# Pinned: test_logger.py (copied from tests/ at 63a877a), pytest.ini, and a
+# torch+pandas+wandb lock (wandb is a module-level import of the wandb
+# logger). Supplied by the apeiron-config component: the Config the wandb
+# logger serializes. Generated: console_logger.py and wandb_logger.py.
+# Deliberately unclaimed: logger.py (the facade) and mlflow_logger.py --
+# tests/test_logger.py never imports them, so they have no criteria here;
+# they join when the facade gets tests of its own.
+
+[claim]
+name = "apeiron-logger"
+format = 4
+requires = ["python3"]
+gate_timeout = 600.0
+environment = "requirements.lock"
+inputs = ["test_logger.py", "pytest.ini"]
+
+[[step]]
+kind = "produce"
+output = "apeiron/config/__init__.py"
+class = "generated"
+from = "apeiron-config"
+guidance = "supplied by the apeiron-config component"
+
+[[step]]
+kind = "produce"
+output = "apeiron/config/configuration.py"
+class = "generated"
+from = "apeiron-config"
+guidance = "supplied by the apeiron-config component"
+
+[[step]]
+kind = "produce"
+output = "apeiron/logger/console_logger.py"
+class = "generated"
+guidance = "regenerate the console logger: ConsoleLogger(verbosity) over the logging module with a ColoredFormatter and a StepFilter; verbosity strings parse as LEVEL or LEVEL:tier via _parse_verbosity (an invalid tier falls back to tier 0)"
+
+[[step]]
+kind = "produce"
+output = "apeiron/logger/wandb_logger.py"
+class = "generated"
+guidance = "regenerate the wandb metrics backend: StageType and VALID_STAGES (eval, drift, cl), WandBLogger with init(cfg, project) (serializes the frozen Config via dataclasses.asdict), log of per-stage metric dicts, url read from the wandb Run.url property, and finish()"
+
+[[step]]
+kind = "gate"
+output = "LOGGER_OK"
+class = "validated"
+run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_logger.py && printf ok > LOGGER_OK"
