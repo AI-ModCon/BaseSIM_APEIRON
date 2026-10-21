@@ -33,6 +33,11 @@
   ],
   "digest": "sha256",
   "name": "apeiron-updaters",
+  "proof": {
+    "kind": "crosscheck",
+    "m2": "82ca7828b81ee7da5e70169d3b1218df3cb96f0d8a06112e32935ac1e6196421",
+    "m3": "82ca7828b81ee7da5e70169d3b1218df3cb96f0d8a06112e32935ac1e6196421"
+  },
   "root": "82ca7828b81ee7da5e70169d3b1218df3cb96f0d8a06112e32935ac1e6196421",
-  "sealed": "2026-10-21T20:15:15Z"
+  "sealed": "2026-10-21T20:20:52Z"
 }

@@ -143,6 +143,22 @@ tests. Mutation by layer so far: evaluation 0.76, config 0.36, drift
 gets closer to the science.
 Status: open; numerical assertions on the regularizers are the ask.
 
+### A13 — APEIRON: the JVP/SAM updater is interchangeable with a different algorithm
+The codex rebuild of apeiron-updaters reached the sealed root in 68 s
+(crosscheck accepted, proof recorded; apeiron-model-harness likewise in
+37 s). The regrown `jvp_reg.py` is not the documented algorithm: it
+perturbs parameters along the COMBINED current+historical gradient
+where the original's Bertsimas formulation requires the current-only
+gradient as the perturbation direction, and it drops the `jvp_rho_x`
+input perturbation and `jvp_data_sign` entirely — yet every test
+passes. The updater package regrows at 233 lines against 625. Together
+with A12 this is the sharpest statement the track has produced: under
+the current suite, APEIRON's core scientific algorithms are
+interchangeable with different algorithms. The criteria to add are
+numerical: fixed tiny model, fixed seed, assert the actual update
+direction/penalty values for EWC, KFAC, and JVP.
+Status: open; highest-value test work in the repository.
+
 ### R5 — reticuli: recipe-in-place packing dropped component links
 A produce step's `from = "<component>"` is honored by incremental
 rebuild, deep audit, and export only through the manifest's component
