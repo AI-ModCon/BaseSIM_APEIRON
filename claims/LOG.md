@@ -38,6 +38,13 @@ Status: open; the survivors name the tests to write.
 nothing imports it (dead code), and its docstring says it returns a float
 ratio while the code returns an `(accuracy_percent, test_loss)` tuple.
 Status: open; delete or specify `evaluation.py`, add topk criteria.
+Confirmed by regrowth (2026-10-21, later): codex rebuilt the claim in
+30 s and crosscheck accepted — M1/M2/M3 all earn root `99b37045…` — but
+the regrown `metrics.py` contains no `accuracy_topk` at all; a seven-line
+argmax accuracy is the entire equivalence class. `accuracy_topk` also has
+zero callers anywhere in the repository (CLAUDE.md documents it as part
+of the layer), so both it and `evaluation.py` are unconsumed public
+surface: specify them or delete them.
 
 ### A4 — APEIRON: blanket `*.toml` / `*.json` in `.gitignore`
 Lines 2 and 161 ignore every TOML and JSON in the repository. Tracked
@@ -87,6 +94,30 @@ installed (the module imports evidently lazily), so a pandas-but-no-
 evidently host reports `HAS_EVIDENTLY = True` and then fails at
 detector construction.
 Status: open.
+
+### A8 — APEIRON: `requires-python >=3.13` but river 0.23.0 ships no 3.14 wheels
+Furnishing the drift claim's environment on Python 3.14 refused: river
+0.23.0 (the version `uv.lock` pins) has binary wheels only through
+cp313; cp314 wheels start at river 0.24.2. APEIRON's declared support
+for 3.14 therefore requires building river from source. The drift claim
+pins a py3.13 environment to stay faithful to `uv.lock`.
+Status: open upstream — bump river or narrow `requires-python`.
+
+### A9 — APEIRON: drift tests kill 23% of injected faults
+`ret assess claims/drift_detection --mutants 30`: mutation 0.23.
+Comparison mutations 0/4 (of 222 sites) and arithmetic 0/3 (of 60) —
+the severity thresholds and regime mapping in the detectors are barely
+asserted; a detector that never escalates past `stable` at the wrong
+boundary would pass. 63 tests, zero skips, with evidently furnished.
+Status: open; boundary tests on severity/regime mapping are the gap.
+
+### R4 — reticuli (observation): composed-claim mutation mixes layers
+Assess on a composed claim samples mutation sites across every generated
+file, component-supplied ones included — the drift claim's reported
+survivors all sit in `configuration.py`, which its own tests rightly do
+not cover (the component's claim does). A per-step or per-component
+breakdown would keep the layer's own signal clean.
+Status: noted as an enhancement idea, not a bug.
 
 ### R1 — reticuli: strict seatbelt broke every furnished claim on macOS
 The first furnished-environment strict audit ever run (`apeiron-config`)
