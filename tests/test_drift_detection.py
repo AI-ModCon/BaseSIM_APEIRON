@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pickle
+
 import numpy as np
 import pytest
 
@@ -520,3 +522,134 @@ class TestLoadDriftDetector:
         assert d.delta == 0.05
         assert d.minor_threshold == 0.4
         assert d.moderate_threshold == 0.7
+
+
+# ---------------------------------------------------------------------------
+# Checkpointing: state_dict / load_state_dict
+# ---------------------------------------------------------------------------
+DETECTORS = [
+    pytest.param(lambda: ADWINDetector(delta=0.002), id="adwin"),
+    pytest.param(lambda: KSWINDetector(seed=7), id="kswin"),
+    pytest.param(lambda: PageHinkleyDetector(threshold=10.0), id="page_hinkley"),
+]
+
+
+def _stream() -> list[float]:
+    """Deterministic stream whose mean shifts at the halfway point."""
+    rng = np.random.default_rng(1337)
+    return [
+        float(v) for v in np.concatenate([rng.normal(0, 1, 150), rng.normal(5, 1, 150)])
+    ]
+
+
+def _verdicts(detector: BaseDriftDetector, values: list[float]) -> list[tuple]:
+    """Feed values through a detector, recording its decision for each."""
+    return [(s.drift_detected, s.drift_score) for s in map(detector.update, values)]
+
+
+class TestDetectorCheckpointing:
+    """Restoring a detector must make a resumed run equivalent to an
+    uninterrupted one, not merely cheaper than restarting."""
+
+    @pytest.mark.parametrize("make_detector", DETECTORS)
+    def test_resume_matches_uninterrupted_run(self, make_detector):
+        """Restoring mid-stream reproduces the verdicts of a detector that never stopped."""
+        warmup, tail = _stream()[:150], _stream()[150:]
+
+        uninterrupted_detector = make_detector()
+        _verdicts(uninterrupted_detector, warmup)
+        expected = _verdicts(uninterrupted_detector, tail)
+
+        checkpointed_detector = make_detector()
+        _verdicts(checkpointed_detector, warmup)
+        resumed_detector = make_detector()
+        resumed_detector.load_state_dict(
+            pickle.loads(pickle.dumps(checkpointed_detector.state_dict()))
+        )
+
+        assert _verdicts(resumed_detector, tail) == expected
+        assert any(detected for detected, _ in expected), "stream never drifted"
+
+    def test_fresh_detector_diverges(self):
+        """Without the restore, the assertion above would pass trivially."""
+        warmup, tail = _stream()[:150], _stream()[150:]
+        warmed = ADWINDetector()
+        _verdicts(warmed, warmup)
+
+        assert _verdicts(warmed, tail) != _verdicts(ADWINDetector(), tail)
+
+    def test_state_is_copied_not_shared(self):
+        """Snapshots must not alias the detector, in either direction."""
+        source = ADWINDetector()
+        _verdicts(source, _stream()[:50])
+        state = source.state_dict()
+
+        _verdicts(source, _stream()[:10])  # must not leak into `state`
+        assert len(state["_value_history"]) == 50
+
+        first, second = ADWINDetector(), ADWINDetector()
+        first.load_state_dict(state)
+        second.load_state_dict(state)
+        _verdicts(first, _stream()[:10])  # must not reach `second`
+        assert len(second._value_history) == 50
+
+    def test_cross_detector_load_raises(self):
+        """Loading one detector type's checkpoint into another is rejected."""
+        with pytest.raises(ValueError, match="written by"):
+            PageHinkleyDetector().load_state_dict(ADWINDetector().state_dict())
+
+    def test_missing_state_raises(self):
+        """A checkpoint missing a declared attribute is rejected, not half-applied."""
+        state = ADWINDetector().state_dict()
+        del state["_drift_history"]
+        with pytest.raises(KeyError, match="_drift_history"):
+            ADWINDetector().load_state_dict(state)
+
+    def test_undeclared_detector_raises(self):
+        """Opting in is explicit, so a custom detector cannot silently save nothing."""
+
+        class Undeclared(BaseDriftDetector):
+            def update(self, value: float, **kwargs) -> DriftSignal:
+                return DriftSignal(LearningRegime.STABLE, False, 0.0)
+
+            def reset(self) -> None:
+                pass
+
+        with pytest.raises(NotImplementedError, match="_STATE_ATTRS"):
+            Undeclared(name="undeclared").state_dict()
+
+
+@requires_evidently
+class TestEnsembleCheckpointing:
+    """An ensemble's state is its sub-detectors' state, positionally aligned."""
+
+    def _ensemble(self) -> EnsembleDetector:
+        return EnsembleDetector([ADWINDetector(), PageHinkleyDetector()], voting="any")
+
+    def test_resume_matches_uninterrupted_run(self):
+        """Restoring an ensemble reproduces the verdicts of one that never stopped."""
+        warmup, tail = _stream()[:150], _stream()[150:]
+
+        uninterrupted_detector = self._ensemble()
+        _verdicts(uninterrupted_detector, warmup)
+        expected = _verdicts(uninterrupted_detector, tail)
+
+        checkpointed_detector = self._ensemble()
+        _verdicts(checkpointed_detector, warmup)
+        resumed_detector = self._ensemble()
+        resumed_detector.load_state_dict(checkpointed_detector.state_dict())
+
+        assert _verdicts(resumed_detector, tail) == expected
+
+    def test_sub_detector_count_mismatch_raises(self):
+        """An ensemble rebuilt with a different number of sub-detectors is rejected."""
+        state = self._ensemble().state_dict()
+        smaller = EnsembleDetector([ADWINDetector()], voting="any")
+        with pytest.raises(ValueError, match="sub-detectors"):
+            smaller.load_state_dict(state)
+
+    def test_stateless_detector_round_trips(self):
+        """A detector declaring no state saves and loads a bare class tag."""
+        state = ModelEvalDetector().state_dict()
+        assert state == {"detector_class": "ModelEvalDetector"}
+        ModelEvalDetector().load_state_dict(state)

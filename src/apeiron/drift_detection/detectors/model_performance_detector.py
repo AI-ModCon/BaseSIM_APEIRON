@@ -9,7 +9,7 @@ Reference: https://github.com/evidentlyai/evidently
 
 import numpy as np
 import pandas as pd
-from typing import Optional, List
+from typing import Any, Dict, Optional, List
 from apeiron.drift_detection.detectors.base import (
     BaseDriftDetector,
     DriftSignal,
@@ -18,6 +18,10 @@ from apeiron.drift_detection.detectors.base import (
 
 
 class ModelEvalDetector(BaseDriftDetector):
+    # Stateless: every verdict comes from a fresh harness eval compared against
+    # reference metrics passed in by the caller, so there is nothing to restore.
+    _STATE_ATTRS: tuple[str, ...] = ()
+
     def __init__(
         self,
         name: str = "ModelEval",
@@ -102,6 +106,12 @@ class ModelPerformanceDetector(BaseDriftDetector):
     This is more comprehensive than statistical detectors but requires
     reference data and batched updates.
     """
+
+    # Only the rolling drift-share history evolves with the stream. Reference
+    # data is setup input, not accumulated state: a resumed run re-supplies it
+    # through the constructor or set_reference(), which also keeps large
+    # reference frames out of every checkpoint.
+    _STATE_ATTRS = ("_drift_history",)
 
     def __init__(
         self,
@@ -312,6 +322,9 @@ class EnsembleDetector(BaseDriftDetector):
     Combines signals from multiple detectors to make more robust decisions.
     """
 
+    # The ensemble keeps no stream state of its own; see state_dict().
+    _STATE_ATTRS: tuple[str, ...] = ()
+
     VOTING_STRATEGIES = {
         "majority": "majority",  # more than half of the detectors fire
         "any": "any",  # at least one detector fires
@@ -413,3 +426,37 @@ class EnsembleDetector(BaseDriftDetector):
         """Reset all detectors."""
         for detector in self.detectors:
             detector.reset()
+
+    def state_dict(self) -> Dict[str, Any]:
+        """Snapshot every sub-detector, in order.
+
+        The ensemble holds no state of its own -- its verdict is a vote over the
+        sub-detectors -- so the checkpoint is just their states, positionally
+        aligned with ``self.detectors``.
+        """
+        state = super().state_dict()
+        state["sub_detectors"] = [d.state_dict() for d in self.detectors]
+        return state
+
+    def load_state_dict(self, state: Dict[str, Any]) -> None:
+        """Restore every sub-detector from :meth:`state_dict`.
+
+        Each sub-detector validates its own class tag, so an ensemble rebuilt
+        with reordered or substituted detectors is rejected rather than
+        silently restored into the wrong slot.
+        """
+        super().load_state_dict(state)
+
+        sub_states = state.get("sub_detectors")
+        if sub_states is None:
+            raise KeyError("Ensemble checkpoint is missing 'sub_detectors'")
+        if len(sub_states) != len(self.detectors):
+            raise ValueError(
+                f"Ensemble checkpoint holds {len(sub_states)} sub-detectors but "
+                f"this ensemble has {len(self.detectors)}. Check that "
+                f"[drift_detection] ensemble_detectors matches the run that "
+                f"produced this checkpoint."
+            )
+
+        for detector, sub_state in zip(self.detectors, sub_states):
+            detector.load_state_dict(sub_state)
