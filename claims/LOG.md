@@ -47,6 +47,47 @@ were added. Upstream, the same rule means a contributor adding any TOML
 or JSON fixture will silently not commit it.
 Status: fixed in this workspace with negations; open upstream.
 
+### A5 — APEIRON: a blind regrowth passes the config gate at 148 lines of 403
+`ret rebuild claims/config --producer codex` (local Codex CLI, 57 s, one
+call): the producer regrew `configuration.py` from the pinned tests alone
+and re-earned the gate at the same root. Crosscheck accepted — M1
+(original), M2 (byte copy), M3 (regrowth) all audit `earned` at
+`adec2e2b…` — and the proof is recorded in the claim store. The regrown
+file is 148 lines against the original's 403: the gate's equivalence
+class admits an implementation with no `LoggingCfg`, no `verbosity`, no
+`metrics_output_path`, and none of the detector or updater
+hyperparameter fields (`adwin_delta`, `ph_threshold`,
+`kswin_window_size`, `jvp_rho_*`, `kfac_*`…). Any of those gaps breaks
+the next layer instantly — `load_drift_detector` reads
+`cfg.drift_detection.adwin_delta` on its first branch — so "passes the
+config gate" is measurably not "substitutable into APEIRON". The
+missing fields are precisely the criteria the drift-detection claim adds
+back by composing on apeiron-config.
+Status: working as designed; the divergence list is the test backlog for
+`tests/test_config.py`.
+
+### A6 — APEIRON: `EnsembleDetector` is hostage to the evidently module
+`EnsembleDetector` and `ModelEvalDetector` live in
+`model_performance_detector.py`, whose module-level hard dependency is
+pandas (evidently itself is imported lazily at the call site). Neither
+class needs pandas or evidently, but they are unimportable — and
+untestable — wherever that module fails to import. Splitting them into
+their own module would free them.
+Status: open.
+
+### A7 — APEIRON: the evidently guard in the drift tests is leaky
+`tests/test_drift_detection.py` guards some tests with
+`requires_evidently`, but `test_ensemble` and
+`test_ensemble_without_sub_detectors_raises` are unguarded while using
+the guarded names — on a host without evidently they die with
+`NameError`/`ModuleNotFoundError` instead of skipping, the exact
+deployment the file's own header comment promises to support. The flag
+is also misnamed: `HAS_EVIDENTLY` actually measures whether pandas is
+installed (the module imports evidently lazily), so a pandas-but-no-
+evidently host reports `HAS_EVIDENTLY = True` and then fails at
+detector construction.
+Status: open.
+
 ### R1 — reticuli: strict seatbelt broke every furnished claim on macOS
 The first furnished-environment strict audit ever run (`apeiron-config`)
 failed with `Operation not permitted` on the venv's bin. CPython's
@@ -64,3 +105,14 @@ committed here before being caught). Fixed with `**/`-prefixed patterns
 plus identity negations (`!**/reticuli.toml`, `!**/.reticuli/manifest.json`)
 so a workspace's own blunt ignore rules cannot drop the recipe or root.
 Status: fixed, reticuli commit 765cf4b.
+
+### R3 — reticuli: export dropped the environment file and manifest entries
+`ret export` enumerated the recipe's literal `[claim] inputs` list, but
+the pinned set also contains the declared `environment` file and an
+`inputs_manifest`'s entries — all hashed into the root. A furnished or
+format-2 claim therefore exported as a tar that could not re-derive its
+own root; crosscheck's M2 leg (materialized via export/import) failed on
+`apeiron-config` with `requirements.lock` missing. Export now uses the
+kernel's enumeration for the claim and its exported components, with a
+red-then-green round-trip test for both cases.
+Status: fixed, reticuli commit 6fe0f82.
