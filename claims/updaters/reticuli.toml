@@ -12,7 +12,7 @@ format = 4
 requires = ["python3"]
 gate_timeout = 600.0
 environment = "requirements.lock"
-inputs = ["test_updaters.py", "conftest.py", "pytest.ini"]
+inputs = ["test_updaters.py", "test_updater_numerics.py", "conftest.py", "pytest.ini"]
 
 # --- supplied by components ------------------------------------------------
 [[step]]
@@ -97,4 +97,4 @@ guidance = "regenerate the factory create_updater(cfg, harness) -> BaseUpdater d
 kind = "gate"
 output = "UPDATERS_OK"
 class = "validated"
-run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_updaters.py && printf ok > UPDATERS_OK"
+run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_updaters.py test_updater_numerics.py && printf ok > UPDATERS_OK"
