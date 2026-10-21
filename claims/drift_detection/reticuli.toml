@@ -1,0 +1,72 @@
+# The claim: APEIRON's drift-detection layer, composed on apeiron-config.
+#
+# Pinned: test_drift_detection.py (copied from tests/ at 63a877a), a
+# claim-local conftest.py carrying only the default_cfg fixture the tests
+# use, pytest.ini, and requirements.lock (torch, pytest, river, numpy,
+# pandas, evidently -- the full suite runs, nothing skips for a missing
+# package). Generated: the detector modules and factory. Supplied by the
+# apeiron-config component: the configuration layer the factory reads.
+#
+# apeiron/ stays a namespace package (no top-level __init__.py is
+# declared): the repository's eager package __init__ is the reason
+# (claims/LOG.md, A1).
+
+[claim]
+name = "apeiron-drift-detection"
+format = 4
+requires = ["python3"]
+gate_timeout = 900.0
+environment = "requirements.lock"
+inputs = ["test_drift_detection.py", "conftest.py", "pytest.ini"]
+
+# --- supplied by the apeiron-config component -----------------------------
+[[step]]
+kind = "produce"
+output = "apeiron/config/__init__.py"
+class = "generated"
+from = "apeiron-config"
+guidance = "supplied by the apeiron-config component"
+
+[[step]]
+kind = "produce"
+output = "apeiron/config/configuration.py"
+class = "generated"
+from = "apeiron-config"
+guidance = "supplied by the apeiron-config component"
+
+# --- the drift-detection layer: regrowable, outside the root --------------
+[[step]]
+kind = "produce"
+output = "apeiron/drift_detection/__init__.py"
+class = "generated"
+guidance = "re-export the detector surface: BaseDriftDetector, DriftSignal, LearningRegime from detectors.base; ADWINDetector, KSWINDetector, PageHinkleyDetector from detectors.statistical_detectors; ModelPerformanceDetector, ModelEvalDetector, EnsembleDetector from detectors.model_performance_detector"
+
+[[step]]
+kind = "produce"
+output = "apeiron/drift_detection/detectors/base.py"
+class = "generated"
+guidance = "regenerate the detector base: LearningRegime (an enum of stable/continual_learning/fine_tuning/retrain regimes), DriftSignal (a dataclass carrying drift_detected, severity, regime, detector_name, metadata), and BaseDriftDetector, an ABC with update(value) -> DriftSignal, reset(), a _drift_history list, and a picklable state_dict()/load_state_dict() pair"
+
+[[step]]
+kind = "produce"
+output = "apeiron/drift_detection/detectors/statistical_detectors.py"
+class = "generated"
+guidance = "regenerate the river-backed statistical detectors: ADWINDetector(delta, minor_threshold, moderate_threshold), KSWINDetector(alpha, window_size, stat_size, seed), PageHinkleyDetector(min_instances, delta, threshold, alpha), each a BaseDriftDetector whose update() feeds the river detector and maps its verdict to a DriftSignal and severity-based LearningRegime"
+
+[[step]]
+kind = "produce"
+output = "apeiron/drift_detection/detectors/model_performance_detector.py"
+class = "generated"
+guidance = "regenerate the model-performance detectors: ModelEvalDetector (direct metric comparison via metric_index), ModelPerformanceDetector (evidently DataDriftPreset over reference/current batches; evidently imported at the call site, pandas and numpy at module scope), and EnsembleDetector (voting over sub-detectors: majority, any/or, unanimous/all/and; unknown voting or an empty detector list raises ValueError)"
+
+[[step]]
+kind = "produce"
+output = "apeiron/drift_detection/load_drift_detector.py"
+class = "generated"
+guidance = "regenerate the factory load_drift_detector(cfg) -> BaseDriftDetector: dispatches on cfg.drift_detection.detector_name (ADWINDetector, KSWINDetector, PageHinkleyDetector, ModelPerformanceDetector, EvalDetector, EnsembleDetector), builds each from the [drift_detection] config fields, imports detector modules lazily per branch, and raises ValueError for an unknown name"
+
+[[step]]
+kind = "gate"
+output = "DRIFT_OK"
+class = "validated"
+run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_drift_detection.py && printf ok > DRIFT_OK"
