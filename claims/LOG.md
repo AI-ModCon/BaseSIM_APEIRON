@@ -111,6 +111,37 @@ asserted; a detector that never escalates past `stable` at the wrong
 boundary would pass. 63 tests, zero skips, with evidently furnished.
 Status: open; boundary tests on severity/regime mapping are the gap.
 
+### A10 — APEIRON: harness tests kill 16% of injected faults
+`ret assess claims/model_harness --mutants 25`: mutation 0.16, the
+weakest layer yet. Arithmetic, boolean, constant, and string mutations
+all 0-for-sampled. The per-task transfer-metrics machinery
+(`register_task`, `eval_past_tasks`, `task_diagonals` — documented in
+CLAUDE.md and docs/tracking.md) has no criteria at all.
+Status: open.
+
+### R5 — reticuli: recipe-in-place packing dropped component links
+A produce step's `from = "<component>"` is honored by incremental
+rebuild, deep audit, and export only through the manifest's component
+links — which only the flag path (`pack --component`) wrote. A composed
+claim sealed from its reticuli.toml carried no links, so `ret rebuild`
+took the plain path and built a blind room missing the supplied layer:
+the first codex rebuild of apeiron-drift-detection failed on
+`No module named 'apeiron.config'`. pack_declared now resolves each
+`from` against the claim's drawer (refusing with a remedy if it is not
+registered) and writes the links the flag path writes.
+Status: fixed, reticuli commit 0e53cb2.
+
+### R6 — reticuli (observation): producers cannot run a furnished gate
+The producer step inherits the host environment by design, so codex
+could not execute the drift gate even in a correct room: the claim's
+requirements.lock wants py3.13/river while the host default python is
+3.14. The producer wrote the modules and reported honestly that the gate
+never produced its verdict. Rebuild's own cold gate re-run is what
+judges, so blind regrowth still works — but the producer flying without
+the gate's feedback loop lowers its hit rate on hard layers. Furnishing
+the room's venv onto the producer's PATH would close the loop.
+Status: noted as an enhancement idea.
+
 ### R4 — reticuli (observation): composed-claim mutation mixes layers
 Assess on a composed claim samples mutation sites across every generated
 file, component-supplied ones included — the drift claim's reported
