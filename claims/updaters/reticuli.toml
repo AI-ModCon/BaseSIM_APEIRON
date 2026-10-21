@@ -1,0 +1,100 @@
+# The claim: APEIRON's continual-learning updaters, composed on
+# apeiron-config, apeiron-evaluation, and apeiron-model-harness.
+#
+# Pinned: test_updaters.py and the repository's shared conftest.py
+# (63a877a), pytest.ini, and the torch+pytest lock. Supplied by
+# components: configuration, metrics, and the harness ABC the updaters
+# train through. Generated: the updater package itself.
+
+[claim]
+name = "apeiron-updaters"
+format = 4
+requires = ["python3"]
+gate_timeout = 600.0
+environment = "requirements.lock"
+inputs = ["test_updaters.py", "conftest.py", "pytest.ini"]
+
+# --- supplied by components ------------------------------------------------
+[[step]]
+kind = "produce"
+output = "apeiron/config/__init__.py"
+class = "generated"
+from = "apeiron-config"
+guidance = "supplied by the apeiron-config component"
+
+[[step]]
+kind = "produce"
+output = "apeiron/config/configuration.py"
+class = "generated"
+from = "apeiron-config"
+guidance = "supplied by the apeiron-config component"
+
+[[step]]
+kind = "produce"
+output = "apeiron/evaluation/__init__.py"
+class = "generated"
+from = "apeiron-evaluation"
+guidance = "supplied by the apeiron-evaluation component"
+
+[[step]]
+kind = "produce"
+output = "apeiron/evaluation/metrics.py"
+class = "generated"
+from = "apeiron-evaluation"
+guidance = "supplied by the apeiron-evaluation component"
+
+[[step]]
+kind = "produce"
+output = "apeiron/model/torch_model_harness.py"
+class = "generated"
+from = "apeiron-model-harness"
+guidance = "supplied by the apeiron-model-harness component"
+
+# --- the updater layer: regrowable, outside the root -----------------------
+[[step]]
+kind = "produce"
+output = "apeiron/training/updater/__init__.py"
+class = "generated"
+guidance = "re-export BaseUpdater from apeiron.training.updater.base"
+
+[[step]]
+kind = "produce"
+output = "apeiron/training/updater/base.py"
+class = "generated"
+guidance = "regenerate the updater ABC BaseUpdater(cfg, harness): hooks cl_preprocessing, fwd_bwd, update_pre_fwd_bwd, update_post_fwd_bwd, update_post_optimizer_call, cl_postprocessing; fwd_bwd runs the forward/backward pass, mixing half historical data into the batch when cfg.continual_learning.mix_historic_data is set and the harness supplies historical loaders (an undersized historical batch is topped up from the current one, so the per-step sample count stays at train.batch_size)"
+
+[[step]]
+kind = "produce"
+output = "apeiron/training/updater/no_updater.py"
+class = "generated"
+guidance = "regenerate NoUpdater: the no-op updater that skips training entirely"
+
+[[step]]
+kind = "produce"
+output = "apeiron/training/updater/ewc.py"
+class = "generated"
+guidance = "regenerate OnlineEWCUpdater: online Elastic Weight Consolidation; an EMA Fisher estimate (ewc_ema_decay) accumulated post-backward, a quadratic anchor penalty weighted by ewc_lambda added to the loss"
+
+[[step]]
+kind = "produce"
+output = "apeiron/training/updater/kfac.py"
+class = "generated"
+guidance = "regenerate OnlineKFACUpdater: online KFAC regularization over Linear and Conv2d layers; per-layer Kronecker factors tracked with kfac_ema_decay, penalty weighted by kfac_lambda"
+
+[[step]]
+kind = "produce"
+output = "apeiron/training/updater/jvp_reg.py"
+class = "generated"
+guidance = "regenerate JVPRegUpdater: a first-order SAM / Bertsimas robust update; overrides fwd_bwd, computes a current-only gradient as the parameter-perturbation direction (jvp_rho_theta), optionally perturbs historical inputs (jvp_rho_x, jvp_data_sign), then evaluates the combined loss; mixes current and historical streams itself, ignoring mix_historic_data"
+
+[[step]]
+kind = "produce"
+output = "apeiron/training/updater/create_updater.py"
+class = "generated"
+guidance = "regenerate the factory create_updater(cfg, harness) -> BaseUpdater dispatching on cfg.continual_learning.update_mode: base, none, ewc_online, kfac_online, jvp_reg; unknown mode raises ValueError"
+
+[[step]]
+kind = "gate"
+output = "UPDATERS_OK"
+class = "validated"
+run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_updaters.py && printf ok > UPDATERS_OK"

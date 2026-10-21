@@ -1,0 +1,37 @@
+# The claim: APEIRON's evaluation metrics.
+#
+# Pinned: test_evaluation.py, pytest.ini, requirements.lock (identical to
+# the apeiron-config lock, so the furnished environment is shared).
+# Generated: apeiron/evaluation/metrics.py. Files mirror
+# src/apeiron/evaluation/ and tests/test_evaluation.py at 63a877a.
+#
+# Deliberately NOT claimed: src/apeiron/evaluation/evaluation.py — it has
+# no tests, nothing imports it, and its docstring contradicts its return
+# type (see claims/LOG.md, A3). A file with no criteria cannot be claimed;
+# its absence here is the measurement.
+
+[claim]
+name = "apeiron-evaluation"
+format = 4
+requires = ["python3"]
+gate_timeout = 600.0
+environment = "requirements.lock"
+inputs = ["test_evaluation.py", "pytest.ini"]
+
+[[step]]
+kind = "produce"
+output = "apeiron/evaluation/__init__.py"
+class = "generated"
+guidance = "the package marker for apeiron.evaluation; empty"
+
+[[step]]
+kind = "produce"
+output = "apeiron/evaluation/metrics.py"
+class = "generated"
+guidance = "regenerate apeiron/evaluation/metrics.py so test_evaluation.py passes: torch classification metrics. accuracy(output, target) returns top-1 accuracy as a percentage tensor; accuracy_topk(output, target, topk=(1,)) returns a list of percentage tensors, one per k. Both run under torch.no_grad()."
+
+[[step]]
+kind = "gate"
+output = "EVAL_OK"
+class = "validated"
+run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_evaluation.py && printf ok > EVAL_OK"
