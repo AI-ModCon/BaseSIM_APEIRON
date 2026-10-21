@@ -119,6 +119,30 @@ all 0-for-sampled. The per-task transfer-metrics machinery
 CLAUDE.md and docs/tracking.md) has no criteria at all.
 Status: open.
 
+### A11 — APEIRON: the drift layer regrows at a quarter of its size
+After R5 was fixed, the codex rebuild of apeiron-drift-detection
+succeeded in 106 s: all five modules regrown blind against the 63-test
+suite (evidently tests included — nothing skipped), crosscheck accepted
+with M1/M2/M3 at root `afd55636…`, proof recorded. The compression says
+how loose the boundary is: base.py 172→57 lines, statistical_detectors
+316→113, model_performance_detector 462→81, the factory 97→25 — 1047
+lines pass as 276. The evidently analysis pipeline in particular is
+barely constrained: an 81-line stand-in satisfies every criterion the
+suite states.
+Status: evidence; each dropped behavior that matters is a test to write.
+
+### A12 — APEIRON: updater math is nearly criterion-free
+`ret assess claims/updaters --mutants 25`: mutation 0.12, the weakest
+layer measured. Arithmetic mutations 0 of 4 detected across 290
+arithmetic sites — the EWC penalty, the KFAC factors, and the JVP/SAM
+robust update could compute the wrong quantity and the suite would
+pass. For a continual-learning framework this is the highest-value gap
+in the whole repository: the scientific core has the least constraining
+tests. Mutation by layer so far: evaluation 0.76, config 0.36, drift
+0.23, harness 0.16, updaters 0.12 — criteria strength falls as the code
+gets closer to the science.
+Status: open; numerical assertions on the regularizers are the ask.
+
 ### R5 — reticuli: recipe-in-place packing dropped component links
 A produce step's `from = "<component>"` is honored by incremental
 rebuild, deep audit, and export only through the manifest's component
