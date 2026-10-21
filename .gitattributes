@@ -1,0 +1,2 @@
+# Reticuli: sealed bytes are binary — no text/CRLF conversion
+.reticuli/** -text
