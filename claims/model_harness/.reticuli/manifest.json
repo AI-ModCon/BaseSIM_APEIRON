@@ -1,0 +1,32 @@
+{
+  "components": [
+    {
+      "component": "apeiron-config",
+      "input": "apeiron/config/__init__.py",
+      "output": "apeiron/config/__init__.py",
+      "root": "adec2e2bb71cfaec951093e7de99fdf738fd791d5ca3592392baa619e8a1d71d"
+    },
+    {
+      "component": "apeiron-config",
+      "input": "apeiron/config/configuration.py",
+      "output": "apeiron/config/configuration.py",
+      "root": "adec2e2bb71cfaec951093e7de99fdf738fd791d5ca3592392baa619e8a1d71d"
+    },
+    {
+      "component": "apeiron-evaluation",
+      "input": "apeiron/evaluation/__init__.py",
+      "output": "apeiron/evaluation/__init__.py",
+      "root": "99b370451edb65811b594287f1e03094d13d2d1a2fac008df77f3b9c7b2d03ab"
+    },
+    {
+      "component": "apeiron-evaluation",
+      "input": "apeiron/evaluation/metrics.py",
+      "output": "apeiron/evaluation/metrics.py",
+      "root": "99b370451edb65811b594287f1e03094d13d2d1a2fac008df77f3b9c7b2d03ab"
+    }
+  ],
+  "digest": "sha256",
+  "name": "apeiron-model-harness",
+  "root": "222e6a4251ab63b6be8a489af473ee811b36d12e3874cd39c36413b25558b834",
+  "sealed": "2026-10-21T20:13:11Z"
+}
