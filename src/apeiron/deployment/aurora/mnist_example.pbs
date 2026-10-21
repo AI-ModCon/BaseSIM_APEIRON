@@ -1,0 +1,31 @@
+#!/bin/bash -l
+#PBS -N modcon_basesim
+#PBS -A <project>
+#PBS -q debug
+#PBS -l select=1
+#PBS -l walltime=00:20:00
+#PBS -l filesystems=home:flare
+#PBS -o output/mnist_example.o
+#PBS -e output/mnist_example.e
+#PBS -j n
+
+cd $PBS_O_WORKDIR
+
+module use /soft/modulefiles
+module load frameworks
+source .venv/bin/activate
+
+# Pin to one GPU tile; otherwise torch sees all 12.
+export ZE_AFFINITY_MASK=0.0
+
+export WANDB_MODE=offline
+
+echo "=============================================="
+echo "MNIST Example"
+echo "=============================================="
+echo "Date: $(date)"
+echo "Hostname: $(hostname)"
+echo "Job ID: $PBS_JOBID"
+echo "=============================================="
+
+python -m src.main --config ./examples/mnist/mnist.toml
