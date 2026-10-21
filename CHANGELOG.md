@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `apeiron.determinism` with `seed_everything()` and `stable_seed()`. Every entry point
+  (`main`, `drift_only`, `cl_only`) now applies the config's `seed` before anything draws
+  randomness, so two runs of one config on one machine produce the same metrics.
+  `tests/test_determinism.py` holds the end-to-end proof: a full monitoring run — drift
+  firing, continual learning included — written twice to CSV and compared byte for byte
+  (profiler `cperf_*` rows excluded, as wall-clock measurements legitimately differ)
+- Unknown top-level config keys are rejected with a `ValueError` instead of silently
+  ignored, so a misspelled `seed` can no longer quietly make a run non-reproducible
 - Community health files: `CONTRIBUTING.md` (including guidelines for AI/LLM-assisted
   contributions), `CODE_OF_CONDUCT.md`, `SECURITY.md`, and this changelog
 - GitHub issue templates for bug reports and feature requests
@@ -20,6 +28,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `get_optmizer()`
 
 ### Changed
+- Negative drift checks (`detected=0`) are thinned to every 10th check instead of a 10%
+  coin flip, so the metrics CSV is reproducible and the hot path no longer consumes
+  global RNG state
+- An unset `kswin_seed` now derives from the run `seed` via `stable_seed(seed, "kswin")`
+  instead of running unseeded; an explicit `kswin_seed` still wins
+- The example harnesses (MNIST, CIFAR, ImageNet) derive their drift-augmentation seed by
+  hashing (`stable_seed(seed, "aug", task_counter)`) instead of `seed + task_counter`,
+  which collided across runs: seed 40 at window 2 got the identical drift transform as
+  seed 41 at window 1, contaminating seed sweeps. The MNIST first-drift reference CSV is
+  regenerated to match (it was already stale on `main`: the pipeline produced losses ~9%
+  off the stored values before this change, likely since the Poetry-to-uv migration)
 - Migrated dependency management from Poetry to [uv](https://docs.astral.sh/uv/). `poetry.lock`
   is replaced by `uv.lock`, the build backend is now `uv_build`, and `uv sync` replaces
   `poetry install`. CI, the Dockerfile, the Makefile, the HPC install scripts, the docs, and the

@@ -118,7 +118,7 @@ This ensures that:
 | `train.batch_size` | all harnesses | Loader batch size. |
 | `train.num_workers` | all harnesses | DataLoader worker count. |
 | `train.init_lr` | all harnesses | Initial optimizer learning rate. |
-| `seed` | all harnesses | Drives deterministic drift augmentation sampling (`seed + task_counter`). |
+| `seed` | all harnesses | Drives deterministic drift augmentation sampling (`stable_seed(seed, "aug", task_counter)`). |
 | `device` | base class + checkpoint load | Device placement for model/tensors. |
 
 ## Concrete Harnesses

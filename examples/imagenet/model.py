@@ -5,6 +5,7 @@ from torch import nn, Tensor
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader, ConcatDataset
 
+from apeiron.determinism import stable_seed
 from apeiron.model.torch_model_harness import BaseModelHarness
 from apeiron.config.configuration import Config
 from examples.imagenet.src.utils import (
@@ -133,7 +134,11 @@ class IMAGENET_VISION(BaseModelHarness):
         self._dispose_current_loaders()
 
         # Deterministic per-iteration drift; "one affine for all samples"
-        self.cur_aug = sample_aug(seed=self.cfg.seed + self.task_counter)
+        # Hashed, not seed + task_counter: under addition, seed 40 window 2
+        # shares its drift with seed 41 window 1, contaminating seed sweeps.
+        self.cur_aug = sample_aug(
+            seed=stable_seed(self.cfg.seed, "aug", self.task_counter)
+        )
         self.aug_history.append(self.cur_aug)
 
         tf = FixedAffine(aug_history=self.aug_history)

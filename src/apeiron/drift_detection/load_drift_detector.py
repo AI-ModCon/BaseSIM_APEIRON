@@ -24,15 +24,24 @@ def _build_detector(detector_name: str, cfg: Config) -> BaseDriftDetector:
             moderate_threshold=cfg.drift_detection.adwin_moderate_threshold,
         )
     elif detector_name == "KSWINDetector":
+        from apeiron.determinism import stable_seed
         from apeiron.drift_detection.detectors.statistical_detectors import (
             KSWINDetector,
         )
+
+        # An unset kswin_seed derives from the run seed rather than running
+        # unseeded: KSWIN's reference-window sampling is the one detector
+        # randomness, and leaving it free makes two runs of one config fire
+        # differently.
+        kswin_seed = cfg.drift_detection.kswin_seed
+        if kswin_seed is None:
+            kswin_seed = stable_seed(cfg.seed, "kswin")
 
         detector_instance = KSWINDetector(
             alpha=cfg.drift_detection.kswin_alpha,
             window_size=cfg.drift_detection.kswin_window_size,
             stat_size=cfg.drift_detection.kswin_stat_size,
-            seed=cfg.drift_detection.kswin_seed,
+            seed=kswin_seed,
         )
     elif detector_name == "PageHinkleyDetector":
         from apeiron.drift_detection.detectors.statistical_detectors import (
