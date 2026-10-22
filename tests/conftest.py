@@ -91,8 +91,11 @@ class DummyHarness(BaseModelHarness):
         pass
 
     def get_stream_dataloader(self):
+        # the loader itself, not a tuple containing it: ContinuousMonitor
+        # iterates the return value and unpacks each item as an (x, y) batch,
+        # and BaseModelHarness.get_stream_dataloader is annotated -> DataLoader
         bs = self.cfg.data.batch_size
-        return (DataLoader(self._val_ds, batch_size=bs),)
+        return DataLoader(self._val_ds, batch_size=bs)
 
     def get_train_dataloaders(self):
         bs = self.cfg.train.batch_size
