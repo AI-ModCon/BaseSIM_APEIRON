@@ -327,6 +327,56 @@ changing what an independent reconstruction is *forced* to build, rather
 than merely what it is allowed to pass.
 Status: closed.
 
+### A30 — the forgetting metric a CL paper reports was unverified
+`ContinuousTrainer.compute_bwt` computes backward transfer — the standard
+continual-learning forgetting number — after every adaptation, and logs it.
+Nothing in the suite mentioned it: zero hits for `compute_bwt` or `bwt`
+across every test file. The trainer regrowth dropped the method outright
+and passed, which is how it surfaced.
+
+Its sign convention is the trap, and the docstring says so: with accuracy,
+negative means forgetting; with a lower-is-better metric like SLAC-FEL's
+MAE, *positive* means forgetting. A caller that assumes
+negative-means-forgetting misreports the headline result of a run.
+
+`fwt` (forward transfer, computed inline in the same place as
+`cur - pre_cl`) was equally unverified, as was `_log_validation`, which
+names every metric by its harness label and is how a run's validation
+numbers get into the CSV at all.
+
+Twenty-one tests now pin all three: BWT's mean over retained tasks, its
+positional pairing of each task's current score with its own diagonal, the
+`metric_index` selection, `None` before any task is registered, both sign
+directions; FWT's gain, loss and zero cases; and the validation payload's
+naming for both domains, its absent-domain behaviour and its
+annotate-don't-advance logging. Trainer root 1b7fe903.
+Status: closed.
+
+### A31 — the transfer row cannot be joined to the event that produced it
+The row carrying `fwt` and `bwt` — the two headline transfer numbers —
+contains no `drift_event_id`, while the validation rows and the
+per-iteration loss rows both do. In the metrics CSV the forgetting numbers
+therefore cannot be joined to the adaptation that produced them except by
+step ordering. Recorded as a `strict=True` xfail so it flips green when
+fixed, with its present behaviour pinned alongside.
+Status: open — a one-line fix, but it changes the CSV schema.
+
+### A32 — two more logged quantities nobody named
+Auditing every key the framework logs against the suite (16 of them) left
+three unnamed. The `cperf_` prefix on profiler fields is load-bearing, not
+cosmetic: `docs/profiler.md` documents it as the profiler namespace, and
+the determinism work excludes wall-clock rows from a byte-for-byte CSV
+comparison by matching it — rename it and that comparison silently starts
+comparing timings. `decision_idx` and `trigger_count` on a scheduled run's
+decision row were also unnamed, and `trigger_count` is subtle: the row
+reports the count *including* the decision being logged.
+
+Pinned at their own layers, per A29: the monitor's prefix in
+`tests/test_logged_schema.py`, the runners' shared prefix and decision row
+in `tests/test_runner_schema.py`. Monitor root f3515468, entrypoints
+97785170.
+Status: closed.
+
 ### A29 — the framework's main loop is not pinned by the layer that owns it
 `ContinuousMonitor.run()` — the monitoring loop the whole framework exists
 to run — is demanded by no test in the apeiron-monitor claim: its three

@@ -24,6 +24,7 @@ inputs = [
     "test_cl_schedules.py",
     "conftest.py",
     "test_run_records.py",
+    "test_logged_schema.py",
     "pytest.ini",
 ]
 
@@ -260,4 +261,4 @@ guidance = "adaptation on a schedule instead of on detected drift, for the accur
 kind = "gate"
 output = "ENTRYPOINTS_OK"
 class = "validated"
-run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_entry_points.py test_cl_schedules.py test_run_records.py && printf ok > ENTRYPOINTS_OK"
+run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_entry_points.py test_cl_schedules.py test_run_records.py test_logged_schema.py && printf ok > ENTRYPOINTS_OK"

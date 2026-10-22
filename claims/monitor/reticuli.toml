@@ -14,13 +14,13 @@ requires = ["python3"]
 gate_timeout = 900.0
 environment = "requirements.lock"
 inputs = [
-    # the profiler's cost table: data, pinned here too so the room has it
     "apeiron/profilers/aten_flops_map.py",
     "test_continuous_monitor.py",
     "test_adaptation_cycle.py",
     "test_contracts_and_branches.py",
     "test_public_api.py",
     "conftest.py",
+    "test_logged_schema.py",
     "pytest.ini",
 ]
 
@@ -225,4 +225,4 @@ guidance = "regenerate ContinuousMonitor(cfg, modelHarness): the drift-monitorin
 kind = "gate"
 output = "MONITOR_OK"
 class = "validated"
-run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_continuous_monitor.py test_adaptation_cycle.py test_contracts_and_branches.py test_public_api.py && printf ok > MONITOR_OK"
+run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_continuous_monitor.py test_adaptation_cycle.py test_contracts_and_branches.py test_public_api.py test_logged_schema.py && printf ok > MONITOR_OK"

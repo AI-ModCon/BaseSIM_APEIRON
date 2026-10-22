@@ -15,10 +15,10 @@ requires = ["python3"]
 gate_timeout = 900.0
 environment = "requirements.lock"
 inputs = [
-    # the profiler's cost table: data, pinned here too so the room has it
     "apeiron/profilers/aten_flops_map.py",
     "test_continuous_trainer.py",
     "conftest.py",
+    "test_transfer_arithmetic.py",
     "pytest.ini",
 ]
 
@@ -166,10 +166,10 @@ guidance = "re-export ContinuousTrainer from apeiron.training.continuous_trainer
 kind = "produce"
 output = "apeiron/training/continuous_trainer.py"
 class = "generated"
-guidance = "regenerate ContinuousTrainer(cfg, modelHarness, logger, profiler): the continual-learning loops dispatched when drift fires. outer_cl_training_loop(drift_event_id) runs up to cfg.train.max_iter inner iterations, logging validation on the current and historical splits and reporting profiler performance when a profiler is present. inner_cl_training_loop(iter_count, cur_train_loader, train_iter, hist_train_loader=None, hist_train_iter=None) runs one iteration -- updater hooks in order (update_pre_fwd_bwd, fwd_bwd over cfg.train.grad_accumulation_steps steps, update_post_fwd_bwd, optimizer step, update_post_optimizer_call) -- and RETURNS the iterators alongside the losses, because a loader that runs out is replaced inside the step. _safe_next(iterator, loader, min_batch=None) restarts an exhausted loader, enforces min_batch by reading batch[1].shape (accepting the batch when that cannot be inspected), and raises ValueError naming the largest batch when no batch in the loader can satisfy min_batch. The forward/backward and the optimizer step are wrapped in profiler measurement only after the profiler's warmup window."
+guidance = "regenerate ContinuousTrainer(cfg, modelHarness, logger, profiler): the continual-learning loops dispatched when drift fires. outer_cl_training_loop(drift_event_id) runs up to cfg.train.max_iter inner iterations, logging validation on the current and historical splits and reporting profiler performance when a profiler is present. inner_cl_training_loop(iter_count, cur_train_loader, train_iter, hist_train_loader=None, hist_train_iter=None) runs one iteration -- updater hooks in order (update_pre_fwd_bwd, fwd_bwd over cfg.train.grad_accumulation_steps steps, update_post_fwd_bwd, optimizer step, update_post_optimizer_call) -- and RETURNS the iterators alongside the losses, because a loader that runs out is replaced inside the step. _safe_next(iterator, loader, min_batch=None) restarts an exhausted loader, enforces min_batch by reading batch[1].shape (accepting the batch when that cannot be inspected), and raises ValueError naming the largest batch when no batch in the loader can satisfy min_batch. The forward/backward and the optimizer step are wrapped in profiler measurement only after the profiler's warmup window. compute_bwt(metric_index=0) is backward transfer for the task that just finished adapting -- the mean over retained past tasks of (the current model's score on task i) minus (the score recorded right after adapting to task i), paired positionally, returning None before any task is registered. Its sign follows the raw metric, so a lower-is-better metric degrading reads POSITIVE. The outer loop also computes forward transfer inline as (post-CL score on the window that fired) minus (its pre-CL score) and logs both alongside test_curr_acc and test_pre_cl_acc, with bwt present only once a history exists."
 
 [[step]]
 kind = "gate"
 output = "TRAINER_OK"
 class = "validated"
-run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_continuous_trainer.py && printf ok > TRAINER_OK"
+run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_continuous_trainer.py test_transfer_arithmetic.py && printf ok > TRAINER_OK"
