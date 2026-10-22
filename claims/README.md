@@ -81,7 +81,15 @@ PYTHONPATH=$R python3.13 -m reticuli rebuild claims/<name> \
 PYTHONPATH=$R python3.13 -m reticuli crosscheck claims/<name> /tmp/m3-<name> --record-proof
 ```
 
-Add `--recursive` on the top claim to regrow every layer bottom-up.
+Or do every layer with retries and crosschecks in one go:
+
+```
+RETICULI_SRC=../reticuli/src RETICULI_PYTHON=python3.13 \
+  claims/scripts/regrow.sh                  # all ten, bottom-up
+claims/scripts/regrow.sh trainer monitor    # or just these
+```
+
+Do not reach for `ret rebuild --recursive` here; see below.
 
 Then read what came back:
 
