@@ -180,6 +180,29 @@ Also newly covered, outside any claim: the three entry points
 `cl_only` end to end on a tiny harness — about a thousand lines that
 had no tests at all. 262 tests pass, ruff and mypy clean.
 
+### A17 — the loop closes: regrowth now converges on the real algorithm
+Re-running the blind regrowths against the strengthened criteria is the
+confirmation the whole method rests on. Codex regrew
+`configuration.py` (59 s) and the updater package (63 s), both reaching
+their new roots and crosschecking accepted with proofs recorded — and
+the regrown `jvp_reg.py` now implements the DOCUMENTED algorithm:
+perturbation along the negative, current-only gradient, the half/half
+mix, and the signed `rho_x` input shift. The hole that admitted a
+different algorithm (A13) is closed, demonstrated rather than asserted.
+Regrowth sizes also moved toward the originals: `configuration.py` 148
+→ 194 lines (of 403), the updater package 233 → 235 but with the right
+mathematics inside. Updaters mutation at the resealed root: 0.37.
+What remains uncovered is now mostly commentary, logging, and
+defensive branches rather than behavior.
+
+### A18 — APEIRON: no `[logging]` section means a run talks to wandb
+`configure_backend(cfg)` returns `"wandb"` when `cfg.logging` is None,
+so a TOML with no `[logging]` section tries to reach Weights & Biases —
+surprising for a framework whose other defaults are all offline, and a
+hang risk on an HPC node or in CI. `"none"` would be the defensible
+default. Pinned by a test, so changing it is a deliberate decision.
+Status: open.
+
 ### A15 — APEIRON: the shared DummyHarness could not drive the monitor
 `tests/conftest.py`'s `DummyHarness.get_stream_dataloader` returned a
 one-element tuple, which `ContinuousMonitor` cannot iterate (it unpacks

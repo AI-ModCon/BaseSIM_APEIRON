@@ -25,9 +25,22 @@ log entries.
 
 ## 2. The test backlog, ranked by measured consequence
 
-Mutation by layer: evaluation 0.76, config 0.36, logger 0.32, drift 0.23,
-harness 0.16, updaters 0.12 — criteria strength falls as the code gets
-closer to the science.
+**Round one is done** (see LOG A14, A17). Mutation by layer, before and
+after: config 0.36 → 0.68, model-harness 0.16 → 0.56, updaters 0.12 →
+0.37, drift-detection 0.23 → 0.30; evaluation 0.76 and logger 0.32
+untouched so far. The entry points went from no tests at all to end-to-end
+coverage, and the Logger facade from none to full. The confirmation that
+matters: regrown implementations now land on the documented algorithms
+instead of plausible substitutes.
+
+Remaining, in the same priority order: the mlflow backend has no tests;
+`ContinuousTrainer` and `ContinuousMonitor` are not yet claimed (they need
+the logger facade and profilers in a room); the evidently analysis
+pipeline in `ModelPerformanceDetector` is still only loosely constrained
+(an 81-line stand-in satisfied it); and `accuracy_topk` plus
+`evaluation.py` await the delete-or-specify decision.
+
+The original backlog, for reference:
 
 1. **Updater numerics** (A12, A13 — highest value). The codex regrowth
    proved a different algorithm passes: the regrown JVP updater perturbs
