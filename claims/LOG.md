@@ -64,11 +64,11 @@ pinned claim files, where a renumber would move claim roots.
 | R5 | bug (fixed) | closed | reticuli: recipe-in-place packing dropped component links |
 | R6 | withdrawn | closed | WITHDRAWN: producers do get the furnished environment |
 | R7 | methodology | closed | measurement property: regrowth is a sampling instrument |
-| R8 | enhancement | fixed here | reticuli: a dependent silently under-declaring a component's files |
-| R9 | enhancement | closed | reticuli: resealing a leaf orphans its dependents' component copies |
+| R8 | enhancement | closed | reticuli: a dependent silently under-declaring a component's files |
+| R9 | enhancement | open | reticuli: resealing a leaf orphans its dependents' component copies |
 | R10 | enhancement | closed | reticuli: `status --files` omits pinned produce outputs |
-| R11 | enhancement | open | reticuli: a rebuild reports success when it mints a different claim |
-| R12 | enhancement | open | reticuli: `status` reports a proof that was earned on other bytes |
+| R11 | enhancement | closed | reticuli: a rebuild reports success when it mints a different claim |
+| R12 | enhancement | closed | reticuli: `status` reports a proof that was earned on other bytes |
 
 ## Findings
 
@@ -696,7 +696,9 @@ Practical consequence while it stands: after any reseal, treat every
 recorded proof as stale until re-earned. `claims/scripts/regrow.sh <layer>`
 re-earns one.
 Kind: enhancement
-Status: open; worth reporting upstream.
+Status: closed — fixed upstream in reticuli PR #3 (merged): a proof is trusted
+only while a root it names matches the claim's current root; `status`
+prints `stale` with the remedy.
 
 ### R11 — reticuli: a rebuild reports success when it mints a different claim
 Pinning the ATen cost table as `class = "pinned"` (A25) exposed this.
@@ -720,7 +722,9 @@ them at all, and "constants the implementation reads" is what an input
 *is*. Changing it is queued behind the regrowth run currently using these
 claims.
 Kind: enhancement
-Status: open on both sides.
+Status: closed — fixed upstream in reticuli PR #3 (merged): pinned produce
+outputs join the rebuild's watched set, the result carries `source_root`,
+and both renderers refuse to let a root mismatch read as success.
 
 ### R10 — reticuli: `status --files` omits pinned produce outputs
 A produce step declared `class = "pinned"` is inside the root — verified
@@ -730,8 +734,8 @@ inputs, generated outputs, the environment and the gate verdict. The
 per-file account is the view an auditor reads to see what a claim covers,
 so a covered file missing from it understates the claim.
 Kind: enhancement
-Status: enhancement idea; cosmetic, but it is the view that answers "what
-does this claim pin?".
+Status: closed — fixed upstream in reticuli PR #3 (merged): pinned produce
+outputs appear in `status --files` as `pinned / output`.
 
 ### R8 — reticuli: a dependent silently under-declaring a component's files
 Adding a file to a component claim (`apeiron/model/__init__.py`) left every
@@ -758,7 +762,9 @@ claim that cannot travel, and only a round trip proves it can. That makes
 the subset warning more valuable than it first looked, and it is a good
 argument for exporting a claim as part of accepting it.
 Kind: enhancement
-Status: enhancement idea; both instances fixed here.
+Status: closed — fixed upstream in reticuli PR #3 (merged): `pack_declared`
+warns when a component's declared `from`-step set is a subset of what the
+component supplies.
 
 ### R9 — reticuli: resealing a leaf orphans its dependents' component copies
 `ret pull` copies a component claim *into* the dependent's store, and the
@@ -773,7 +779,8 @@ The fix is procedural: re-pull and reseal bottom-up in dependency order
 after any leaf changes. Worth automating, since the order is a property
 of the graph and reticuli already computes the chain.
 Kind: enhancement
-Status: enhancement idea; the workaround is documented in claims/README.md.
+Status: open upstream — the one triaged finding deliberately left out of
+reticuli PR #3; automated bottom-up resealing wants its own design pass.
 
 ### R5 — reticuli: recipe-in-place packing dropped component links
 A produce step's `from = "<component>"` is honored by incremental
@@ -854,7 +861,9 @@ ratio** from `claims/scripts/surface_diff.py`, which compares only the
 files that claim regrows itself (trainer 32%, monitor 40%). Mutation is the
 right instrument for a leaf, regrowth for a composition.
 Kind: enhancement
-Status: enhancement idea; the numbers above are the workaround.
+Status: closed — fixed upstream in reticuli PR #3 (merged): mutation excludes
+`from`-supplied steps and reports `supplied_excluded`, so a composed
+claim's score describes the layer it names.
 
 ### R1 — reticuli: strict seatbelt broke every furnished claim on macOS
 The first furnished-environment strict audit ever run (`apeiron-config`)
