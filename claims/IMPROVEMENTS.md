@@ -47,17 +47,23 @@ device selection. `ContinuousMonitor`, `ContinuousTrainer`,
 
 What is left, and why:
 
-- **The evidently pipeline** in `ModelPerformanceDetector` — 57 of the
-  remaining 70 statements, and the one item that was never mechanical.
-  Needs real DataFrames and an understanding of evidently's result dict;
-  it is also the loosest boundary measured (an 81-line stand-in passed).
-  Roughly a day, and the highest-value work remaining.
-- **13 statements that are structurally unreachable here**: the Python
-  3.10 `tomli` import fallback (dead on a 3.13+ project), three
-  `if __name__ == "__main__"` lines, two empty-buffer refusals in the
-  runners that their monitors cannot reach, and a handful of
-  profiler-warmup arms. GPU-only code is now covered by patching the
-  probes rather than needing hardware.
+**Round three: the evidently pipeline is done too.** `src/` is at **99%**
+(2,201 statements, 10 uncovered), 501 tests.
+`ModelPerformanceDetector` went 64% to 100% in two tiers — real evidently
+reports checking the contract with the installed library, and a stubbed
+`Report` for the four result-shape refusals and the regime boundaries
+real data cannot place reliably. Pinned into the claim, drift-detection
+mutation went **0.30 to 0.60**, with comparison mutations rising from 0
+of 4 to 4 of 4 across 222 sites and arithmetic from 0 to 2 of 2.
+
+What is left:
+
+- **10 structurally unreachable statements**, which is the ceiling: the
+  Python 3.10 `tomli` import fallback (dead on a 3.13+ project), three
+  `if __name__ == "__main__"` guards, one `torch.cuda.empty_cache()`, and
+  two dead lines in `evaluation.py` whose condition the function already
+  returned on. GPU-only code is covered by patching the probes rather
+  than needing hardware.
 - **Still unclaimed layers**: trainer, monitor, and profilers have the
   coverage but no reticuli claim, so their constraint is unmeasured.
 - `accuracy_topk` and `evaluation.py` await the delete-or-specify
