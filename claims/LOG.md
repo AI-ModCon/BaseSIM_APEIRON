@@ -327,6 +327,35 @@ changing what an independent reconstruction is *forced* to build, rather
 than merely what it is allowed to pass.
 Status: closed.
 
+### R8 — reticuli: a dependent silently under-declaring a component's files
+Adding a file to a component claim (`apeiron/model/__init__.py`) left every
+dependent's recipe listing the component's *old* output set. The warm pack
+still passed, because the file was present on disk from `ret pull`; the
+deep audit failed, because its room is built from declarations alone and
+the file was never materialized. The failure surfaced as one puzzling
+test (`re_exports_the_harness`) inside an otherwise green layer.
+
+Working as designed — declarations are the authority, and the audit is
+what checks them — but the gap between "passes warm" and "passes
+declared" is exactly where a composed claim rots, and nothing points at
+it. `ret pack` could compare each `from = "<component>"` step set against
+the component's own generated outputs and warn on a subset.
+Status: enhancement idea.
+
+### R9 — reticuli: resealing a leaf orphans its dependents' component copies
+`ret pull` copies a component claim *into* the dependent's store, and the
+dependent's manifest link names that copy's root. Reseal the leaf — which
+happens every time its criteria are strengthened — and the link now names
+a root that exists nowhere: not in the leaf (it moved) and not in the
+registry. The symptom is a later `ret pull` of the dependent failing with
+`unresolved components`, naming leaves that are plainly present, which
+sends you looking in the wrong place.
+
+The fix is procedural: re-pull and reseal bottom-up in dependency order
+after any leaf changes. Worth automating, since the order is a property
+of the graph and reticuli already computes the chain.
+Status: enhancement idea; the workaround is documented in claims/README.md.
+
 ### R5 — reticuli: recipe-in-place packing dropped component links
 A produce step's `from = "<component>"` is honored by incremental
 rebuild, deep audit, and export only through the manifest's component
