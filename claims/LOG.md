@@ -10,7 +10,67 @@ Claims live under `claims/`; sealed roots are in each claim's
 `.reticuli/manifest.json`. Source snapshots referenced below are from
 `main` at 63a877a.
 
-## 2026-10-21
+## Index
+
+`Kind` says what a finding *is*, so the list of things to act on is
+derivable from this file rather than from memory: **defect** needs a code
+change, **decision** needs the team's judgment, **criteria-gap** was the
+suite failing to demand something and is closed by the tests written in
+response, **measurement** and **methodology** are records with nothing to
+act on. State is **open** (needs diagnosis or a decision), **fixed here**
+(a patch exists in this workspace and wants a PR upstream), or **closed**.
+
+Numbers never change — they are referenced from test docstrings and from
+pinned claim files, where a renumber would move claim roots.
+
+| # | kind | state | finding |
+|---|---|---|---|
+| A1 | defect | open | APEIRON: the package `__init__` welds every layer together |
+| A2 | measurement | closed | APEIRON: config tests kill 36% of injected faults |
+| A3 | decision | open | APEIRON: `accuracy_topk` and all of `evaluation.py` are untested |
+| A4 | defect | fixed here | APEIRON: blanket `*.toml` / `*.json` in `.gitignore` |
+| A5 | measurement | closed | APEIRON: a blind regrowth passes the config gate at 148 lines of 403 |
+| A6 | defect | open | APEIRON: `EnsembleDetector` is hostage to the evidently module |
+| A7 | defect | open | APEIRON: the evidently guard in the drift tests is leaky |
+| A8 | defect | open | APEIRON: `requires-python >=3.13` but river 0.23.0 ships no 3.14 wheel |
+| A9 | measurement | closed | APEIRON: drift tests kill 23% of injected faults |
+| A10 | measurement | closed | APEIRON: harness tests kill 16% of injected faults |
+| A11 | measurement | closed | APEIRON: the drift layer regrows at a quarter of its size |
+| A12 | measurement | closed | APEIRON: updater math is nearly criterion-free |
+| A13 | measurement | closed | APEIRON: the JVP/SAM updater is interchangeable with a different algor |
+| A14 | measurement | closed | coverage round one: the measured effect of the new tests |
+| A15 | defect | fixed here | APEIRON: the shared DummyHarness could not drive the monitor |
+| A16 | defect | open | APEIRON: `--trigger-at` without `--schedule fixed` dies obscurely |
+| A17 | measurement | closed | the loop closes: regrowth now converges on the real algorithm |
+| A18 | defect | open | APEIRON: no `[logging]` section means a run talks to wandb |
+| A19 | defect | open | APEIRON: `evaluation.test()` under-reports loss by the batch count |
+| A20 | defect | open | APEIRON: a misspelled `aggregation` silently becomes the mean |
+| A21 | defect | open | APEIRON: `ModelEvalDetector` prints, asserts, and fakes its score |
+| A22 | decision | open | APEIRON: the detector's regime can outvote its own verdict |
+| A23 | measurement | closed | the strengthened criteria reject the stand-in that used to pass |
+| A24 | methodology | closed | a nine-layer recursive rebuild compounds the producer's variance |
+| A25 | defect | fixed here | APEIRON: every reported FLOPs figure rests on an unverified table |
+| A26 | methodology | fixed here | a test that exists is not a criterion until a claim pins it |
+| A27 | decision | open | the logger's explicit delegation is a freedom, not a requirement |
+| A28 | defect | closed | the two side runners duplicate a loop they could inherit |
+| A29 | criteria-gap | closed | the framework's main loop is not pinned by the layer that owns it |
+| A30 | criteria-gap | closed | the forgetting metric a CL paper reports was unverified |
+| A31 | defect | open | the transfer row cannot be joined to the event that produced it |
+| A32 | criteria-gap | closed | two more logged quantities nobody named |
+| R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
+| R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
+| R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
+| R4 | enhancement | closed | reticuli: a composed claim's mutation score is mostly not its own |
+| R5 | bug (fixed) | closed | reticuli: recipe-in-place packing dropped component links |
+| R6 | withdrawn | closed | WITHDRAWN: producers do get the furnished environment |
+| R7 | methodology | closed | measurement property: regrowth is a sampling instrument |
+| R8 | enhancement | fixed here | reticuli: a dependent silently under-declaring a component's files |
+| R9 | enhancement | closed | reticuli: resealing a leaf orphans its dependents' component copies |
+| R10 | enhancement | closed | reticuli: `status --files` omits pinned produce outputs |
+| R11 | enhancement | open | reticuli: a rebuild reports success when it mints a different claim |
+| R12 | enhancement | open | reticuli: `status` reports a proof that was earned on other bytes |
+
+## Findings
 
 ### A1 — APEIRON: the package `__init__` welds every layer together
 `src/apeiron/__init__.py` eagerly imports config, harness, monitor,
@@ -20,6 +80,7 @@ tree to parse a TOML. No layer is importable in isolation, which blocks
 claiming any layer in place and is why `claims/config/` carries copies and
 a namespace package instead. Candidate fix: a lazy `__init__` (PEP 562
 module `__getattr__`) that keeps `from apeiron import Config` working.
+Kind: defect
 Status: open; first candidate for an upstream branch.
 
 ### A2 — APEIRON: config tests kill 36% of injected faults
@@ -29,14 +90,17 @@ dataclass defaults are largely unasserted; flip `max_iter` or a detector
 threshold and the suite passes), booleans 1/4. Returns and arithmetic
 100%. The best-tested layer in the repo under-constrains its
 implementation substantially.
-Status: open; the survivors name the tests to write.
-
+Kind: measurement
+Status: superseded — the config suite now kills 0.68 (was 0.36) after the
+complete field-set and default-value tests. The survivors named here are
+pinned.
 ### A3 — APEIRON: `accuracy_topk` and all of `evaluation.py` are untested
 `tests/test_evaluation.py` exercises `accuracy` only. `accuracy_topk`
 (the general form, used by harnesses) has no criteria of its own, and
 `src/apeiron/evaluation/evaluation.py` is entirely untested — in fact
 nothing imports it (dead code), and its docstring says it returns a float
 ratio while the code returns an `(accuracy_percent, test_loss)` tuple.
+Kind: decision
 Status: open; delete or specify `evaluation.py`, add topk criteria.
 Confirmed by regrowth (2026-10-21, later): codex rebuilt the claim in
 30 s and crosscheck accepted — M1/M2/M3 all earn root `99b37045…` — but
@@ -52,6 +116,7 @@ files survive, but any new config artifact is silently dropped — here it
 ate a claim's recipe and sealed manifest from a commit before negations
 were added. Upstream, the same rule means a contributor adding any TOML
 or JSON fixture will silently not commit it.
+Kind: defect
 Status: fixed in this workspace with negations; open upstream.
 
 ### A5 — APEIRON: a blind regrowth passes the config gate at 148 lines of 403
@@ -70,6 +135,7 @@ the next layer instantly — `load_drift_detector` reads
 config gate" is measurably not "substitutable into APEIRON". The
 missing fields are precisely the criteria the drift-detection claim adds
 back by composing on apeiron-config.
+Kind: measurement
 Status: working as designed; the divergence list is the test backlog for
 `tests/test_config.py`.
 
@@ -80,6 +146,7 @@ pandas (evidently itself is imported lazily at the call site). Neither
 class needs pandas or evidently, but they are unimportable — and
 untestable — wherever that module fails to import. Splitting them into
 their own module would free them.
+Kind: defect
 Status: open.
 
 ### A7 — APEIRON: the evidently guard in the drift tests is leaky
@@ -93,6 +160,7 @@ is also misnamed: `HAS_EVIDENTLY` actually measures whether pandas is
 installed (the module imports evidently lazily), so a pandas-but-no-
 evidently host reports `HAS_EVIDENTLY = True` and then fails at
 detector construction.
+Kind: defect
 Status: open.
 
 ### A8 — APEIRON: `requires-python >=3.13` but river 0.23.0 ships no 3.14 wheels
@@ -101,6 +169,7 @@ Furnishing the drift claim's environment on Python 3.14 refused: river
 cp313; cp314 wheels start at river 0.24.2. APEIRON's declared support
 for 3.14 therefore requires building river from source. The drift claim
 pins a py3.13 environment to stay faithful to `uv.lock`.
+Kind: defect
 Status: open upstream — bump river or narrow `requires-python`.
 
 ### A9 — APEIRON: drift tests kill 23% of injected faults
@@ -109,16 +178,19 @@ Comparison mutations 0/4 (of 222 sites) and arithmetic 0/3 (of 60) —
 the severity thresholds and regime mapping in the detectors are barely
 asserted; a detector that never escalates past `stable` at the wrong
 boundary would pass. 63 tests, zero skips, with evidently furnished.
-Status: open; boundary tests on severity/regime mapping are the gap.
-
+Kind: measurement
+Status: superseded — the drift suite now kills 0.60 (was 0.23) after the
+severity-boundary and evidently-pipeline tests. Comparison mutations went
+from 0 of 4 to 4 of 4 across 222 sites.
 ### A10 — APEIRON: harness tests kill 16% of injected faults
 `ret assess claims/model_harness --mutants 25`: mutation 0.16, the
 weakest layer yet. Arithmetic, boolean, constant, and string mutations
 all 0-for-sampled. The per-task transfer-metrics machinery
 (`register_task`, `eval_past_tasks`, `task_diagonals` — documented in
 CLAUDE.md and docs/tracking.md) has no criteria at all.
-Status: open.
-
+Kind: measurement
+Status: superseded — the harness suite now kills 0.56 (was 0.16) after the
+transfer-metrics and checkpointing tests.
 ### A11 — APEIRON: the drift layer regrows at a quarter of its size
 After R5 was fixed, the codex rebuild of apeiron-drift-detection
 succeeded in 106 s: all five modules regrown blind against the 63-test
@@ -129,6 +201,7 @@ how loose the boundary is: base.py 172→57 lines, statistical_detectors
 lines pass as 276. The evidently analysis pipeline in particular is
 barely constrained: an 81-line stand-in satisfies every criterion the
 suite states.
+Kind: measurement
 Status: evidence; each dropped behavior that matters is a test to write.
 
 ### A12 — APEIRON: updater math is nearly criterion-free
@@ -141,8 +214,11 @@ in the whole repository: the scientific core has the least constraining
 tests. Mutation by layer so far: evaluation 0.76, config 0.36, drift
 0.23, harness 0.16, updaters 0.12 — criteria strength falls as the code
 gets closer to the science.
-Status: open; numerical assertions on the regularizers are the ask.
-
+Kind: measurement
+Status: addressed — `tests/test_updater_numerics.py` pins the EWC Fisher commit
+and penalty, the KFAC factors and structured penalty, and the JVP/SAM
+perturbation direction. Updaters mutation 0.12 to 0.37; arithmetic
+mutations 0 of 4 to 2 of 2 in the re-measured run.
 ### A13 — APEIRON: the JVP/SAM updater is interchangeable with a different algorithm
 The codex rebuild of apeiron-updaters reached the sealed root in 68 s
 (crosscheck accepted, proof recorded; apeiron-model-harness likewise in
@@ -157,8 +233,10 @@ the current suite, APEIRON's core scientific algorithms are
 interchangeable with different algorithms. The criteria to add are
 numerical: fixed tiny model, fixed seed, assert the actual update
 direction/penalty values for EWC, KFAC, and JVP.
-Status: open; highest-value test work in the repository.
-
+Kind: measurement
+Status: addressed — the combined-gradient impostor described here fails 8 of the
+11 numerical tests written in response. Every regrowth since builds the
+current-only perturbation.
 ### A14 — coverage round one: the measured effect of the new tests
 Five test files written against the ranked backlog in
 [IMPROVEMENTS.md](IMPROVEMENTS.md), then pinned into their claims:
@@ -179,6 +257,8 @@ Also newly covered, outside any claim: the three entry points
 (`tests/test_entry_points.py`), which run `main`, `drift_only`, and
 `cl_only` end to end on a tiny harness — about a thousand lines that
 had no tests at all. 262 tests pass, ruff and mypy clean.
+Kind: measurement
+Status: recorded.
 
 ### A17 — the loop closes: regrowth now converges on the real algorithm
 Re-running the blind regrowths against the strengthened criteria is the
@@ -194,6 +274,8 @@ Regrowth sizes also moved toward the originals: `configuration.py` 148
 mathematics inside. Updaters mutation at the resealed root: 0.37.
 What remains uncovered is now mostly commentary, logging, and
 defensive branches rather than behavior.
+Kind: measurement
+Status: recorded.
 
 ### A18 — APEIRON: no `[logging]` section means a run talks to wandb
 `configure_backend(cfg)` returns `"wandb"` when `cfg.logging` is None,
@@ -201,6 +283,7 @@ so a TOML with no `[logging]` section tries to reach Weights & Biases —
 surprising for a framework whose other defaults are all offline, and a
 hang risk on an HPC node or in CI. `"none"` would be the defensible
 default. Pinned by a test, so changing it is a deliberate decision.
+Kind: defect
 Status: open.
 
 ### A19 — APEIRON: `evaluation.test()` under-reports loss by the batch count
@@ -233,6 +316,7 @@ Recommendation: delete the module. Nothing in the framework calls it,
 every realistic caller. It is referenced from `docs/api/evaluation.md`,
 making it nominally public, so the removal is the team's call rather than
 a mechanical cleanup.
+Kind: defect
 Status: open — decision needed.
 
 ### A20 — APEIRON: a misspelled `aggregation` silently becomes the mean
@@ -243,6 +327,7 @@ refusing. Same failure class as the unknown top-level config key fixed in
 the determinism branch: a configuration the user believes is in effect,
 silently is not. `detector_name` and `ensemble_voting` both raise on an
 unknown value; this one should too.
+Kind: defect
 Status: open. Current behavior is pinned by a test, so a fix is a
 deliberate change.
 
@@ -257,6 +342,7 @@ mismatch into a silent wrong answer rather than a refusal. And every
 with `# dummy` beside both, so the score column for an `EvalDetector`
 run is a constant — and the ensemble averages that constant into its own
 `drift_score`.
+Kind: defect
 Status: open — replace the print with `logger.debug`, the assert with a
 raise, and either compute a real score or document the sentinel.
 
@@ -270,6 +356,7 @@ is still near zero; a quiet window after a drifted stretch reports
 pinned by tests now. Whether that is the intended hysteresis or an
 accident is a design question for the team — it is undocumented either
 way.
+Kind: decision
 Status: open — document or reconcile.
 
 ### A15 — APEIRON: the shared DummyHarness could not drive the monitor
@@ -278,6 +365,7 @@ one-element tuple, which `ContinuousMonitor` cannot iterate (it unpacks
 batches directly), so the shared fixture was unusable for any
 loop-level test — nothing had ever tried. Every example harness returns
 the loader itself. Fixed here while writing the entry-point tests.
+Kind: defect
 Status: fixed in this workspace; carry upstream with the entry-point
 tests.
 
@@ -288,6 +376,7 @@ tests.
 about flags the user never mentioned. Either infer `fixed` from
 `--trigger-at` or name the real problem. The current behavior is pinned
 by a test so a fix is a deliberate change.
+Kind: defect
 Status: open.
 
 ### A23 — the strengthened criteria reject the stand-in that used to pass
@@ -325,6 +414,7 @@ factory 25 to 24) — they were already constrained by the severity tests.
 This is the clearest demonstration the track has produced of criteria
 changing what an independent reconstruction is *forced* to build, rather
 than merely what it is allowed to pass.
+Kind: measurement
 Status: closed.
 
 ### A30 — the forgetting metric a CL paper reports was unverified
@@ -350,6 +440,7 @@ positional pairing of each task's current score with its own diagonal, the
 directions; FWT's gain, loss and zero cases; and the validation payload's
 naming for both domains, its absent-domain behaviour and its
 annotate-don't-advance logging. Trainer root 1b7fe903.
+Kind: criteria-gap
 Status: closed.
 
 ### A31 — the transfer row cannot be joined to the event that produced it
@@ -359,6 +450,7 @@ per-iteration loss rows both do. In the metrics CSV the forgetting numbers
 therefore cannot be joined to the adaptation that produced them except by
 step ordering. Recorded as a `strict=True` xfail so it flips green when
 fixed, with its present behaviour pinned alongside.
+Kind: defect
 Status: open — a one-line fix, but it changes the CSV schema.
 
 ### A32 — two more logged quantities nobody named
@@ -375,6 +467,7 @@ Pinned at their own layers, per A29: the monitor's prefix in
 `tests/test_logged_schema.py`, the runners' shared prefix and decision row
 in `tests/test_runner_schema.py`. Monitor root f3515468, entrypoints
 97785170.
+Kind: criteria-gap
 Status: closed.
 
 ### A29 — the framework's main loop is not pinned by the layer that owns it
@@ -400,6 +493,7 @@ lets a drift-only run skip building an optimizer it never steps).
 Re-regrown: `run` has left the dropped-names list — the reconstruction now
 implements the loop — and the layer's kept ratio moved 33% to 38%. Monitor
 root d585d03d -> d64a5d81.
+Kind: criteria-gap
 Status: closed.
 
 ### A28 — the two side runners duplicate a loop they could inherit
@@ -489,6 +583,7 @@ Two things the re-regrowth then taught, both now pinned:
   subclasses, neither re-defines the shared machinery, and `drift_only`
   inherits `_process_stream` identically. Entrypoints root 1d80a987.
 
+Kind: defect
 Status: closed.
 
 ### A27 — the logger's explicit delegation is a freedom, not a requirement
@@ -508,6 +603,7 @@ demand it (a typing test, or `mypy --strict` over a consumer). If not, the
 Found with `claims/scripts/surface_diff.py`, which compares a regrown room
 against `src/` on logical lines and public surface, resolving inheritance
 and dynamic delegation so only genuine divergences are reported.
+Kind: decision
 Status: open — a decision, not a bug.
 
 ### A26 — a test that exists is not a criterion until a claim pins it
@@ -537,6 +633,7 @@ dataset, which is out of bounds for a hermetic room;
 The general rule worth stating for the team: coverage measures what the
 suite executes, claims measure what the suite *demands*. A file can do the
 first without the second, and only the second survives a reconstruction.
+Kind: methodology
 Status: fixed here; the rule belongs in CONTRIBUTING if claims are adopted.
 
 ### A25 — APEIRON: every reported FLOPs figure rests on an unverified table
@@ -559,6 +656,7 @@ profiler, hand over the constants. Root moved 25bb0aa2 to 6fe145d6.
 The same question is worth asking of the reference CSVs under
 tests/references/: data that decides a verdict belongs inside an
 identity, not beside it.
+Kind: defect
 Status: addressed in the claim; upstream, consider whether the table wants
 a sanity test (costs positive, a few known operations correct).
 
@@ -577,6 +675,7 @@ against its own criteria, with its sealed components supplied and a couple
 of retries, measures what we actually want to know — that every boundary
 is satisfiable by an independent reconstruction — and it is what
 `claims/README.md` recommends.
+Kind: methodology
 Status: methodology; drives the per-layer regrowth script.
 
 ### R12 — reticuli: `status` reports a proof that was earned on other bytes
@@ -596,6 +695,7 @@ choice. The fix is the same comparison.
 Practical consequence while it stands: after any reseal, treat every
 recorded proof as stale until re-earned. `claims/scripts/regrow.sh <layer>`
 re-earns one.
+Kind: enhancement
 Status: open; worth reporting upstream.
 
 ### R11 — reticuli: a rebuild reports success when it mints a different claim
@@ -619,6 +719,7 @@ pinned output. Inputs are in the watched set, so the producer cannot touch
 them at all, and "constants the implementation reads" is what an input
 *is*. Changing it is queued behind the regrowth run currently using these
 claims.
+Kind: enhancement
 Status: open on both sides.
 
 ### R10 — reticuli: `status --files` omits pinned produce outputs
@@ -628,6 +729,7 @@ claim — but it does not appear in `ret status --files`, which lists pinned
 inputs, generated outputs, the environment and the gate verdict. The
 per-file account is the view an auditor reads to see what a claim covers,
 so a covered file missing from it understates the claim.
+Kind: enhancement
 Status: enhancement idea; cosmetic, but it is the view that answers "what
 does this claim pin?".
 
@@ -655,6 +757,7 @@ proof despite returning `accept`. In other words: a local audit can pass a
 claim that cannot travel, and only a round trip proves it can. That makes
 the subset warning more valuable than it first looked, and it is a good
 argument for exporting a claim as part of accepting it.
+Kind: enhancement
 Status: enhancement idea; both instances fixed here.
 
 ### R9 — reticuli: resealing a leaf orphans its dependents' component copies
@@ -669,6 +772,7 @@ sends you looking in the wrong place.
 The fix is procedural: re-pull and reseal bottom-up in dependency order
 after any leaf changes. Worth automating, since the order is a property
 of the graph and reticuli already computes the chain.
+Kind: enhancement
 Status: enhancement idea; the workaround is documented in claims/README.md.
 
 ### R5 — reticuli: recipe-in-place packing dropped component links
@@ -681,6 +785,7 @@ the first codex rebuild of apeiron-drift-detection failed on
 `No module named 'apeiron.config'`. pack_declared now resolves each
 `from` against the claim's drawer (refusing with a remedy if it is not
 registered) and writes the links the flag path writes.
+Kind: bug (fixed)
 Status: fixed, reticuli commit 0e53cb2.
 
 ### R6 — WITHDRAWN: producers do get the furnished environment
@@ -695,6 +800,7 @@ Measured directly afterwards: the same rebuild invocation that had failed
 was re-run unchanged and succeeded in 95 s, reaching the sealed root. The
 original failure was producer variance, not a missing mechanism. Nothing
 to fix.
+Kind: withdrawn
 Status: withdrawn — the mechanism works as designed.
 
 ### R7 — measurement property: regrowth is a sampling instrument
@@ -710,6 +816,7 @@ regrowth as a sample: repeat it, and treat the *distribution* of what
 comes back as the measurement. Divergences that recur across runs are
 findings about the boundary; divergences that appear once are findings
 about the producer.
+Kind: methodology
 Status: methodology note — applies to every regrowth result in this log.
 
 ### R4 — reticuli: a composed claim's mutation score is mostly not its own
@@ -746,6 +853,7 @@ then: for a composed claim, the layer-specific measure is the **regrowth
 ratio** from `claims/scripts/surface_diff.py`, which compares only the
 files that claim regrows itself (trainer 32%, monitor 40%). Mutation is the
 right instrument for a leaf, regrowth for a composition.
+Kind: enhancement
 Status: enhancement idea; the numbers above are the workaround.
 
 ### R1 — reticuli: strict seatbelt broke every furnished claim on macOS
@@ -756,6 +864,7 @@ separate seatbelt check; the `/Users` mask denied them and the cache
 subpath allow does not cover the road to the cache. Fixed by allowing
 `file-read-metadata` on the ancestor chains of the workspace and cache
 (existence only), with a red-then-green regression test.
+Kind: bug (fixed)
 Status: fixed, reticuli commit 038d734.
 
 ### R2 — reticuli: `ret init` gitignore patterns miss nested claim stores
@@ -764,6 +873,7 @@ place in a subdirectory, so its scratch residue was committable (and got
 committed here before being caught). Fixed with `**/`-prefixed patterns
 plus identity negations (`!**/reticuli.toml`, `!**/.reticuli/manifest.json`)
 so a workspace's own blunt ignore rules cannot drop the recipe or root.
+Kind: bug (fixed)
 Status: fixed, reticuli commit 765cf4b.
 
 ### R3 — reticuli: export dropped the environment file and manifest entries
@@ -775,4 +885,5 @@ own root; crosscheck's M2 leg (materialized via export/import) failed on
 `apeiron-config` with `requirements.lock` missing. Export now uses the
 kernel's enumeration for the claim and its exported components, with a
 red-then-green round-trip test for both cases.
+Kind: bug (fixed)
 Status: fixed, reticuli commit 6fe0f82.
