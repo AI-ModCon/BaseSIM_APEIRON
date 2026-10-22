@@ -58,7 +58,9 @@ def code_lines(path: str) -> int | None:
             continue
         first = body[0]
         if (
-            isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef))
+            isinstance(
+                node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
+            )
             and isinstance(first, ast.Expr)
             and isinstance(first.value, ast.Constant)
             and isinstance(first.value.value, str)
@@ -151,8 +153,13 @@ def main(argv: list[str]) -> int:
             # every name at runtime; report the choice, not 18 phantom gaps
             if scope and DYNAMIC & sb.get(scope, set()):
                 dropped.append(
-                    (where, [f"(delegates {len(missing)} names dynamically "
-                             f"through __getattr__ instead of defining them)"])
+                    (
+                        where,
+                        [
+                            f"(delegates {len(missing)} names dynamically "
+                            f"through __getattr__ instead of defining them)"
+                        ],
+                    )
                 )
             else:
                 dropped.append((where, missing))
