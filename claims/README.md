@@ -21,7 +21,7 @@ Read bottom-up: a claim's components must hold before it does.
 | `apeiron-drift-detection` | `713bdfd1bf0e…` | 5 of 7 | 1 | yes |
 | `apeiron-trainer` | `59fd040ade1f…` | 2 of 24 | 6 | yes |
 | `apeiron-monitor` | `1d8ba1409af4…` | 3 of 32 | 8 | yes |
-| `apeiron-entrypoints` | `e456834bf11c…` | 5 of 36 | 9 | yes |
+| `apeiron-entrypoints` | `e467eb3f7a4a…` | 5 of 36 | 9 | yes |
 
 "own files" is what this layer regrows itself; the rest arrive from its
 components. The share matters when reading `ret assess`: a mutation score
@@ -115,10 +115,17 @@ divergences that appear once are findings about the producer.
 ## Where reconstruction stands
 
 **All ten layers have been regrown from their criteria alone and
-crosschecked** against current roots — original, byte copy and rebuild each
-passing independently and landing on the same root, with the proof recorded
-in each claim's store. Nine passed on the first attempt; `profilers` needed
-the ATen table re-modelled as a pinned input first (LOG R11).
+crosschecked** — original, byte copy and rebuild each passing independently
+and landing on the same root. Nine proofs are recorded against current
+roots; `apeiron-entrypoints` was crosschecked and then resealed (a
+declaration fix, LOG R8), so its proof wants re-earning:
+
+```
+claims/scripts/regrow.sh entrypoints
+```
+
+`profilers` needed the ATen table re-modelled as a pinned input before it
+would crosscheck (LOG R11).
 
 How much each layer's criteria actually pin down, in logical lines of code
 (blanks, comments and docstrings excluded, since raw line counts flatter
