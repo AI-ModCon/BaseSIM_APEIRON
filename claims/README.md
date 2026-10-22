@@ -12,13 +12,13 @@ Read bottom-up: a claim's components must hold before it does.
 
 | claim | root | its own files | components | regrown + crosschecked |
 |---|---|---|---|---|
-| `apeiron-config` | `9cf772046e17…` | 2 of 2 | — | yes |
+| `apeiron-config` | `8cfb4c6c3ec8…` | 2 of 2 | — | yes |
 | `apeiron-evaluation` | `49d0b74e706d…` | 3 of 3 | — | yes |
 | `apeiron-profilers` | `6fe145d6eb07…` | 2 of 3 + 1 pinned | — | yes |
-| `apeiron-model-harness` | `d7eedc525fb2…` | 2 of 7 | 2 | yes |
-| `apeiron-updaters` | `ed5c2c29373e…` | 7 of 14 | 3 | yes |
+| `apeiron-model-harness` | `4adee990728c…` | 2 of 7 | 2 | yes |
+| `apeiron-updaters` | `01494aa9c12e…` | 7 of 14 | 3 | yes |
 | `apeiron-logger` | `1f461066564e…` | 5 of 7 | 1 | yes |
-| `apeiron-drift-detection` | `d0eec347dc29…` | 5 of 7 | 1 | yes |
+| `apeiron-drift-detection` | `713bdfd1bf0e…` | 5 of 7 | 1 | yes |
 | `apeiron-trainer` | `f4370ebed255…` | 2 of 24 | 6 | pending |
 | `apeiron-monitor` | `d585d03dd4e9…` | 3 of 32 | 8 | pending |
 | `apeiron-entrypoints` | `d48d0bec5f9c…` | 5 of 36 | 9 | pending |
@@ -97,8 +97,11 @@ layers, 2,293 logical lines of code (blanks, comments and docstrings
 excluded) came back as 1,132: **roughly half of APEIRON's code is not
 pinned down by its tests**, even after this round of test writing.
 
-The top three layers are pending only because the Codex account hit its
-usage limit mid-run; nothing about them failed. The recursive form
-(`--recursive`) is not the way to finish them — nine chained layers
-multiply the producer's per-layer failure rate into a coin flip (LOG
-A24).
+Those proofs were recorded before the last round of pinning, which moved
+four leaf roots, so a regrowth of all ten layers against current criteria
+is queued. The top three were never attempted: the Codex account hit its
+usage limit mid-run, and nothing about those layers failed.
+
+The recursive form (`--recursive`) is not the way to finish them — nine
+chained layers multiply the producer's per-layer failure rate into a coin
+flip (LOG A24). Regrow each layer on its own.
