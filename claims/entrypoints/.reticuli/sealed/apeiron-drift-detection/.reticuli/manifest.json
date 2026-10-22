@@ -4,13 +4,13 @@
       "component": "apeiron-config",
       "input": "apeiron/config/__init__.py",
       "output": "apeiron/config/__init__.py",
-      "root": "9cf772046e17ab5ea617cb6ced276e7b2a2298fbeb6c69a8a71d7437456dbc01"
+      "root": "8cfb4c6c3ec8271793474817dc365bca23b325ab5d16503febe8c2e40903637a"
     },
     {
       "component": "apeiron-config",
       "input": "apeiron/config/configuration.py",
       "output": "apeiron/config/configuration.py",
-      "root": "9cf772046e17ab5ea617cb6ced276e7b2a2298fbeb6c69a8a71d7437456dbc01"
+      "root": "8cfb4c6c3ec8271793474817dc365bca23b325ab5d16503febe8c2e40903637a"
     }
   ],
   "digest": "sha256",
@@ -20,6 +20,6 @@
     "m2": "d0eec347dc2967724b075963209f4e95d82ee8a88492b2cacae2a40217ff3bcf",
     "m3": "d0eec347dc2967724b075963209f4e95d82ee8a88492b2cacae2a40217ff3bcf"
   },
-  "root": "d0eec347dc2967724b075963209f4e95d82ee8a88492b2cacae2a40217ff3bcf",
-  "sealed": "2026-10-22T04:32:40Z"
+  "root": "713bdfd1bf0e332d3d2b9ad2ca3898001e7305e686b317b7ad77dabec1bf2749",
+  "sealed": "2026-10-22T04:44:19Z"
 }

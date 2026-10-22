@@ -470,3 +470,35 @@ class TestKFACConv2d:
         upd, _, _ = self._setup(make_harness, default_cfg, tiny_cnn)
         assert set(upd.A) == {"conv", "fc"}
         assert "pool" not in upd.theta_star
+
+
+# ---------------------------------------------------------------------------
+# Commits after steps that were never prepared
+# ---------------------------------------------------------------------------
+class TestOutOfOrderCommits:
+    """Stepping an updater that was never prepared must not commit garbage."""
+
+    def _cfg(self, default_cfg, mode):
+        return replace(
+            default_cfg, continual_learning=ContinualLearningCfg(update_mode=mode)
+        )
+
+    def test_ewc_steps_without_preparation_commit_nothing(
+        self, make_harness, default_cfg
+    ):
+        cfg = self._cfg(default_cfg, "ewc_online")
+        upd = OnlineEWCUpdater(cfg, make_harness(cfg))
+        upd.update_post_optimizer_call()  # a step without cl_preprocessing
+        assert upd._cl_steps == 1
+        upd.cl_postprocessing()
+        assert all(float(f.abs().sum()) == 0.0 for f in upd.fisher.values())
+
+    def test_kfac_steps_without_preparation_commit_nothing(
+        self, make_harness, default_cfg
+    ):
+        cfg = self._cfg(default_cfg, "kfac_online")
+        upd = OnlineKFACUpdater(cfg, make_harness(cfg))
+        upd.update_post_optimizer_call()
+        assert upd._cl_steps == 1
+        upd.cl_postprocessing()
+        assert all(float(a.abs().sum()) == 0.0 for a in upd.A.values())

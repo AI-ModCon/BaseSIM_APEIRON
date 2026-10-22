@@ -1,0 +1,48 @@
+# The claim: APEIRON's configuration layer.
+#
+# Pinned (inside the root): this recipe, test_config.py, pytest.ini, and
+# requirements.lock -- the acceptance boundary. Generated (outside the root):
+# apeiron/config/configuration.py and its package marker -- the
+# implementation, regrowable from the tests alone.
+#
+# The files mirror src/apeiron/config/ and tests/test_config.py at commit
+# 63a877a of this repository; they are copies, not the originals. The claim
+# cannot sit at the repository root yet because the package's top-level
+# __init__.py eagerly imports every subsystem (driver, detectors, logger,
+# training), so importing apeiron.config.configuration in place requires the
+# entire dependency tree. Here apeiron/ is a namespace package -- no
+# top-level __init__.py is declared -- and the environment shows the layer's
+# true import surface: torch, pytest, and the standard library.
+#
+# pytest.ini is pinned to anchor pytest's rootdir inside the claim; without
+# it, pytest ascends to whatever pyproject.toml the host has above the room.
+
+[claim]
+name = "apeiron-config"
+format = 4
+requires = ["python3"]
+gate_timeout = 600.0
+environment = "requirements.lock"
+inputs = [
+    "test_config.py",
+    "test_device_selection.py",
+    "pytest.ini",
+]
+
+[[step]]
+kind = "produce"
+output = "apeiron/config/__init__.py"
+class = "generated"
+guidance = "the package marker for apeiron.config; empty"
+
+[[step]]
+kind = "produce"
+output = "apeiron/config/configuration.py"
+class = "generated"
+guidance = "regenerate apeiron/config/configuration.py so test_config.py passes: TOML experiment configuration parsed into frozen dataclasses. Exports Config, ModelCfg, DataCfg, TrainCfg, ContinualLearningCfg, DriftDetectionCfg, LoggingCfg, build_config, deep_update, kv_to_nested, env_overrides, get_available_device, _select_best_gpu, load_toml, parse_args. build_config(argv) loads a TOML file (--config, required), deep-merges APP_-prefixed environment overrides and then --set key=value CLI overrides (dotted keys nest; values parse as JSON, falling back to bare strings), resolves the device, and returns a frozen Config. _select_best_gpu picks the nvidia-smi GPU with the most free memory, None when nvidia-smi is absent. get_available_device(multi_gpu=False) returns cuda for multi_gpu, otherwise pins CUDA_VISIBLE_DEVICES to the best card BEFORE CUDA initializes (leaving an existing setting alone) and returns cuda:0; with no CUDA it tries MPS, treating a raising probe as absent, and falls back to cpu."
+
+[[step]]
+kind = "gate"
+output = "CONFIG_OK"
+class = "validated"
+run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_config.py test_device_selection.py && printf ok > CONFIG_OK"

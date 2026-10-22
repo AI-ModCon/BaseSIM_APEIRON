@@ -14,7 +14,13 @@ format = 4
 requires = ["python3"]
 gate_timeout = 600.0
 environment = "requirements.lock"
-inputs = ["test_model_harness.py", "test_transfer_metrics.py", "conftest.py", "pytest.ini"]
+inputs = [
+    "test_model_harness.py",
+    "test_transfer_metrics.py",
+    "conftest.py",
+    "test_checkpointing.py",
+    "pytest.ini",
+]
 
 # --- supplied by components ------------------------------------------------
 [[step]]
@@ -69,4 +75,4 @@ guidance = "regenerate the model-harness ABC BaseModelHarness(cfg, model): moves
 kind = "gate"
 output = "HARNESS_OK"
 class = "validated"
-run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_model_harness.py test_transfer_metrics.py && printf ok > HARNESS_OK"
+run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_model_harness.py test_transfer_metrics.py test_checkpointing.py && printf ok > HARNESS_OK"

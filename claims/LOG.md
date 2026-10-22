@@ -327,6 +327,35 @@ changing what an independent reconstruction is *forced* to build, rather
 than merely what it is allowed to pass.
 Status: closed.
 
+### A26 — a test that exists is not a criterion until a claim pins it
+The whole-stack regrowth surfaced this by dropping features that *were*
+tested. Diffing the public surface of each reconstruction against the
+original showed `BaseModelHarness.save_ckpt`, `ckpts_enabled` and
+`build_checkpoint_payload` simply absent — yet `tests/test_checkpointing.py`
+covers all three. The reason: that file was not listed in any claim's
+inputs, so it never entered a gate, so the boundary never mentioned
+checkpointing and the producer was right to leave it out.
+
+Audited across the suite: 22 of 27 test files were pinned; five were not,
+worth 25 tests. Two were mine and cross-cutting
+(`test_checkpointing.py`, and `test_device_and_guards.py`, which covered
+config, drift and updater behaviour in one file and so belonged to no
+single layer). They are now split along layer boundaries and pinned —
+device selection into apeiron-config, ensemble nesting into
+apeiron-drift-detection, the out-of-order updater commits folded into the
+numerics file, checkpointing into apeiron-model-harness.
+
+Three stay deliberately unpinned, and should: `test_rocm.py` needs a GPU
+and skips entirely here, so a gate over it would be vacuous;
+`test_validation_tests.py` is the MNIST golden regression and needs the
+dataset, which is out of bounds for a hermetic room;
+`test_simple.py` asserts `True`.
+
+The general rule worth stating for the team: coverage measures what the
+suite executes, claims measure what the suite *demands*. A file can do the
+first without the second, and only the second survives a reconstruction.
+Status: fixed here; the rule belongs in CONTRIBUTING if claims are adopted.
+
 ### A25 — APEIRON: every reported FLOPs figure rests on an unverified table
 The sharpest finding from regrowing the whole stack.
 `apeiron/profilers/aten_flops_map.py` maps 169 ATen operation names to a
