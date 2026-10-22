@@ -69,8 +69,11 @@ Two rules the tooling enforces and one it does not:
    and the warm pack still passes while `ret audit` fails, because the audit
    room is built from declarations alone.
 3. **Resealing a leaf orphans the component copies inside its dependents.**
-   Nothing warns you. Re-pull and reseal bottom-up; `scripts/` holds no
-   helper for this yet, the order is the table above.
+   `ret status claims/` shows the stale wires, and `ret pull -C claims/`
+   (no claim named) repairs them: bottom-up re-pull and warm reseal, in the
+   order the graph decides, never moving a dependent's root. Recorded
+   proofs on refreshed layers predate the new component bytes — the report
+   says which; re-earn them with `claims/scripts/regrow.sh <layer>`.
 
 ## Regrowing a layer
 

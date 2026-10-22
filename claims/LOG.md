@@ -65,7 +65,7 @@ pinned claim files, where a renumber would move claim roots.
 | R6 | withdrawn | closed | WITHDRAWN: producers do get the furnished environment |
 | R7 | methodology | closed | measurement property: regrowth is a sampling instrument |
 | R8 | enhancement | closed | reticuli: a dependent silently under-declaring a component's files |
-| R9 | enhancement | open | reticuli: resealing a leaf orphans its dependents' component copies |
+| R9 | enhancement | closed | reticuli: resealing a leaf orphans its dependents' component copies |
 | R10 | enhancement | closed | reticuli: `status --files` omits pinned produce outputs |
 | R11 | enhancement | closed | reticuli: a rebuild reports success when it mints a different claim |
 | R12 | enhancement | closed | reticuli: `status` reports a proof that was earned on other bytes |
@@ -779,8 +779,16 @@ The fix is procedural: re-pull and reseal bottom-up in dependency order
 after any leaf changes. Worth automating, since the order is a property
 of the graph and reticuli already computes the chain.
 Kind: enhancement
-Status: open upstream — the one triaged finding deliberately left out of
-reticuli PR #3; automated bottom-up resealing wants its own design pass.
+Status: closed — fixed upstream in reticuli PR #4 (merged), after its own
+design pass: `ret pull` with no claim named recomposes the collection
+(bottom-up, root-preserving, staleness judged live, warm reseals; refuses
+where a pinned supplied file would move a root), and `ret status` in the
+claims directory is the matching pure view. Field-tested on a copy of this
+ladder: a deliberate `config` reseal cascaded through all seven dependents
+in 40s with every root unchanged. The design conversation also surfaced and
+fixed a stale-`__pycache__` hazard (a same-size, same-second refresh passed
+a gate on the OLD bytes). `scripts/recompose.sh`-style hand ordering is
+retired; rule 3 in README.md now points at the verb.
 
 ### R5 — reticuli: recipe-in-place packing dropped component links
 A produce step's `from = "<component>"` is honored by incremental
