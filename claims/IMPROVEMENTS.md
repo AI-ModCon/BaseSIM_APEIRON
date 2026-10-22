@@ -53,13 +53,18 @@ five left out are empty namespace markers. `ret audit claims/entrypoints`
 re-earns the whole stack, **9/9 layers earned**, in about half a minute;
 every claim also verifies fresh and audits earned on its own.
 
-Seven layers have been regrown from their criteria alone by the local Codex
-CLI and crosschecked (original, byte copy and rebuild each passing
-separately, all landing on the same root), every one on the first attempt;
-the remaining three are queued behind a Codex usage limit, not a failure.
-Across the seven, **2,293 logical lines of code came back as 1,132** — so
-about half of APEIRON's code is still not pinned down, even after this
-round of test writing.
+**Every layer has been regrown from its criteria alone and crosschecked** —
+original, byte copy and independent rebuild each passing separately and
+landing on the same root, proofs recorded. Across the whole framework,
+**3,212 logical lines of code came back as 1,516**: about **47% of APEIRON
+is what its tests demand**, and the rest is latitude. Per-layer figures are
+in `claims/README.md`.
+
+That 47% is the number to watch. It is the honest answer to "how much of
+this framework do our tests actually determine", it moved from far worse
+over the course of this work, and it is measurable again after any change —
+`claims/scripts/regrow.sh` plus `claims/scripts/surface_diff.py` reproduce
+it in about twenty minutes at no cost.
 
 Four findings came out of doing it, and they generalize:
 
