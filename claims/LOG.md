@@ -327,6 +327,23 @@ changing what an independent reconstruction is *forced* to build, rather
 than merely what it is allowed to pass.
 Status: closed.
 
+### A24 — a nine-layer recursive rebuild compounds the producer's variance
+`ret rebuild claims/entrypoints --recursive` regrew six layers in about
+eleven minutes — config, evaluation, model-harness, updaters, logger,
+profilers — and then aborted when the model-harness gate failed on one
+test. Rebuilding that same layer alone immediately afterwards succeeded in
+37 s, so the failure was R7 variance, not a boundary problem.
+
+The arithmetic matters for how this is used. If a layer regrows
+successfully with probability p, nine chained layers all succeed with p^9:
+at p = 0.8 that is 13%. An atomic recursive run therefore measures the
+producer's luck, not the boundaries. Regrowing each layer independently
+against its own criteria, with its sealed components supplied and a couple
+of retries, measures what we actually want to know — that every boundary
+is satisfiable by an independent reconstruction — and it is what
+`claims/README.md` recommends.
+Status: methodology; drives the per-layer regrowth script.
+
 ### R8 — reticuli: a dependent silently under-declaring a component's files
 Adding a file to a component claim (`apeiron/model/__init__.py`) left every
 dependent's recipe listing the component's *old* output set. The warm pack
