@@ -222,6 +222,12 @@ flip green the moment either is fixed. The docstring is corrected to
 state the reduction requirement and the real return type; behavior is
 untouched.
 
+A third, smaller defect: the function returns early when `total == 0`,
+then guards the same condition again with `if total > 0: ... else: ...`,
+so the else arm is dead code. It is the only unreachable branch left in
+`src/` that is not an import fallback, a `__main__` guard, or a CUDA
+call.
+
 Recommendation: delete the module. Nothing in the framework calls it,
 `BaseModelHarness.eval()` is the supported path, and it is wrong for
 every realistic caller. It is referenced from `docs/api/evaluation.md`,
