@@ -240,6 +240,32 @@ unknown value; this one should too.
 Status: open. Current behavior is pinned by a test, so a fix is a
 deliberate change.
 
+### A21 — APEIRON: `ModelEvalDetector` prints, asserts, and fakes its score
+Covering the evidently module surfaced three problems in its neighbour.
+`ModelEvalDetector.update()` calls bare `print()` once per metric per
+drift check — stdout rather than the logger, so it cannot be silenced by
+`verbosity` and will flood an HPC job log. It guards its metric/reference
+alignment with a bare `assert`, which `python -O` strips, turning a
+mismatch into a silent wrong answer rather than a refusal. And every
+`DriftSignal` it returns carries `drift_score=1` and `confidence=0.95`
+with `# dummy` beside both, so the score column for an `EvalDetector`
+run is a constant — and the ensemble averages that constant into its own
+`drift_score`.
+Status: open — replace the print with `logger.debug`, the assert with a
+raise, and either compute a real score or document the sentinel.
+
+### A22 — APEIRON: the detector's regime can outvote its own verdict
+`ModelPerformanceDetector` decides detection from the current window's
+drift share but the regime from the ten-window rolling mean, and the two
+disagree in both directions. A first strong spike reports
+`drift_detected=True` with regime `CONTINUAL_LEARNING`, because the mean
+is still near zero; a quiet window after a drifted stretch reports
+`drift_detected=False` while still recommending `FINE_TUNING`. Both are
+pinned by tests now. Whether that is the intended hysteresis or an
+accident is a design question for the team — it is undocumented either
+way.
+Status: open — document or reconcile.
+
 ### A15 — APEIRON: the shared DummyHarness could not drive the monitor
 `tests/conftest.py`'s `DummyHarness.get_stream_dataloader` returned a
 one-element tuple, which `ContinuousMonitor` cannot iterate (it unpacks
