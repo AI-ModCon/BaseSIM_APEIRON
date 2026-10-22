@@ -339,16 +339,34 @@ the first codex rebuild of apeiron-drift-detection failed on
 registered) and writes the links the flag path writes.
 Status: fixed, reticuli commit 0e53cb2.
 
-### R6 — reticuli (observation): producers cannot run a furnished gate
-The producer step inherits the host environment by design, so codex
-could not execute the drift gate even in a correct room: the claim's
-requirements.lock wants py3.13/river while the host default python is
-3.14. The producer wrote the modules and reported honestly that the gate
-never produced its verdict. Rebuild's own cold gate re-run is what
-judges, so blind regrowth still works — but the producer flying without
-the gate's feedback loop lowers its hit rate on hard layers. Furnishing
-the room's venv onto the producer's PATH would close the loop.
-Status: noted as an enhancement idea.
+### R6 — WITHDRAWN: producers do get the furnished environment
+Originally recorded as a gap: codex appeared unable to run a furnished
+claim's gate, because the claim's environment is py3.13/river while the
+host default interpreter is 3.14. That was wrong. `_produce` in
+`_kernel/build.py` already prepends the furnished venv's `bin` to the
+producer's scrubbed PATH, exactly as it does for gates, so `python3` in a
+gate command resolves to the claim's own interpreter inside a rebuild.
+
+Measured directly afterwards: the same rebuild invocation that had failed
+was re-run unchanged and succeeded in 95 s, reaching the sealed root. The
+original failure was producer variance, not a missing mechanism. Nothing
+to fix.
+Status: withdrawn — the mechanism works as designed.
+
+### R7 — measurement property: regrowth is a sampling instrument
+Three blind regrowths of the same claim (apeiron-drift-detection at root
+`d0eec347`) gave two successes and one failure: 95 s and 148 s reaching
+the root, and one run that stubbed the evidently integration with `raise
+NotImplementedError` and failed 19 of 120 tests. Same criteria, same
+producer, same host.
+
+So a single failed regrowth is NOT evidence that criteria are
+unsatisfiable, and a single success is not evidence they are tight. Read
+regrowth as a sample: repeat it, and treat the *distribution* of what
+comes back as the measurement. Divergences that recur across runs are
+findings about the boundary; divergences that appear once are findings
+about the producer.
+Status: methodology note — applies to every regrowth result in this log.
 
 ### R4 — reticuli (observation): composed-claim mutation mixes layers
 Assess on a composed claim samples mutation sites across every generated
