@@ -151,3 +151,127 @@ class TestPrintPerformance:
         captured = capsys.readouterr()
         assert "forward" in captured.out
         assert "TOTAL" in captured.out
+
+
+# ---------------------------------------------------------------------------
+# measure_flops_optimizer and the ATen-based FLOPs estimate
+# ---------------------------------------------------------------------------
+class TestOptimizerProfiling:
+    """The optimizer path, which FlopCounterMode cannot see.
+
+    `measure_flops_optimizer` runs a torch.profiler session and estimates
+    total FLOPs as (FLOPs per parameter element) x (trainable parameters),
+    mapping each observed ATen operation through ATEN_FLOPS_PER_ELEMENT.
+    """
+
+    def _model_and_optimizer(self):
+        import torch.nn as nn
+        from torch.optim import SGD
+
+        torch.manual_seed(0)
+        model = nn.Linear(4, 3)
+        loss = model(
+            torch.randn(8, 4, generator=torch.Generator().manual_seed(1))
+        ).sum()
+        loss.backward()
+        return model, SGD(model.parameters(), lr=0.1)
+
+    def test_records_a_measurement_for_the_tag(self):
+        p = FLOPSProfiler()
+        model, optimizer = self._model_and_optimizer()
+        with p.measure_flops_optimizer(model=model, device="cpu", tag="optimizer"):
+            optimizer.step()
+
+        assert "optimizer" in p.profiles
+        assert len(p.profiles["optimizer"]["flop"]) == 1
+        assert len(p.profiles["optimizer"]["time"]) == 1
+        assert p.profiles["optimizer"]["time"][0] >= 0.0
+        # the estimate scales by trainable parameter count, so it cannot be
+        # negative and the tag is released afterwards
+        assert p.profiles["optimizer"]["flop"][0] >= 0
+        assert p.tag is None
+        assert p.start_time is None
+
+    def test_repeated_measurements_accumulate(self):
+        p = FLOPSProfiler()
+        model, optimizer = self._model_and_optimizer()
+        for _ in range(2):
+            with p.measure_flops_optimizer(model=model, device="cpu"):
+                optimizer.step()
+        assert len(p.profiles["optimizer"]["flop"]) == 2
+
+    def test_performance_summary_includes_the_optimizer_tag(self):
+        p = FLOPSProfiler()
+        model, optimizer = self._model_and_optimizer()
+        with p.measure_flops_optimizer(model=model, device="cpu"):
+            optimizer.step()
+        performance = p.get_performance()
+        assert any("optimizer" in key for key in performance)
+
+
+class TestFlopsPerElementEstimate:
+    def test_an_empty_profile_estimates_zero(self):
+        p = FLOPSProfiler()
+
+        class _NoEvents:
+            def key_averages(self):
+                return []
+
+        assert p._estimate_flops_per_elem(_NoEvents()) == 0
+
+    def test_known_operations_are_multiplied_by_their_call_count(self):
+        from apeiron.profilers.aten_flops_map import ATEN_FLOPS_PER_ELEMENT
+
+        operation, per_element = next(iter(ATEN_FLOPS_PER_ELEMENT.items()))
+
+        class _Event:
+            key = operation
+            flops = 0
+            count = 3
+            cpu_time_total = 10
+            self_cpu_time_total = 10
+            input_shapes = [[4, 4]]
+
+        class _Events:
+            def key_averages(self):
+                return [_Event()]
+
+        p = FLOPSProfiler()
+        assert p._estimate_flops_per_elem(_Events()) == per_element * 3
+
+    def test_unknown_operations_contribute_nothing(self):
+        class _Event:
+            key = "aten::not_a_real_operation"
+            flops = 0
+            count = 7
+            cpu_time_total = 10
+            self_cpu_time_total = 10
+            input_shapes = []
+
+        class _Events:
+            def key_averages(self):
+                return [_Event()]
+
+        assert FLOPSProfiler()._estimate_flops_per_elem(_Events()) == 0
+
+    def test_debug_prints_the_breakdown(self, capsys):
+        from apeiron.profilers.aten_flops_map import ATEN_FLOPS_PER_ELEMENT
+
+        operation = next(iter(ATEN_FLOPS_PER_ELEMENT))
+
+        class _Event:
+            key = operation
+            flops = 0
+            count = 1
+            cpu_time_total = 10
+            self_cpu_time_total = 10
+            input_shapes = [[2, 2]]
+
+        class _Events:
+            def key_averages(self):
+                return [_Event()]
+
+        FLOPSProfiler()._estimate_flops_per_elem(_Events(), debug=True)
+        out = capsys.readouterr().out
+        assert "All Function Calls" in out
+        assert "Estimated FLOPs per param" in out

@@ -84,6 +84,28 @@ class TestFacadeDelegation:
             call("message")
         lg.info("tiered", 2)
 
+    def test_exception_delegates_to_the_console(self):
+        lg = Logger(backend="none", verbosity="DEBUG")
+        try:
+            raise RuntimeError("boom")
+        except RuntimeError:
+            lg.exception("while doing the thing")
+
+    def test_save_and_frame_reach_the_backend(self, tmp_path):
+        csv_path = tmp_path / "m.csv"
+        lg = Logger(backend="none", csv_path=csv_path)
+        lg.stage("eval")
+        lg.log({"loss": 1.0})
+
+        artifact = tmp_path / "plot.png"
+        artifact.write_bytes(b"")
+        lg.save(artifact)  # disabled backend: a no-op that must not raise
+
+        assert lg.to_dataframe() is not None
+        explicit = tmp_path / "explicit.csv"
+        assert lg.to_csv(explicit) == explicit
+        assert explicit.is_file()
+
     def test_url_is_none_without_a_run(self):
         assert Logger(backend="none").url is None
 
