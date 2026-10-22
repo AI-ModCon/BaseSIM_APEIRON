@@ -352,10 +352,32 @@ record (`events` with `stream_idx`), the summary's `detector`, `batches`,
 reconstruction is not a drop-in replacement — it is a demonstration of the
 shape, plus a list of what to pin first.
 
-Order of work, if the refactor is wanted: pin the event record, the
-summary contract and the module-level entry points; then inherit; then
-re-regrow and check the ratio moves toward 1.
-Status: open — a refactor with its prerequisites named.
+**The prerequisites are now pinned** (`tests/test_run_records.py`, 24
+tests): each event's ordinal and its three coordinates (batch, check,
+stream_idx), their monotonicity, the optional timerange fields,
+`drift_windows` deduplicating and sorting, the returned record being a
+copy, both summaries' exact key sets and their semantics, the drift
+trace's CSV schema and its every-check-not-sampled property, and the two
+module-level entry points. Entrypoints root e467eb3f -> e54a0d15.
+
+Re-regrown against them, and the result answers the refactor question
+directly:
+
+| | before pinning | after |
+|---|---|---|
+| `drift_only.py` | 24 lines (10%) | 72 lines (30%) |
+| `cl_only.py` | 137 (39%) | 142 (40%) |
+| `main.py` | 14 (52%) | 20 (74%) |
+| public names dropped | 3 | **none** |
+
+And critically, the reconstruction **still subclasses
+`ContinuousMonitor`** — `class DriftOnlyMonitor(ContinuousMonitor)`,
+`class ScheduledCLRunner(ContinuousMonitor)` — while now also carrying the
+full record. So inheriting and keeping the record are not in tension: the
+refactor is viable, and a 242-line file that inherits instead of mirroring
+should land near 72 plus whatever the record genuinely costs.
+Status: ready to do — the criteria now hold the behaviour that the
+refactor must preserve.
 
 ### A27 — the logger's explicit delegation is a freedom, not a requirement
 `apeiron/logger/logger.py` spends 124 logical lines forwarding eighteen

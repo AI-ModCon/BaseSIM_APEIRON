@@ -191,9 +191,9 @@
   "name": "apeiron-entrypoints",
   "proof": {
     "kind": "crosscheck",
-    "m2": "e467eb3f7a4ae158dcd59f5d3585147dd90f72c118ad82c20edfbaed7543351a",
-    "m3": "e467eb3f7a4ae158dcd59f5d3585147dd90f72c118ad82c20edfbaed7543351a"
+    "m2": "e54a0d1528f2e02f2da6bff51e0acd89bb9242a1c988233ed26df2ca252309c9",
+    "m3": "e54a0d1528f2e02f2da6bff51e0acd89bb9242a1c988233ed26df2ca252309c9"
   },
-  "root": "e467eb3f7a4ae158dcd59f5d3585147dd90f72c118ad82c20edfbaed7543351a",
-  "sealed": "2026-10-22T13:51:27Z"
+  "root": "e54a0d1528f2e02f2da6bff51e0acd89bb9242a1c988233ed26df2ca252309c9",
+  "sealed": "2026-10-22T15:44:52Z"
 }
