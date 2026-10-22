@@ -447,13 +447,33 @@ findings about the boundary; divergences that appear once are findings
 about the producer.
 Status: methodology note — applies to every regrowth result in this log.
 
-### R4 — reticuli (observation): composed-claim mutation mixes layers
-Assess on a composed claim samples mutation sites across every generated
-file, component-supplied ones included — the drift claim's reported
-survivors all sit in `configuration.py`, which its own tests rightly do
-not cover (the component's claim does). A per-step or per-component
-breakdown would keep the layer's own signal clean.
-Status: noted as an enhancement idea, not a bug.
+### R4 — reticuli: a composed claim's mutation score is mostly not its own
+Assess samples mutation sites across every generated file in a claim,
+component-supplied ones included, so for a deep claim the reported figure
+says almost nothing about the layer itself. Measured on this ladder, the
+share of a claim's generated tree that is its own code:
+
+| claim | own files | reported mutation | meaningful? |
+|---|---|---|---|
+| config, evaluation, profilers | all | 0.68, 0.76, 0.68 | yes |
+| logger, drift-detection | 5 of 7 | 0.32, 0.60 | mostly |
+| updaters | 7 of 14 | 0.37 | half |
+| model-harness | 2 of 7 | 0.56 | diluted |
+| trainer | 2 of 24 | 0.12 | no |
+| monitor | 3 of 32 | 0.12 | no |
+| entrypoints | 5 of 36 | 0.20 | no |
+
+Checked directly rather than assumed: every surviving mutant in a 30-mutant
+run against apeiron-trainer landed in `evaluation.py` or
+`configuration.py` — component code its own gate rightly does not test,
+because those components' own claims test it. So 0.12 for the trainer is
+not "the trainer is barely specified"; it is "92% of the sample missed the
+trainer".
+
+Scoping mutation to a claim's own produce steps — or reporting per-step
+rates — would make the number mean what a reader assumes it means. Until
+then, read composed-claim mutation only alongside the own-files share.
+Status: enhancement idea; the numbers above are the workaround.
 
 ### R1 — reticuli: strict seatbelt broke every furnished claim on macOS
 The first furnished-environment strict audit ever run (`apeiron-config`)
