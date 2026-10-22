@@ -335,12 +335,22 @@ test files call `_check_drift`, `_handle_drift` and the constructor, but
 passed. The loop is pinned one layer up instead, by apeiron-entrypoints,
 whose tests drive `main()`.
 
-Composition therefore covers it, but the component is not independently
-meaningful: anyone auditing apeiron-monitor alone is auditing a monitor
-that need not have a loop. Worth a test at the monitor layer that drives
-`run()` over a tiny stream and asserts the batch and stream counters
-advance — the layer that owns a behaviour should be the layer that pins it.
-Status: open.
+Composition therefore covers it, but the component was not independently
+meaningful: anyone auditing apeiron-monitor alone was auditing a monitor
+that need not have a loop.
+
+**Fixed.** Eleven tests now drive it at this layer: the loop running to its
+stream budget, every batch evaluated, one drift check per interval with the
+buffer left empty, a zero interval disabling checks, the stream extended
+once to prime plus once per exhausted window, a detection dispatching
+adaptation with the signal passed through, a quiet stream never adapting,
+and the lazy construction of the detector and trainer (the property that
+lets a drift-only run skip building an optimizer it never steps).
+
+Re-regrown: `run` has left the dropped-names list — the reconstruction now
+implements the loop — and the layer's kept ratio moved 33% to 38%. Monitor
+root d585d03d -> d64a5d81.
+Status: closed.
 
 ### A28 — the two side runners duplicate a loop they could inherit
 The entrypoints reconstruction regrew `drift_only.py` in **24 logical lines

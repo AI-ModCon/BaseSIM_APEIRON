@@ -244,3 +244,37 @@ class TestRun:
                 mon.run()
         handled.assert_not_called()
         assert mon.drift_event_count == 0
+
+
+class TestLazyConstruction:
+    """The detector and the trainer are built on first use, not on init.
+
+    This is what lets the two side runners inherit this class: a drift-only
+    run never adapts, so building a trainer would construct an optimizer over
+    the model for nothing and oblige a frozen-model harness to supply one; a
+    scheduled run never consults a detector, so it should not need a valid
+    `detector_name`. Both are `cached_property`, so the saving is real and the
+    object is built at most once.
+    """
+
+    def test_init_builds_no_trainer(self, default_cfg, dummy_harness):
+        with patch.object(dummy_harness, "get_optimizer") as optimizer:
+            ContinuousMonitor(cfg=default_cfg, modelHarness=dummy_harness)
+        optimizer.assert_not_called()
+
+    def test_init_builds_no_detector(self, default_cfg, dummy_harness):
+        with patch("apeiron.driver.continuous_monitor.load_drift_detector") as loader:
+            ContinuousMonitor(cfg=default_cfg, modelHarness=dummy_harness)
+        loader.assert_not_called()
+
+    def test_the_trainer_is_built_once_on_demand(self, default_cfg, dummy_harness):
+        mon = ContinuousMonitor(cfg=default_cfg, modelHarness=dummy_harness)
+        assert mon.trainer is mon.trainer
+
+    def test_the_detector_is_built_once_on_demand(self, default_cfg, dummy_harness):
+        mon = ContinuousMonitor(cfg=default_cfg, modelHarness=dummy_harness)
+        with patch("apeiron.driver.continuous_monitor.load_drift_detector") as loader:
+            first = mon.detector
+            second = mon.detector
+        assert first is second
+        loader.assert_called_once_with(default_cfg)
