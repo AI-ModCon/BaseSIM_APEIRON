@@ -189,6 +189,11 @@
   ],
   "digest": "sha256",
   "name": "apeiron-entrypoints",
+  "proof": {
+    "kind": "crosscheck",
+    "m2": "e467eb3f7a4ae158dcd59f5d3585147dd90f72c118ad82c20edfbaed7543351a",
+    "m3": "e467eb3f7a4ae158dcd59f5d3585147dd90f72c118ad82c20edfbaed7543351a"
+  },
   "root": "e467eb3f7a4ae158dcd59f5d3585147dd90f72c118ad82c20edfbaed7543351a",
-  "sealed": "2026-10-22T07:51:31Z"
+  "sealed": "2026-10-22T13:51:27Z"
 }

@@ -327,6 +327,36 @@ changing what an independent reconstruction is *forced* to build, rather
 than merely what it is allowed to pass.
 Status: closed.
 
+### A28 — the two side runners duplicate a loop they could inherit
+The entrypoints reconstruction regrew `drift_only.py` in **24 logical lines
+against APEIRON's 242** — by subclassing `ContinuousMonitor` and overriding
+`_handle_drift` to count the event instead of training. `cl_only.py` came
+back at 137 against 355 the same way. Both originals open by saying they
+"mirror ``ContinuousMonitor``'s loop — per-batch evaluation, interval drift
+checks, the same aggregation, the same FLOPs profiling, the same logged
+field names"; the reconstruction simply inherited the loop rather than
+copying it.
+
+That duplication is real and worth removing: three copies of the
+monitoring loop is three places a change to drift-check cadence, metric
+aggregation or CSV field names has to land, and the drift-only runner
+exists precisely so its metric trace is comparable to a detector run's —
+a comparison that silently breaks if the copies drift apart.
+
+**But the 10% figure overstates the win, and that matters.** The 24-line
+version satisfies the pinned tests, not the feature set: the surface diff
+shows it drops `run_drift_only` (the module-level API), `run_manual_cl`,
+and `DriftOnlyMonitor.drift_windows`, and nothing pins the per-event
+record (`events` with `stream_idx`), the summary's `detector`, `batches`,
+`drift_checks` and `final_metrics` fields, or the event CSV rows. So the
+reconstruction is not a drop-in replacement — it is a demonstration of the
+shape, plus a list of what to pin first.
+
+Order of work, if the refactor is wanted: pin the event record, the
+summary contract and the module-level entry points; then inherit; then
+re-regrow and check the ratio moves toward 1.
+Status: open — a refactor with its prerequisites named.
+
 ### A27 — the logger's explicit delegation is a freedom, not a requirement
 `apeiron/logger/logger.py` spends 124 logical lines forwarding eighteen
 methods and properties to its two halves, one wrapper each. The regrowth

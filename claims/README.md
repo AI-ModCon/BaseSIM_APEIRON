@@ -116,16 +116,10 @@ divergences that appear once are findings about the producer.
 
 **All ten layers have been regrown from their criteria alone and
 crosschecked** — original, byte copy and rebuild each passing independently
-and landing on the same root. Nine proofs are recorded against current
-roots; `apeiron-entrypoints` was crosschecked and then resealed (a
-declaration fix, LOG R8), so its proof wants re-earning:
-
-```
-claims/scripts/regrow.sh entrypoints
-```
-
-`profilers` needed the ATen table re-modelled as a pinned input before it
-would crosscheck (LOG R11).
+and landing on the same root. **All ten proofs are recorded against current roots.** `profilers` needed
+the ATen table re-modelled as a pinned input before it would crosscheck
+(LOG R11), and `entrypoints` needed one re-run after a declaration fix
+(LOG R8); everything else passed on the first attempt.
 
 How much each layer's criteria actually pin down, in logical lines of code
 (blanks, comments and docstrings excluded, since raw line counts flatter
