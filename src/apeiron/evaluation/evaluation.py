@@ -5,16 +5,21 @@ def test(model, loader, criterion, cfg):
     """
     Evaluate the model on the given dataset.
 
+    Nothing in the framework calls this; ``BaseModelHarness.eval()`` is the
+    supported path. It is also only arithmetically correct for a
+    ``reduction="sum"`` criterion: batch losses are summed and divided by the
+    sample count, so a mean-reduction criterion (what every harness returns)
+    under-reports the loss by the number of batches.
+
     Parameters:
     model (torch.nn.Module): The model to evaluate.
     loader (torch.utils.data.DataLoader): The dataset loader.
-    Graph (int): Whether the data is a graph (0) or image (1). Defaults to 0.
-
-    # KR: I am removing graph support for now, because, we want this to be
-    # transferred to the model team eventually.
+    criterion (Callable): Loss function; see the caveat above on reduction.
+    cfg: Configuration object supplying ``device``.
 
     Returns:
-    float: The ratio of correct predictions.
+    tuple[float, float]: Accuracy as a percentage and the average loss --
+    except on an empty loader, where a bare ``0.0`` is returned instead.
     """
     model.eval()
     correct = 0

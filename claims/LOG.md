@@ -203,6 +203,32 @@ hang risk on an HPC node or in CI. `"none"` would be the defensible
 default. Pinned by a test, so changing it is a deliberate decision.
 Status: open.
 
+### A19 — APEIRON: `evaluation.test()` under-reports loss by the batch count
+Bringing the dead module under test (A3) found a real defect rather than
+just unused code. `apeiron.evaluation.evaluation.test()` accumulates
+`criterion(...).item()` per batch and divides by the SAMPLE count. Its own
+comment says "use sum reduction so we can average correctly over dataset
+size" — but it never requests `reduction="sum"`, and every harness
+supplies the default mean reduction. Measured: 12 samples in 2 batches
+reports 0.169 where the true mean loss is 1.017, exactly 6x low
+(samples/batches). Reported loss therefore scales with batch size, which
+a loss must not. Second defect: an empty loader returns a bare `0.0`
+instead of a pair, so any caller unpacking the result raises TypeError.
+
+Both are recorded as `strict=True` xfails in
+`tests/test_evaluation_module.py` rather than pinned as behavior — a
+passing test asserting a 6x error would make the error official — so they
+flip green the moment either is fixed. The docstring is corrected to
+state the reduction requirement and the real return type; behavior is
+untouched.
+
+Recommendation: delete the module. Nothing in the framework calls it,
+`BaseModelHarness.eval()` is the supported path, and it is wrong for
+every realistic caller. It is referenced from `docs/api/evaluation.md`,
+making it nominally public, so the removal is the team's call rather than
+a mechanical cleanup.
+Status: open — decision needed.
+
 ### A15 — APEIRON: the shared DummyHarness could not drive the monitor
 `tests/conftest.py`'s `DummyHarness.get_stream_dataloader` returned a
 one-element tuple, which `ContinuousMonitor` cannot iterate (it unpacks
