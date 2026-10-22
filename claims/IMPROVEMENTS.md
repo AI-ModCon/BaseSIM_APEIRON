@@ -33,12 +33,36 @@ coverage, and the Logger facade from none to full. The confirmation that
 matters: regrown implementations now land on the documented algorithms
 instead of plausible substitutes.
 
-Remaining, in the same priority order: the mlflow backend has no tests;
-`ContinuousTrainer` and `ContinuousMonitor` are not yet claimed (they need
-the logger facade and profilers in a room); the evidently analysis
-pipeline in `ModelPerformanceDetector` is still only loosely constrained
-(an 81-line stand-in satisfied it); and `accuracy_topk` plus
-`evaluation.py` await the delete-or-specify decision.
+**Round two (the mechanical sweep) is done.** Line coverage of `src/`
+went 86% to **97%** (2,201 statements, 70 uncovered), 280 to 459 tests.
+Newly covered: the mlflow backend (25% to 100%), the wandb run-attached
+paths (88% to 100%), the CL trigger schedules, FIFO checkpointing, KFAC's
+Conv2d branches, the optimizer profiler and ATen FLOPs estimate, the ABC
+contracts and updater guard clauses, the full adaptation cycle
+(checkpoint, detector reset, profiled steps), both runners' options, and
+device selection. `ContinuousMonitor`, `ContinuousTrainer`,
+`torch_model_harness`, `logger.py`, `console_logger`, `wandb_logger`,
+`mlflow_logger`, `count_flops` and the updater package are at or near
+100%.
+
+What is left, and why:
+
+- **The evidently pipeline** in `ModelPerformanceDetector` — 57 of the
+  remaining 70 statements, and the one item that was never mechanical.
+  Needs real DataFrames and an understanding of evidently's result dict;
+  it is also the loosest boundary measured (an 81-line stand-in passed).
+  Roughly a day, and the highest-value work remaining.
+- **13 statements that are structurally unreachable here**: the Python
+  3.10 `tomli` import fallback (dead on a 3.13+ project), three
+  `if __name__ == "__main__"` lines, two empty-buffer refusals in the
+  runners that their monitors cannot reach, and a handful of
+  profiler-warmup arms. GPU-only code is now covered by patching the
+  probes rather than needing hardware.
+- **Still unclaimed layers**: trainer, monitor, and profilers have the
+  coverage but no reticuli claim, so their constraint is unmeasured.
+- `accuracy_topk` and `evaluation.py` await the delete-or-specify
+  decision — see A19, where testing `evaluation.py` turned up a real
+  6x loss error.
 
 The original backlog, for reference:
 
