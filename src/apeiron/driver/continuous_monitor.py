@@ -9,6 +9,8 @@ This module implements a continuous monitoring architecture that:
 """
 
 from __future__ import annotations
+
+import functools
 from typing import TYPE_CHECKING
 
 import torch
@@ -61,19 +63,8 @@ class ContinuousMonitor:
         self.modelHarness = modelHarness
         self.logger = get_logger()
 
-        # Create persistent detector instance
-        self.detector = load_drift_detector(cfg)
-
         # Create performance profiler
         self.flops_profiler = FLOPSProfiler()
-
-        # Create trainer
-        self.trainer = ContinuousTrainer(
-            cfg=self.cfg,
-            modelHarness=self.modelHarness,
-            logger=self.logger,
-            profiler=self.flops_profiler,
-        )
 
         # Configuration
         self.metric_idx = cfg.drift_detection.metric_index
@@ -81,10 +72,19 @@ class ContinuousMonitor:
         self.max_stream_updates = cfg.drift_detection.max_stream_updates
         self.aggregation = cfg.drift_detection.aggregation
 
+        # What this loop calls itself in its own log lines; a subclass that
+        # monitors without adapting says something else.
+        self.label = "Continuous Monitoring"
+
         # State tracking
         self.stream_update_count = 0
         self.batch_count = 0
+        self.check_count = 0
         self.drift_event_count = 0
+        # The aggregate the last drift check fed the detector. Kept so a
+        # subclass handling a detection can record WHAT fired without
+        # re-deriving it or re-plumbing _check_drift's return type.
+        self.last_agg_metric: float | None = None
 
         # Metrics accumulation
         self.metric_buffer: list[list[float]] = []
@@ -98,6 +98,31 @@ class ContinuousMonitor:
         self.logger.info(f"\tAggregation method: {self.aggregation}", level=1)
         self.logger.info(f"\tMax stream updates: {self.max_stream_updates}", level=1)
 
+    @functools.cached_property
+    def detector(self):
+        """The drift detector, built on first use.
+
+        Lazy for the same reason as the trainer: a subclass that adapts on a
+        schedule bypasses detection entirely, and should not need a valid
+        ``[drift_detection] detector_name`` to run.
+        """
+        return load_drift_detector(self.cfg)
+
+    @functools.cached_property
+    def trainer(self) -> ContinuousTrainer:
+        """The continual-learning trainer, built on first use.
+
+        Lazy because a drift-only run never adapts: building a trainer would
+        construct an optimizer over the model for nothing, and would oblige a
+        frozen-model harness to supply one.
+        """
+        return ContinuousTrainer(
+            cfg=self.cfg,
+            modelHarness=self.modelHarness,
+            logger=self.logger,
+            profiler=self.flops_profiler,
+        )
+
     def run(self) -> None:
         """Main continuous monitoring loop.
 
@@ -105,7 +130,7 @@ class ContinuousMonitor:
         batches from the data stream, checks for drift at regular intervals,
         and dispatches learning modules when drift is detected.
         """
-        self.logger.info("==== Starting Continuous Monitoring ====", level=0)
+        self.logger.info(f"==== Starting {self.label} ====", level=0)
 
         # Initialize first data stream
         self.logger.info("\tInitializing first data stream...", level=1)
@@ -118,7 +143,7 @@ class ContinuousMonitor:
                 # Stream exhausted, extend it
                 self._extend_stream()
 
-        self.logger.info("==== Continuous Monitoring Complete ====", level=0)
+        self.logger.info(f"==== {self.label} Complete ====", level=0)
         self.logger.info(f"\tTotal batches processed: {self.batch_count}", level=1)
         self.logger.info(f"\tTotal stream updates: {self.stream_update_count}", level=1)
 
@@ -205,6 +230,31 @@ class ContinuousMonitor:
 
         return metrics
 
+    def _aggregate_buffer(self) -> float:
+        """Reduce the buffered per-batch metrics to the monitored scalar.
+
+        Clears the buffer. Separate from :meth:`_check_drift` because a
+        subclass that decides on a schedule still needs the window's
+        aggregate -- logged at every decision point so a schedule run's
+        metric trace stays comparable to a detector run's -- without
+        consulting a detector to get it.
+        """
+        if not self.metric_buffer:
+            # Edge case: no metrics buffered
+            raise RuntimeError(
+                "Model Harness requires evaluation metrics"
+            )  # Todo: This should be checked in model harness
+
+        metric_values = [m[self.metric_idx] for m in self.metric_buffer]
+        self.metric_buffer = []
+
+        if self.aggregation == "median":
+            return float(np.median(metric_values))
+        if self.aggregation == "last":
+            return float(metric_values[-1])
+        # mean, and the fallback for an unrecognised method
+        return float(np.mean(metric_values))
+
     def _check_drift(self) -> DriftSignal:
         """Aggregate buffered metrics and check for drift.
 
@@ -215,28 +265,9 @@ class ContinuousMonitor:
         Returns:
             DriftSignal from the detector
         """
-        if not self.metric_buffer:
-            # Edge case: no metrics buffered
-            raise RuntimeError(
-                "Model Harness requires evaluation metrics"
-            )  # Todo: This should be checked in model harness
-
-        # Extract the monitored metric from all buffered metrics
-        metric_values = [m[self.metric_idx] for m in self.metric_buffer]
-
-        # Aggregate according to configured method
-        if self.aggregation == "mean":
-            agg_metric = float(np.mean(metric_values))
-        elif self.aggregation == "median":
-            agg_metric = float(np.median(metric_values))
-        elif self.aggregation == "last":
-            agg_metric = float(metric_values[-1])
-        else:
-            # Default to mean
-            agg_metric = float(np.mean(metric_values))
-
-        # Clear buffer
-        self.metric_buffer = []
+        agg_metric = self._aggregate_buffer()
+        self.check_count += 1
+        self.last_agg_metric = agg_metric
 
         # Update detector with aggregated metric
         # NOTE: Profiler only covers Pytorch operations
@@ -281,21 +312,7 @@ class ContinuousMonitor:
             level=1,
         )
 
-        # Log profiler performance summary
-        self.flops_profiler.print_performance(logger=self.logger, level=2)
-
-        self.logger.info("-> Dispatching continual learning module...", level=0)
-
-        # PAUSE monitoring, dispatch learning module
-        self.trainer.outer_cl_training_loop(
-            drift_event_id=self.drift_event_count,
-        )
-
-        if self.modelHarness.ckpts_enabled:
-            ckptpath = self.modelHarness.save_ckpt(event=self.drift_event_count)
-            self.logger.info(f"* Checkpoint saved to: {ckptpath}", level=0)
-
-        self.logger.info("<- Continual learning complete.", level=0)
+        self._adapt(self.drift_event_count)
 
         # Optionally reset detector after learning
         if self.cfg.drift_detection.reset_after_learning:
@@ -303,6 +320,26 @@ class ContinuousMonitor:
             self.detector.reset()
 
         self.logger.info("==== RESUMING MONITORING! ====", level=0)
+
+    def _adapt(self, event_id: int) -> None:
+        """Pause monitoring, run the CL loop, checkpoint, and resume.
+
+        The adaptation itself, with nothing about *why* it was triggered: a
+        subclass that adapts on a schedule rather than on a detection calls
+        this with its own event numbering.
+        """
+        # Log profiler performance summary
+        self.flops_profiler.print_performance(logger=self.logger, level=2)
+
+        self.logger.info("-> Dispatching continual learning module...", level=0)
+
+        self.trainer.outer_cl_training_loop(drift_event_id=event_id)
+
+        if self.modelHarness.ckpts_enabled:
+            ckptpath = self.modelHarness.save_ckpt(event=event_id)
+            self.logger.info(f"* Checkpoint saved to: {ckptpath}", level=0)
+
+        self.logger.info("<- Continual learning complete.", level=0)
 
     def _extend_stream(self) -> None:
         """Extend the data stream when exhausted.

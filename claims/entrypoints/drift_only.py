@@ -31,91 +31,45 @@ from __future__ import annotations
 import sys
 from typing import Any
 
-import numpy as np
-import torch
-from tqdm import tqdm
-
 from apeiron.config.configuration import build_config, Config
 from apeiron.drift_detection.detectors.base import DriftSignal
-from apeiron.drift_detection.load_drift_detector import load_drift_detector
+from apeiron.driver.continuous_monitor import ContinuousMonitor
 from apeiron.logger import get_logger, configure_backend
 from apeiron.model.torch_model_harness import BaseModelHarness
-from apeiron.profilers import FLOPSProfiler
 
 from examples.utils import get_example
 
 
-class DriftOnlyMonitor:
+class DriftOnlyMonitor(ContinuousMonitor):
     """Stream monitor that detects drift and then does nothing about it.
 
-    Mirrors ``ContinuousMonitor``'s loop -- per-batch evaluation, interval
-    drift checks, the same aggregation, the same FLOPs profiling, the same
-    logged field names -- with the ``_handle_drift`` branch replaced by
-    recording the event. No trainer is constructed and no checkpoint is
-    written, since the weights never change.
+    Inherits ``ContinuousMonitor``'s loop -- per-batch evaluation, interval
+    drift checks, the same aggregation, the same FLOPs profiling -- and
+    replaces exactly two things: a detection records an event instead of
+    dispatching the trainer, and every check is logged rather than thinning
+    the quiet ones. No trainer is ever built (the base constructs it lazily),
+    since the weights never change.
     """
 
-    def __init__(
-        self,
-        cfg: Config,
-        modelHarness: BaseModelHarness,
-    ) -> None:
-        self.cfg = cfg
-        self.modelHarness = modelHarness
+    def __init__(self, cfg: Config, modelHarness: BaseModelHarness) -> None:
+        super().__init__(cfg, modelHarness)
+        self.label = "Drift-Only Monitoring"
         # No learning happens here, so this reads as "re-arm after a detection".
         # Sharing the key with ContinuousMonitor keeps one TOML driving both.
         self.reset_on_detect = cfg.drift_detection.reset_after_learning
-        self.logger = get_logger()
-
-        self.detector = load_drift_detector(cfg)
-        self.flops_profiler = FLOPSProfiler()
-
-        self.metric_idx = cfg.drift_detection.metric_index
-        self.detection_interval = cfg.drift_detection.detection_interval
-        self.max_stream_updates = cfg.drift_detection.max_stream_updates
-        self.aggregation = cfg.drift_detection.aggregation
-
-        # State
-        self.stream_update_count = 0
-        self.batch_count = 0
-        self.check_count = 0
-        self.drift_event_count = 0
         self.events: list[dict[str, Any]] = []
-        self.metric_buffer: list[list[float]] = []
 
-        self.logger.info("==== DriftOnlyMonitor initialized ====", level=0)
-        self.logger.info(f"\tDetector: {cfg.drift_detection.detector_name}", level=1)
         self.logger.info("\tContinual learning: BYPASSED (model stays frozen)", level=1)
-        self.logger.info(f"\tMonitoring metric index: {self.metric_idx}", level=1)
-        self.logger.info(
-            f"\tDetection interval: {self.detection_interval} batches", level=1
-        )
-        self.logger.info(f"\tAggregation method: {self.aggregation}", level=1)
-        self.logger.info(f"\tMax stream updates: {self.max_stream_updates}", level=1)
         self.logger.info(
             f"\tReset detector on detection: {self.reset_on_detect}", level=1
         )
 
-    # -- main loop ---------------------------------------------------------
-
-    def run(self) -> dict[str, Any]:
+    def run(self) -> dict[str, Any]:  # type: ignore[override]
         """Run the detection-only loop and return a run summary."""
-        self.logger.info("==== Starting Drift-Only Monitoring ====", level=0)
-        self.logger.info("\tInitializing first data stream...", level=1)
-        self.modelHarness.update_data_stream()
+        super().run()
 
-        while self.stream_update_count < self.max_stream_updates:
-            try:
-                self._process_stream()
-            except StopIteration:
-                self._extend_stream()
-
-        self.logger.info("==== Drift-Only Monitoring Complete ====", level=0)
-        self.logger.info(f"\tTotal batches processed: {self.batch_count}", level=1)
-        self.logger.info(f"\tTotal stream updates: {self.stream_update_count}", level=1)
         self.logger.info(f"\tDrift checks: {self.check_count}", level=1)
         self.logger.info(f"\tDrift events: {self.drift_event_count}", level=1)
-
         self.flops_profiler.print_performance(logger=self.logger, level=1)
 
         final_metrics = self.modelHarness.eval()
@@ -141,64 +95,7 @@ class DriftOnlyMonitor:
         """
         return sorted({int(e["stream_idx"]) for e in self.events})
 
-    def _process_stream(self) -> None:
-        """Evaluate one stream window, checking for drift at each interval.
-
-        Raises:
-            StopIteration: Once the window is exhausted, to hand control back
-                to :meth:`run` for the next stream update.
-        """
-        stream_loader = self.modelHarness.get_stream_dataloader()
-
-        for _, batch in tqdm(
-            enumerate(stream_loader),
-            desc="Processing batches",
-            leave=False,
-        ):
-            metrics = self._evaluate_batch(batch)
-            self.metric_buffer.append(metrics)
-            self.batch_count += 1
-
-            if (
-                self.detection_interval > 0
-                and self.batch_count % self.detection_interval == 0
-            ):
-                drift_signal, agg_metric = self._check_drift()
-                if drift_signal.drift_detected:
-                    self._record_drift(drift_signal, agg_metric)
-
-        raise StopIteration()
-
-    def _check_drift(self) -> tuple[DriftSignal, float]:
-        """Aggregate the buffered metrics and push them through the detector."""
-        if not self.metric_buffer:
-            raise RuntimeError("Model Harness requires evaluation metrics")
-
-        metric_values = [m[self.metric_idx] for m in self.metric_buffer]
-        self.metric_buffer = []
-
-        if self.aggregation == "median":
-            agg_metric = float(np.median(metric_values))
-        elif self.aggregation == "last":
-            agg_metric = float(metric_values[-1])
-        else:
-            agg_metric = float(np.mean(metric_values))
-
-        self.check_count += 1
-
-        # NOTE: Profiler only covers PyTorch operations. Even so, we measure
-        # runtime to see if the detector is a potential bottleneck.
-        if self.batch_count > self.flops_profiler.warmup_iters:
-            with self.flops_profiler.measure_flops(tag="detector"):
-                drift_signal = self.detector.update(agg_metric)
-        else:
-            drift_signal = self.detector.update(agg_metric)
-
-        self._log_metrics(drift_signal, agg_metric)
-
-        return drift_signal, agg_metric
-
-    def _record_drift(self, drift_signal: DriftSignal, agg_metric: float) -> None:
+    def _handle_drift(self, drift_signal: DriftSignal) -> None:
         """Record a detection instead of dispatching a learning module."""
         self.drift_event_count += 1
 
@@ -212,7 +109,7 @@ class DriftOnlyMonitor:
             "score": float(drift_signal.drift_score),
             "regime": drift_signal.regime.value if drift_signal.regime else "N/A",
             "confidence": drift_signal.confidence,
-            f"metric_{self.metric_idx}": agg_metric,
+            f"metric_{self.metric_idx}": self.last_agg_metric,
         }
         if timerange is not None:
             event["data_time_start"] = timerange[0]
@@ -242,61 +139,13 @@ class DriftOnlyMonitor:
             self.logger.debug("Resetting detector state...")
             self.detector.reset()
 
-    def _extend_stream(self) -> None:
-        """Load the next data buffer when the current stream is exhausted."""
-        self.stream_update_count += 1
-        self.logger.info(
-            f"\tStream exhausted. Loading next data buffer. "
-            f"{self.stream_update_count}/{self.max_stream_updates}",
-            level=1,
-        )
-        self.modelHarness.update_data_stream()
-
-    # -- evaluation / logging ---------------------------------------------
-
-    def _evaluate_batch(self, batch: tuple[torch.Tensor, torch.Tensor]) -> list[float]:
-        """Evaluate the frozen model on one streaming batch, returning all metrics."""
-        self.modelHarness.model.eval()
-
-        profile = self.batch_count > self.flops_profiler.warmup_iters
-
-        with torch.no_grad():
-            if profile:
-                with self.flops_profiler.measure_flops(tag="infer"):
-                    metrics, named = self._forward_metrics(batch)
-            else:
-                metrics, named = self._forward_metrics(batch)
-
-        if profile:
-            self.logger.stage("eval")
-            self.logger.log(named)
-
-        return metrics
-
-    def _forward_metrics(
-        self, batch: tuple[torch.Tensor, torch.Tensor]
-    ) -> tuple[list[float], dict[str, float]]:
-        """Run the forward pass and compute every harness eval metric."""
-        x, y = self.modelHarness._unpack(batch)
-        x, y = x.to(self.cfg.device), y.to(self.cfg.device)
-
-        y_hat = self.modelHarness.model(x)
-
-        metrics: list[float] = []
-        named: dict[str, float] = {}
-        for key, metric_fn in self.modelHarness.eval_metrics.items():
-            value = self.modelHarness._to_scalar(metric_fn(y_hat, y))
-            metrics.append(value)
-            named[key] = value
-        return metrics, named
-
     def _log_metrics(self, drift_signal: DriftSignal, metric_value: float) -> None:
         """Log one drift check.
 
         Field names match ``ContinuousMonitor._log_metrics`` so drift-only runs
         and full runs land in the same CSV schema. Unlike there, every check is
-        logged rather than sampling ``detected=0`` at 10% -- the complete
-        score trace is the entire product of this run, and a sampled trace
+        logged rather than thinning the ``detected=0`` rows -- the complete
+        score trace is the entire product of this run, and a thinned trace
         cannot be used to re-tune a threshold offline.
         """
         flops_perf = self.flops_profiler.get_performance()
