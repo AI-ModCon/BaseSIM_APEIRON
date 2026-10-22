@@ -480,7 +480,18 @@ what checks them — but the gap between "passes warm" and "passes
 declared" is exactly where a composed claim rots, and nothing points at
 it. `ret pack` could compare each `from = "<component>"` step set against
 the component's own generated outputs and warn on a subset.
-Status: enhancement idea.
+
+**It recurred, and the second time only the byte-copy leg could see it.**
+`apeiron/__init__.py` joined the monitor claim but never the dependents'
+recipes. The warm pack passed, and so did the LOCAL deep audit — the file
+was on disk from `ret pull`, so the room had it either way. The export
+carries declared files only, so the crosscheck's M2 leg (export → import
+→ audit) failed where M1 and M3 earned, which is why `crosscheck` filed no
+proof despite returning `accept`. In other words: a local audit can pass a
+claim that cannot travel, and only a round trip proves it can. That makes
+the subset warning more valuable than it first looked, and it is a good
+argument for exporting a claim as part of accepting it.
+Status: enhancement idea; both instances fixed here.
 
 ### R9 — reticuli: resealing a leaf orphans its dependents' component copies
 `ret pull` copies a component claim *into* the dependent's store, and the

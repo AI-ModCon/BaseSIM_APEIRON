@@ -170,6 +170,12 @@
     },
     {
       "component": "apeiron-monitor",
+      "input": "apeiron/__init__.py",
+      "output": "apeiron/__init__.py",
+      "root": "1d8ba1409af458dfa36f0fa9c33f1e6b00f7be29ad4fcb23f1790fc66e3c47a7"
+    },
+    {
+      "component": "apeiron-monitor",
       "input": "apeiron/driver/__init__.py",
       "output": "apeiron/driver/__init__.py",
       "root": "1d8ba1409af458dfa36f0fa9c33f1e6b00f7be29ad4fcb23f1790fc66e3c47a7"
@@ -183,6 +189,6 @@
   ],
   "digest": "sha256",
   "name": "apeiron-entrypoints",
-  "root": "e456834bf11c9e97c74c391d1c356fc237bf06e41da008d3797240353757a215",
-  "sealed": "2026-10-22T07:28:51Z"
+  "root": "e467eb3f7a4ae158dcd59f5d3585147dd90f72c118ad82c20edfbaed7543351a",
+  "sealed": "2026-10-22T07:51:31Z"
 }

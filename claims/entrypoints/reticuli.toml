@@ -205,6 +205,13 @@ guidance = "supplied by the apeiron-trainer component"
 # --- supplied by the apeiron-monitor component -------------------------------
 [[step]]
 kind = "produce"
+output = "apeiron/__init__.py"
+class = "generated"
+from = "apeiron-monitor"
+guidance = "supplied by the apeiron-monitor component"
+
+[[step]]
+kind = "produce"
 output = "apeiron/driver/__init__.py"
 class = "generated"
 from = "apeiron-monitor"
