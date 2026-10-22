@@ -83,6 +83,19 @@ PYTHONPATH=$R python3.13 -m reticuli crosscheck claims/<name> /tmp/m3-<name> --r
 
 Add `--recursive` on the top claim to regrow every layer bottom-up.
 
+Then read what came back:
+
+```
+python3 claims/scripts/surface_diff.py /tmp/m3-<name> <name>
+```
+
+It reports how much of each file the criteria actually pin (logical lines,
+docstrings excluded) and which public names the regrowth does without,
+folding in inheritance and `__getattr__` delegation so only genuine
+divergences show. Every line it prints is either a freedom you are granting
+or a hole to pin — that judgement is the one part of this that cannot be
+automated.
+
 Treat a single regrowth as one sample, not a verdict: three runs of the same
 claim under identical conditions gave two successes and one failure
 (LOG R7). Divergences that recur are findings about the boundary;

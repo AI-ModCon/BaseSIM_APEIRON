@@ -1,0 +1,11 @@
+{
+  "digest": "sha256",
+  "name": "apeiron-evaluation",
+  "proof": {
+    "kind": "crosscheck",
+    "m2": "49d0b74e706d5688f767b556b2afd962c2b39715c333b3aa835e13755c292758",
+    "m3": "49d0b74e706d5688f767b556b2afd962c2b39715c333b3aa835e13755c292758"
+  },
+  "root": "da4cc107e9a88eb3b787bf8bc80920d8205a9036d0ad8a0d3a7114dad380e5ae",
+  "sealed": "2026-10-22T04:47:08Z"
+}

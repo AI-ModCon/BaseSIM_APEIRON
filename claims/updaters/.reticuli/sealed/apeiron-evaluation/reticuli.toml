@@ -28,7 +28,7 @@ guidance = "the package marker for apeiron.evaluation; empty"
 kind = "produce"
 output = "apeiron/evaluation/metrics.py"
 class = "generated"
-guidance = "regenerate apeiron/evaluation/metrics.py so test_evaluation.py passes: torch classification metrics. accuracy(output, target) returns top-1 accuracy as a percentage tensor; accuracy_topk(output, target, topk=(1,)) returns a list of percentage tensors, one per k. Both run under torch.no_grad()."
+guidance = "regenerate apeiron/evaluation/metrics.py: torch classification metrics, both under torch.no_grad(). accuracy_topk(output, target, topk=(1,)) returns one percentage tensor per k, in the order given: the share of rows whose target is among that row's k highest-scoring classes. accuracy(output, target) is the k=1 case, returned as a bare tensor rather than a list."
 
 [[step]]
 kind = "produce"

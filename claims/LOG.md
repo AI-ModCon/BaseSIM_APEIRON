@@ -327,6 +327,25 @@ changing what an independent reconstruction is *forced* to build, rather
 than merely what it is allowed to pass.
 Status: closed.
 
+### A27 — the logger's explicit delegation is a freedom, not a requirement
+`apeiron/logger/logger.py` spends 124 logical lines forwarding eighteen
+methods and properties to its two halves, one wrapper each. The regrowth
+does it in 40 lines with a single `__getattr__` and passes all 108 logger
+tests.
+
+Not a defect — the tests never asked for explicit methods, and the proxy
+is arguably the better code — but the consequence is worth a decision: a
+dynamic proxy gives up static typing, IDE completion and `mypy` checking
+on the whole facade, which for a framework other people write harnesses
+against is a real cost. If explicit delegation is wanted, something has to
+demand it (a typing test, or `mypy --strict` over a consumer). If not, the
+84 extra lines could go.
+
+Found with `claims/scripts/surface_diff.py`, which compares a regrown room
+against `src/` on logical lines and public surface, resolving inheritance
+and dynamic delegation so only genuine divergences are reported.
+Status: open — a decision, not a bug.
+
 ### A26 — a test that exists is not a criterion until a claim pins it
 The whole-stack regrowth surfaced this by dropping features that *were*
 tested. Diffing the public surface of each reconstruction against the
