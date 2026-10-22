@@ -150,3 +150,97 @@ class TestEvaluateBatch:
         assert isinstance(metrics, list)
         assert len(metrics) == 1  # one eval metric (accuracy)
         # TODO: assert on the actual metric values, not just shape
+
+
+class TestRun:
+    """The monitoring loop itself.
+
+    `run()` is what the whole framework exists to execute, and no test in this
+    layer drove it: the three test files called `_check_drift`,
+    `_handle_drift` and the constructor, so a regrowth of this layer omitted
+    the loop entirely and passed (claims/LOG.md, A29). It was pinned only one
+    layer up, by the entry points. The layer that owns a behaviour should be
+    the layer that pins it.
+    """
+
+    def _cfg(self, default_cfg, **drift):
+        from apeiron.config.configuration import DriftDetectionCfg
+
+        return replace(default_cfg, drift_detection=DriftDetectionCfg(**drift))
+
+    def test_the_loop_runs_to_its_stream_budget(self, default_cfg, dummy_harness):
+        cfg = self._cfg(default_cfg, detection_interval=2, max_stream_updates=3)
+        mon = ContinuousMonitor(cfg=cfg, modelHarness=dummy_harness)
+        mon.run()
+
+        # the loop ends by exhausting its budget, not by running out of data:
+        # each exhausted window extends the stream and counts
+        assert mon.stream_update_count == 3
+        assert mon.batch_count > 0
+        assert mon._should_stop() is True
+
+    def test_the_loop_evaluates_every_batch_it_sees(self, default_cfg, dummy_harness):
+        cfg = self._cfg(default_cfg, detection_interval=2, max_stream_updates=2)
+        mon = ContinuousMonitor(cfg=cfg, modelHarness=dummy_harness)
+        with patch.object(
+            mon, "_evaluate_batch", wraps=mon._evaluate_batch
+        ) as evaluated:
+            mon.run()
+        assert evaluated.call_count == mon.batch_count
+
+    def test_the_loop_checks_drift_on_the_interval(self, default_cfg, dummy_harness):
+        interval = 2
+        cfg = self._cfg(default_cfg, detection_interval=interval, max_stream_updates=2)
+        mon = ContinuousMonitor(cfg=cfg, modelHarness=dummy_harness)
+        mon.run()
+        # one check per `interval` batches, and the buffer is left empty
+        assert mon.check_count == mon.batch_count // interval
+        assert mon.metric_buffer == []
+
+    def test_a_zero_interval_disables_checking(self, default_cfg, dummy_harness):
+        cfg = self._cfg(default_cfg, detection_interval=0, max_stream_updates=2)
+        mon = ContinuousMonitor(cfg=cfg, modelHarness=dummy_harness)
+        mon.run()
+        assert mon.batch_count > 0
+        assert mon.check_count == 0
+        assert mon.drift_event_count == 0
+
+    def test_the_loop_extends_the_stream_for_each_window(
+        self, default_cfg, dummy_harness
+    ):
+        cfg = self._cfg(default_cfg, detection_interval=2, max_stream_updates=3)
+        mon = ContinuousMonitor(cfg=cfg, modelHarness=dummy_harness)
+        with patch.object(
+            dummy_harness, "update_data_stream", wraps=dummy_harness.update_data_stream
+        ) as extended:
+            mon.run()
+        # once to prime the first window, then once per exhausted window
+        assert extended.call_count == mon.stream_update_count + 1
+
+    def test_a_detection_during_the_loop_dispatches_adaptation(
+        self, default_cfg, dummy_harness
+    ):
+        cfg = self._cfg(default_cfg, detection_interval=2, max_stream_updates=2)
+        mon = ContinuousMonitor(cfg=cfg, modelHarness=dummy_harness)
+        fired = DriftSignal(
+            regime=LearningRegime.CONTINUAL_LEARNING,
+            drift_detected=True,
+            drift_score=1.0,
+        )
+        with patch.object(mon, "_check_drift", return_value=fired):
+            with patch.object(mon, "_handle_drift") as handled:
+                mon.run()
+        assert handled.call_count == mon.batch_count // 2
+        assert handled.call_args.args[0] is fired
+
+    def test_a_quiet_stream_never_adapts(self, default_cfg, dummy_harness):
+        cfg = self._cfg(default_cfg, detection_interval=2, max_stream_updates=2)
+        mon = ContinuousMonitor(cfg=cfg, modelHarness=dummy_harness)
+        quiet = DriftSignal(
+            regime=LearningRegime.STABLE, drift_detected=False, drift_score=0.0
+        )
+        with patch.object(mon, "_check_drift", return_value=quiet):
+            with patch.object(mon, "_handle_drift") as handled:
+                mon.run()
+        handled.assert_not_called()
+        assert mon.drift_event_count == 0
