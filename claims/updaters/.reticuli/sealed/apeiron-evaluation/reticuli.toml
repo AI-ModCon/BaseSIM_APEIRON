@@ -5,10 +5,10 @@
 # Generated: apeiron/evaluation/metrics.py. Files mirror
 # src/apeiron/evaluation/ and tests/test_evaluation.py at 63a877a.
 #
-# Deliberately NOT claimed: src/apeiron/evaluation/evaluation.py — it has
-# no tests, nothing imports it, and its docstring contradicts its return
-# type (see claims/LOG.md, A3). A file with no criteria cannot be claimed;
-# its absence here is the measurement.
+# evaluation.py is claimed now that it has tests, but two of those tests
+# are strict xfails: it under-reports loss by the batch count and returns a
+# bare float on an empty loader (claims/LOG.md, A19). The claim pins the
+# defects as known, so a fix moves the root deliberately.
 
 [claim]
 name = "apeiron-evaluation"
@@ -16,7 +16,7 @@ format = 4
 requires = ["python3"]
 gate_timeout = 600.0
 environment = "requirements.lock"
-inputs = ["test_evaluation.py", "pytest.ini"]
+inputs = ["test_evaluation.py", "test_evaluation_module.py", "pytest.ini"]
 
 [[step]]
 kind = "produce"
@@ -31,7 +31,13 @@ class = "generated"
 guidance = "regenerate apeiron/evaluation/metrics.py so test_evaluation.py passes: torch classification metrics. accuracy(output, target) returns top-1 accuracy as a percentage tensor; accuracy_topk(output, target, topk=(1,)) returns a list of percentage tensors, one per k. Both run under torch.no_grad()."
 
 [[step]]
+kind = "produce"
+output = "apeiron/evaluation/evaluation.py"
+class = "generated"
+guidance = "regenerate test(model, loader, criterion, cfg): evaluates the model over the loader under torch.no_grad with the model in eval mode, returning (accuracy_percent, average_loss). Accuracy is the share of argmax predictions matching the targets, as a percentage, and is batch-size invariant. The loss accumulates criterion(output, target).item() per batch and divides by the SAMPLE count, which is only correct for a reduction='sum' criterion -- with the mean reduction every harness supplies it under-reports by the number of batches, and the pinned tests record that as a known defect rather than requiring it be fixed. An empty loader returns a bare 0.0 rather than a pair."
+
+[[step]]
 kind = "gate"
 output = "EVAL_OK"
 class = "validated"
-run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_evaluation.py && printf ok > EVAL_OK"
+run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_evaluation.py test_evaluation_module.py && printf ok > EVAL_OK"

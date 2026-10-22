@@ -4,31 +4,43 @@
       "component": "apeiron-config",
       "input": "apeiron/config/__init__.py",
       "output": "apeiron/config/__init__.py",
-      "root": "adec2e2bb71cfaec951093e7de99fdf738fd791d5ca3592392baa619e8a1d71d"
+      "root": "9cf772046e17ab5ea617cb6ced276e7b2a2298fbeb6c69a8a71d7437456dbc01"
     },
     {
       "component": "apeiron-config",
       "input": "apeiron/config/configuration.py",
       "output": "apeiron/config/configuration.py",
-      "root": "adec2e2bb71cfaec951093e7de99fdf738fd791d5ca3592392baa619e8a1d71d"
+      "root": "9cf772046e17ab5ea617cb6ced276e7b2a2298fbeb6c69a8a71d7437456dbc01"
     },
     {
       "component": "apeiron-evaluation",
       "input": "apeiron/evaluation/__init__.py",
       "output": "apeiron/evaluation/__init__.py",
-      "root": "99b370451edb65811b594287f1e03094d13d2d1a2fac008df77f3b9c7b2d03ab"
+      "root": "49d0b74e706d5688f767b556b2afd962c2b39715c333b3aa835e13755c292758"
     },
     {
       "component": "apeiron-evaluation",
       "input": "apeiron/evaluation/metrics.py",
       "output": "apeiron/evaluation/metrics.py",
-      "root": "99b370451edb65811b594287f1e03094d13d2d1a2fac008df77f3b9c7b2d03ab"
+      "root": "49d0b74e706d5688f767b556b2afd962c2b39715c333b3aa835e13755c292758"
     },
     {
       "component": "apeiron-model-harness",
       "input": "apeiron/model/torch_model_harness.py",
       "output": "apeiron/model/torch_model_harness.py",
-      "root": "222e6a4251ab63b6be8a489af473ee811b36d12e3874cd39c36413b25558b834"
+      "root": "0cdea6d325e63d78d962f143f22ea34c9586534f19efb976d2bbb5b1f0b98055"
+    },
+    {
+      "component": "apeiron-evaluation",
+      "input": "apeiron/evaluation/evaluation.py",
+      "output": "apeiron/evaluation/evaluation.py",
+      "root": "49d0b74e706d5688f767b556b2afd962c2b39715c333b3aa835e13755c292758"
+    },
+    {
+      "component": "apeiron-model-harness",
+      "input": "apeiron/model/__init__.py",
+      "output": "apeiron/model/__init__.py",
+      "root": "0cdea6d325e63d78d962f143f22ea34c9586534f19efb976d2bbb5b1f0b98055"
     }
   ],
   "digest": "sha256",
@@ -38,6 +50,6 @@
     "m2": "ec3a04cd00740800b91412a2003ec41bd127180be7d3490b026bcab1d64c8814",
     "m3": "ec3a04cd00740800b91412a2003ec41bd127180be7d3490b026bcab1d64c8814"
   },
-  "root": "ec3a04cd00740800b91412a2003ec41bd127180be7d3490b026bcab1d64c8814",
-  "sealed": "2026-10-22T01:48:08Z"
+  "root": "ed5c2c29373ee9889b4e5015878f3f26a103b4e1ac456e45b7f167c4ccdf2042",
+  "sealed": "2026-10-22T03:47:06Z"
 }

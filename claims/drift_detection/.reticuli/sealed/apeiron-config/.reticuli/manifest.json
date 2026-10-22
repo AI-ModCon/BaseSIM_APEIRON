@@ -3,9 +3,9 @@
   "name": "apeiron-config",
   "proof": {
     "kind": "crosscheck",
-    "m2": "adec2e2bb71cfaec951093e7de99fdf738fd791d5ca3592392baa619e8a1d71d",
-    "m3": "adec2e2bb71cfaec951093e7de99fdf738fd791d5ca3592392baa619e8a1d71d"
+    "m2": "9cf772046e17ab5ea617cb6ced276e7b2a2298fbeb6c69a8a71d7437456dbc01",
+    "m3": "9cf772046e17ab5ea617cb6ced276e7b2a2298fbeb6c69a8a71d7437456dbc01"
   },
-  "root": "adec2e2bb71cfaec951093e7de99fdf738fd791d5ca3592392baa619e8a1d71d",
-  "sealed": "2026-10-21T19:56:02Z"
+  "root": "9cf772046e17ab5ea617cb6ced276e7b2a2298fbeb6c69a8a71d7437456dbc01",
+  "sealed": "2026-10-22T03:47:00Z"
 }

@@ -45,7 +45,20 @@ class = "generated"
 from = "apeiron-evaluation"
 guidance = "supplied by the apeiron-evaluation component"
 
+[[step]]
+kind = "produce"
+output = "apeiron/evaluation/evaluation.py"
+class = "generated"
+from = "apeiron-evaluation"
+guidance = "supplied by the apeiron-evaluation component"
+
 # --- the harness layer: regrowable, outside the root -----------------------
+[[step]]
+kind = "produce"
+output = "apeiron/model/__init__.py"
+class = "generated"
+guidance = "re-export BaseModelHarness from apeiron.model.torch_model_harness"
+
 [[step]]
 kind = "produce"
 output = "apeiron/model/torch_model_harness.py"

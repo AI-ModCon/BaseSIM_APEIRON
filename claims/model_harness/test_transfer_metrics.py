@@ -55,11 +55,15 @@ class TestRegisterTask:
         assert torch.equal(torch.cat([y for _, y in frozen_loader]), val.tensors[1])
 
     def test_past_task_scores_follow_the_current_model(self, dummy_harness):
+        # measured on the loss, not accuracy: any weight change moves a loss,
+        # while accuracy can land on the same value by coincidence and made
+        # this test depend on the ambient RNG state
+        dummy_harness.eval_metrics = {"loss": dummy_harness.get_criterion()}
         dummy_harness.register_task(dummy_harness.eval())
         before = dummy_harness.eval_past_tasks()
         with torch.no_grad():
             for p in dummy_harness.model.parameters():
-                p.add_(torch.randn(p.shape, generator=torch.Generator().manual_seed(1)))
+                p.add_(1.0)
         after = dummy_harness.eval_past_tasks()
         assert before != after, (
             "eval_past_tasks scores the CURRENT model on the frozen window; "

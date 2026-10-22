@@ -1,0 +1,9 @@
+torch==2.13.0
+pytest==9.1.1
+pandas==2.3.3
+numpy==2.5.3
+wandb==0.30.0
+mlflow==3.16.1
+river==0.23.0
+evidently==0.7.23
+tqdm==4.70.1

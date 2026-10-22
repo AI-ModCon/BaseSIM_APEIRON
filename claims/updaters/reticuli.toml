@@ -50,6 +50,20 @@ class = "generated"
 from = "apeiron-model-harness"
 guidance = "supplied by the apeiron-model-harness component"
 
+[[step]]
+kind = "produce"
+output = "apeiron/evaluation/evaluation.py"
+class = "generated"
+from = "apeiron-evaluation"
+guidance = "supplied by the apeiron-evaluation component"
+
+[[step]]
+kind = "produce"
+output = "apeiron/model/__init__.py"
+class = "generated"
+from = "apeiron-model-harness"
+guidance = "supplied by the apeiron-model-harness component"
+
 # --- the updater layer: regrowable, outside the root -----------------------
 [[step]]
 kind = "produce"

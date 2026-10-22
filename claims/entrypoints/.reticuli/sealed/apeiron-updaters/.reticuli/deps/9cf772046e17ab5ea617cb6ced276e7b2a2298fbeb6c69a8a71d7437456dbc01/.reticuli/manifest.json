@@ -1,0 +1,11 @@
+{
+  "digest": "sha256",
+  "name": "apeiron-config",
+  "proof": {
+    "kind": "crosscheck",
+    "m2": "9cf772046e17ab5ea617cb6ced276e7b2a2298fbeb6c69a8a71d7437456dbc01",
+    "m3": "9cf772046e17ab5ea617cb6ced276e7b2a2298fbeb6c69a8a71d7437456dbc01"
+  },
+  "root": "9cf772046e17ab5ea617cb6ced276e7b2a2298fbeb6c69a8a71d7437456dbc01",
+  "sealed": "2026-10-22T03:47:00Z"
+}

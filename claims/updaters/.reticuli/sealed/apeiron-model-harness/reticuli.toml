@@ -14,7 +14,7 @@ format = 4
 requires = ["python3"]
 gate_timeout = 600.0
 environment = "requirements.lock"
-inputs = ["test_model_harness.py", "conftest.py", "pytest.ini"]
+inputs = ["test_model_harness.py", "test_transfer_metrics.py", "conftest.py", "pytest.ini"]
 
 # --- supplied by components ------------------------------------------------
 [[step]]
@@ -45,7 +45,20 @@ class = "generated"
 from = "apeiron-evaluation"
 guidance = "supplied by the apeiron-evaluation component"
 
+[[step]]
+kind = "produce"
+output = "apeiron/evaluation/evaluation.py"
+class = "generated"
+from = "apeiron-evaluation"
+guidance = "supplied by the apeiron-evaluation component"
+
 # --- the harness layer: regrowable, outside the root -----------------------
+[[step]]
+kind = "produce"
+output = "apeiron/model/__init__.py"
+class = "generated"
+guidance = "re-export BaseModelHarness from apeiron.model.torch_model_harness"
+
 [[step]]
 kind = "produce"
 output = "apeiron/model/torch_model_harness.py"
@@ -56,4 +69,4 @@ guidance = "regenerate the model-harness ABC BaseModelHarness(cfg, model): moves
 kind = "gate"
 output = "HARNESS_OK"
 class = "validated"
-run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_model_harness.py && printf ok > HARNESS_OK"
+run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_model_harness.py test_transfer_metrics.py && printf ok > HARNESS_OK"

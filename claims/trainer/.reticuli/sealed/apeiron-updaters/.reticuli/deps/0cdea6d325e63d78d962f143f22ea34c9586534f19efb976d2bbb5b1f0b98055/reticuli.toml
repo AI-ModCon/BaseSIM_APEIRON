@@ -1,0 +1,72 @@
+# The claim: APEIRON's model-harness layer, composed on apeiron-config
+# and apeiron-evaluation.
+#
+# Pinned: test_model_harness.py and the repository's shared conftest.py
+# (copied verbatim from tests/ at 63a877a -- the harness tests consume its
+# DummyHarness fixtures), pytest.ini, and the torch+pytest lock shared
+# with apeiron-config. Supplied by components: the configuration layer and
+# the evaluation metrics DummyHarness binds. Generated: the harness ABC
+# itself.
+
+[claim]
+name = "apeiron-model-harness"
+format = 4
+requires = ["python3"]
+gate_timeout = 600.0
+environment = "requirements.lock"
+inputs = ["test_model_harness.py", "test_transfer_metrics.py", "conftest.py", "pytest.ini"]
+
+# --- supplied by components ------------------------------------------------
+[[step]]
+kind = "produce"
+output = "apeiron/config/__init__.py"
+class = "generated"
+from = "apeiron-config"
+guidance = "supplied by the apeiron-config component"
+
+[[step]]
+kind = "produce"
+output = "apeiron/config/configuration.py"
+class = "generated"
+from = "apeiron-config"
+guidance = "supplied by the apeiron-config component"
+
+[[step]]
+kind = "produce"
+output = "apeiron/evaluation/__init__.py"
+class = "generated"
+from = "apeiron-evaluation"
+guidance = "supplied by the apeiron-evaluation component"
+
+[[step]]
+kind = "produce"
+output = "apeiron/evaluation/metrics.py"
+class = "generated"
+from = "apeiron-evaluation"
+guidance = "supplied by the apeiron-evaluation component"
+
+[[step]]
+kind = "produce"
+output = "apeiron/evaluation/evaluation.py"
+class = "generated"
+from = "apeiron-evaluation"
+guidance = "supplied by the apeiron-evaluation component"
+
+# --- the harness layer: regrowable, outside the root -----------------------
+[[step]]
+kind = "produce"
+output = "apeiron/model/__init__.py"
+class = "generated"
+guidance = "re-export BaseModelHarness from apeiron.model.torch_model_harness"
+
+[[step]]
+kind = "produce"
+output = "apeiron/model/torch_model_harness.py"
+class = "generated"
+guidance = "regenerate the model-harness ABC BaseModelHarness(cfg, model): moves the model to cfg.device; abstract get_stream_dataloader/get_train_dataloaders/get_hist_dataloaders/update_data_stream/get_criterion; get_optimizer with a deprecation bridge -- a subclass implementing the misspelled get_optmizer is bridged onto get_optimizer at class definition with a DeprecationWarning, and calling get_optmizer directly warns too; eval() runs eval_metrics over the validation loader with the model in eval mode and returns a list of metric values; history_eval() returns None without historical loaders and metric values over them otherwise; _unpack(batch) splits a (x, y) batch; scalar/1-d tensors and plain numbers reduce to floats via mean where needed"
+
+[[step]]
+kind = "gate"
+output = "HARNESS_OK"
+class = "validated"
+run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_model_harness.py test_transfer_metrics.py && printf ok > HARNESS_OK"

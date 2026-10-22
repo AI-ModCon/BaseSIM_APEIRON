@@ -1,0 +1,259 @@
+# The claim: APEIRON's three entry points, composed on the whole framework.
+#
+# Pinned: test_entry_points.py and test_cl_schedules.py, the repository's
+# shared conftest.py (copied from tests/ at 63a877a), pytest.ini, and the
+# full-stack lock. Generated: the three runners plus the example factory
+# they import -- examples/utils.py dispatches lazily per dataset, so the
+# room needs the factory but none of the example harnesses or torchvision.
+# Everything under apeiron/ arrives from the nine component claims.
+#
+# These files live at the repository root rather than inside the package
+# (`python -m src.main`), which is why the claim carries them at their own
+# names instead of under apeiron/.
+
+[claim]
+name = "apeiron-entrypoints"
+format = 4
+requires = ["python3"]
+gate_timeout = 900.0
+environment = "requirements.lock"
+inputs = [
+    "test_entry_points.py",
+    "test_cl_schedules.py",
+    "conftest.py",
+    "pytest.ini",
+]
+
+# --- supplied by the apeiron-config component --------------------------------
+[[step]]
+kind = "produce"
+output = "apeiron/config/__init__.py"
+class = "generated"
+from = "apeiron-config"
+guidance = "supplied by the apeiron-config component"
+[[step]]
+kind = "produce"
+output = "apeiron/config/configuration.py"
+class = "generated"
+from = "apeiron-config"
+guidance = "supplied by the apeiron-config component"
+# --- supplied by the apeiron-evaluation component ----------------------------
+[[step]]
+kind = "produce"
+output = "apeiron/evaluation/__init__.py"
+class = "generated"
+from = "apeiron-evaluation"
+guidance = "supplied by the apeiron-evaluation component"
+[[step]]
+kind = "produce"
+output = "apeiron/evaluation/metrics.py"
+class = "generated"
+from = "apeiron-evaluation"
+guidance = "supplied by the apeiron-evaluation component"
+[[step]]
+kind = "produce"
+output = "apeiron/evaluation/evaluation.py"
+class = "generated"
+from = "apeiron-evaluation"
+guidance = "supplied by the apeiron-evaluation component"
+# --- supplied by the apeiron-model-harness component -------------------------
+[[step]]
+kind = "produce"
+output = "apeiron/model/__init__.py"
+class = "generated"
+from = "apeiron-model-harness"
+guidance = "supplied by the apeiron-model-harness component"
+[[step]]
+kind = "produce"
+output = "apeiron/model/torch_model_harness.py"
+class = "generated"
+from = "apeiron-model-harness"
+guidance = "supplied by the apeiron-model-harness component"
+# --- supplied by the apeiron-updaters component ------------------------------
+[[step]]
+kind = "produce"
+output = "apeiron/training/updater/__init__.py"
+class = "generated"
+from = "apeiron-updaters"
+guidance = "supplied by the apeiron-updaters component"
+[[step]]
+kind = "produce"
+output = "apeiron/training/updater/base.py"
+class = "generated"
+from = "apeiron-updaters"
+guidance = "supplied by the apeiron-updaters component"
+[[step]]
+kind = "produce"
+output = "apeiron/training/updater/no_updater.py"
+class = "generated"
+from = "apeiron-updaters"
+guidance = "supplied by the apeiron-updaters component"
+[[step]]
+kind = "produce"
+output = "apeiron/training/updater/ewc.py"
+class = "generated"
+from = "apeiron-updaters"
+guidance = "supplied by the apeiron-updaters component"
+[[step]]
+kind = "produce"
+output = "apeiron/training/updater/kfac.py"
+class = "generated"
+from = "apeiron-updaters"
+guidance = "supplied by the apeiron-updaters component"
+[[step]]
+kind = "produce"
+output = "apeiron/training/updater/jvp_reg.py"
+class = "generated"
+from = "apeiron-updaters"
+guidance = "supplied by the apeiron-updaters component"
+[[step]]
+kind = "produce"
+output = "apeiron/training/updater/create_updater.py"
+class = "generated"
+from = "apeiron-updaters"
+guidance = "supplied by the apeiron-updaters component"
+# --- supplied by the apeiron-logger component --------------------------------
+[[step]]
+kind = "produce"
+output = "apeiron/logger/__init__.py"
+class = "generated"
+from = "apeiron-logger"
+guidance = "supplied by the apeiron-logger component"
+[[step]]
+kind = "produce"
+output = "apeiron/logger/console_logger.py"
+class = "generated"
+from = "apeiron-logger"
+guidance = "supplied by the apeiron-logger component"
+[[step]]
+kind = "produce"
+output = "apeiron/logger/wandb_logger.py"
+class = "generated"
+from = "apeiron-logger"
+guidance = "supplied by the apeiron-logger component"
+[[step]]
+kind = "produce"
+output = "apeiron/logger/mlflow_logger.py"
+class = "generated"
+from = "apeiron-logger"
+guidance = "supplied by the apeiron-logger component"
+[[step]]
+kind = "produce"
+output = "apeiron/logger/logger.py"
+class = "generated"
+from = "apeiron-logger"
+guidance = "supplied by the apeiron-logger component"
+# --- supplied by the apeiron-profilers component -----------------------------
+[[step]]
+kind = "produce"
+output = "apeiron/profilers/__init__.py"
+class = "generated"
+from = "apeiron-profilers"
+guidance = "supplied by the apeiron-profilers component"
+[[step]]
+kind = "produce"
+output = "apeiron/profilers/aten_flops_map.py"
+class = "generated"
+from = "apeiron-profilers"
+guidance = "supplied by the apeiron-profilers component"
+[[step]]
+kind = "produce"
+output = "apeiron/profilers/count_flops.py"
+class = "generated"
+from = "apeiron-profilers"
+guidance = "supplied by the apeiron-profilers component"
+# --- supplied by the apeiron-drift-detection component -----------------------
+[[step]]
+kind = "produce"
+output = "apeiron/drift_detection/__init__.py"
+class = "generated"
+from = "apeiron-drift-detection"
+guidance = "supplied by the apeiron-drift-detection component"
+[[step]]
+kind = "produce"
+output = "apeiron/drift_detection/detectors/base.py"
+class = "generated"
+from = "apeiron-drift-detection"
+guidance = "supplied by the apeiron-drift-detection component"
+[[step]]
+kind = "produce"
+output = "apeiron/drift_detection/detectors/statistical_detectors.py"
+class = "generated"
+from = "apeiron-drift-detection"
+guidance = "supplied by the apeiron-drift-detection component"
+[[step]]
+kind = "produce"
+output = "apeiron/drift_detection/detectors/model_performance_detector.py"
+class = "generated"
+from = "apeiron-drift-detection"
+guidance = "supplied by the apeiron-drift-detection component"
+[[step]]
+kind = "produce"
+output = "apeiron/drift_detection/load_drift_detector.py"
+class = "generated"
+from = "apeiron-drift-detection"
+guidance = "supplied by the apeiron-drift-detection component"
+# --- supplied by the apeiron-trainer component -------------------------------
+[[step]]
+kind = "produce"
+output = "apeiron/training/__init__.py"
+class = "generated"
+from = "apeiron-trainer"
+guidance = "supplied by the apeiron-trainer component"
+[[step]]
+kind = "produce"
+output = "apeiron/training/continuous_trainer.py"
+class = "generated"
+from = "apeiron-trainer"
+guidance = "supplied by the apeiron-trainer component"
+# --- supplied by the apeiron-monitor component -------------------------------
+[[step]]
+kind = "produce"
+output = "apeiron/driver/__init__.py"
+class = "generated"
+from = "apeiron-monitor"
+guidance = "supplied by the apeiron-monitor component"
+[[step]]
+kind = "produce"
+output = "apeiron/driver/continuous_monitor.py"
+class = "generated"
+from = "apeiron-monitor"
+guidance = "supplied by the apeiron-monitor component"
+
+# --- this layer: regrowable, outside the root -------------------------
+
+[[step]]
+kind = "produce"
+output = "examples/__init__.py"
+class = "generated"
+guidance = "the package marker for examples; empty"
+
+[[step]]
+kind = "produce"
+output = "examples/utils.py"
+class = "generated"
+guidance = "get_example(cfg) -> BaseModelHarness: dispatches on cfg.data.name to MNIST_CNN ('mnist'), CIFAR_VISION ('cifar10') or IMAGENET_VISION ('imagenet'), importing each harness INSIDE its branch so a run never pays for datasets it does not use, and raising NotImplementedError naming the dataset otherwise."
+
+[[step]]
+kind = "produce"
+output = "main.py"
+class = "generated"
+guidance = "the drift-driven entry point. main(argv) builds the config, configures the logging backend and the singleton logger BEFORE the harness is constructed (get_logger ignores its arguments once an instance exists, so a harness that logs from __init__ would otherwise pin the config), names the project from logging.experiment_name or 'basesim-framework', builds the harness through get_example, runs ContinuousMonitor, finishes the logger and returns 0."
+
+[[step]]
+kind = "produce"
+output = "drift_only.py"
+class = "generated"
+guidance = "detection without adaptation, for measuring what a detector would have fired on. DriftOnlyMonitor mirrors ContinuousMonitor's loop -- per-batch evaluation, the same aggregation, the same profiling, the same logged field names -- but replaces _handle_drift with recording the event, constructs no trainer and never trains, so the model's weights are unchanged at the end. It resets the detector after each event when drift_detection.reset_after_learning is set. run_drift_only(cfg, modelHarness) returns a summary with detector, batches, stream_updates, drift_checks, drift_events, drift_windows and final_metrics; main(argv) prints it under '==== Drift-only summary ===='."
+
+[[step]]
+kind = "produce"
+output = "cl_only.py"
+class = "generated"
+guidance = "adaptation on a schedule instead of on detected drift, for the accuracy-cost frontier. TriggerSchedule subclasses: NeverSchedule (the frozen lower bound), PeriodicSchedule(period) firing at the END of each period so period N fires floor(windows/N) times and refusing period < 1, RandomSchedule(seed, prob, budget, horizon) as the rate-matched null -- either Bernoulli(prob) per window or exactly budget windows sampled without replacement from [0, horizon), refusing a non-positive horizon, a budget exceeding it, or neither prob nor budget -- and FixedSchedule(trigger_at) for attribution replays. Each has a describe() string. make_schedule(args, cfg) builds one from the parsed flags, defaulting the horizon to drift_detection.max_stream_updates, deriving a period from a budget, letting --schedule-seed override cfg.seed for placement only, and refusing an unknown name. ScheduledCLRunner mirrors ContinuousMonitor's loop with the detector call replaced by the schedule, still aggregating and logging metrics at every decision point so a schedule run's metric trace is comparable to a detector run's, and checkpointing each trigger when the harness has checkpointing enabled. main(argv) parses its own flags with parse_known_args, passes the rest to build_config, and prints the summary under '==== Scheduled CL summary ===='."
+
+[[step]]
+kind = "gate"
+output = "ENTRYPOINTS_OK"
+class = "validated"
+run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_entry_points.py test_cl_schedules.py && printf ok > ENTRYPOINTS_OK"
