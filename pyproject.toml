@@ -84,6 +84,10 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
+# claims/ holds reticuli claim directories, each carrying a pinned COPY of a
+# test file; collecting both copies clashes on the module basename. The
+# claims are run by `ret audit`, never by the repository's own pytest.
+norecursedirs = ["claims", ".*", "build", "dist"]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
 ]
