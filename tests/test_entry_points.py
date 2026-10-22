@@ -335,3 +335,47 @@ class TestRunnerOptions:
                 == 0
             )
         assert list(ckpts.glob("drift_adaptation_*.pt")), "no checkpoint was written"
+
+
+class TestRunnerGuards:
+    """The refusals and warmup arms inside the two runners."""
+
+    def _runners(self, tmp_path):
+        import cl_only
+        import drift_only
+        from apeiron.config.configuration import build_config
+
+        csv_path = tmp_path / "metrics.csv"
+        toml = _write_toml(tmp_path, csv_path)
+        cfg = build_config(["--config", str(toml)])
+        harness = _ShiftingHarness(cfg)
+        return (
+            drift_only.DriftOnlyMonitor(cfg=cfg, modelHarness=harness),
+            cl_only.ScheduledCLRunner(
+                cfg=cfg, modelHarness=harness, schedule=cl_only.NeverSchedule()
+            ),
+        )
+
+    def test_both_runners_refuse_an_empty_metric_buffer(self, tmp_path):
+        drift_runner, cl_runner = self._runners(tmp_path)
+        drift_runner.metric_buffer = []
+        with pytest.raises(RuntimeError, match="evaluation metrics"):
+            drift_runner._check_drift()
+
+        cl_runner.metric_buffer = []
+        with pytest.raises(RuntimeError, match="evaluation metrics"):
+            cl_runner._aggregate_buffer()
+
+    def test_drift_only_profiles_the_detector_after_warmup(self, tmp_path):
+        drift_runner, _ = self._runners(tmp_path)
+        drift_runner.metric_buffer = [[1.0]]
+        drift_runner.batch_count = drift_runner.flops_profiler.warmup_iters + 1
+        drift_runner._check_drift()
+        assert "detector" in drift_runner.flops_profiler.profiles
+
+    def test_drift_only_skips_profiling_during_warmup(self, tmp_path):
+        drift_runner, _ = self._runners(tmp_path)
+        drift_runner.metric_buffer = [[1.0]]
+        drift_runner.batch_count = 0
+        drift_runner._check_drift()
+        assert "detector" not in drift_runner.flops_profiler.profiles
