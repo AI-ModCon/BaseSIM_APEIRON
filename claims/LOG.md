@@ -307,8 +307,25 @@ One confound, stated: the producer cannot run the gate in this room
 regrowth with the furnished venv on the producer's PATH is the clean
 test of whether a reconstruction *can* satisfy the boundary, as opposed
 to whether this handicapped one did.
-Status: measurement recorded; the follow-up regrowth is the open
-question.
+Resolved the same day. Rerunning the rebuild with the furnished venv on
+the producer's PATH — so codex could actually run the gate and iterate —
+succeeded in 148 s, crosscheck accepted with M1/M2/M3 at root
+`d0eec347…`, proof recorded. So the criteria are satisfiable; the first
+failure was R6, the producer flying without gate feedback.
+
+And the regrowth is now a different program. `model_performance_detector.py`:
+
+| criteria | regrown size | what it does |
+|---|---|---|
+| before | 81 lines | never imports evidently |
+| after | 130 lines | real `DataDriftPreset`, real `DriftedColumnsCount` lookup, the result-shape refusals |
+
+The other modules barely moved (base 57 to 49, statistical 113 to 110,
+factory 25 to 24) — they were already constrained by the severity tests.
+This is the clearest demonstration the track has produced of criteria
+changing what an independent reconstruction is *forced* to build, rather
+than merely what it is allowed to pass.
+Status: closed.
 
 ### R5 — reticuli: recipe-in-place packing dropped component links
 A produce step's `from = "<component>"` is honored by incremental
