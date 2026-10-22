@@ -13,7 +13,9 @@ import torch
 from apeiron.config.configuration import (
     Config,
     ContinualLearningCfg,
+    DataCfg,
     DriftDetectionCfg,
+    LoggingCfg,
     ModelCfg,
     TrainCfg,
     build_config,
@@ -304,3 +306,156 @@ class TestDeviceSelection:
             mock_mps.is_available.return_value = False
             device = get_available_device()
             assert device == torch.device("cpu")
+
+
+# ---------------------------------------------------------------------------
+# The full configuration surface: every field, every default
+# ---------------------------------------------------------------------------
+class TestConfigurationSurface:
+    """Pin the complete field set and default values of every section.
+
+    These are the contract the rest of the framework reads: the detector
+    loader dereferences the adwin/kswin/ph fields, the updaters the jvp/ewc/
+    kfac fields, the entry points `verbosity` and `logging`. An
+    implementation that parses the test TOMLs but drops fields passed the
+    suite before this class existed.
+    """
+
+    def test_field_sets_are_complete(self):
+        from dataclasses import fields
+
+        expected = {
+            ModelCfg: {"name", "pretrained_path", "max_ckpts", "ckpts_path"},
+            TrainCfg: {
+                "batch_size",
+                "num_workers",
+                "init_lr",
+                "grad_accumulation_steps",
+                "max_iter",
+            },
+            DataCfg: {"name", "path", "batch_size"},
+            ContinualLearningCfg: {
+                "update_mode",
+                "mix_historic_data",
+                "jvp_rho_theta",
+                "jvp_rho_x",
+                "jvp_data_sign",
+                "ewc_lambda",
+                "ewc_ema_decay",
+                "kfac_lambda",
+                "kfac_ema_decay",
+            },
+            DriftDetectionCfg: {
+                "detector_name",
+                "detection_interval",
+                "aggregation",
+                "metric_index",
+                "reset_after_learning",
+                "max_stream_updates",
+                "adwin_delta",
+                "adwin_minor_threshold",
+                "adwin_moderate_threshold",
+                "kswin_alpha",
+                "kswin_window_size",
+                "kswin_stat_size",
+                "kswin_seed",
+                "ph_min_instances",
+                "ph_delta",
+                "ph_threshold",
+                "ph_alpha",
+                "ensemble_detectors",
+                "ensemble_voting",
+            },
+            Config: {
+                "model",
+                "data",
+                "train",
+                "continual_learning",
+                "drift_detection",
+                "seed",
+                "device",
+                "multi_gpu",
+                "verbosity",
+                "logging",
+            },
+        }
+        for cls, names in expected.items():
+            assert {f.name for f in fields(cls)} == names, cls.__name__
+
+    def test_model_cfg_defaults(self):
+        m = ModelCfg(name="x")
+        assert m.pretrained_path == ""
+        assert m.max_ckpts == 0
+        assert m.ckpts_path == ""
+
+    def test_train_cfg_all_defaults(self):
+        t = TrainCfg(batch_size=8, num_workers=0, init_lr=0.01)
+        assert t.grad_accumulation_steps == 1
+        assert t.max_iter == 600
+
+    def test_data_cfg_stream_batch_default(self):
+        d = DataCfg(name="x", path="/tmp")
+        assert d.batch_size == 1
+
+    def test_continual_learning_all_defaults(self):
+        cl = ContinualLearningCfg()
+        assert cl.update_mode == "base"
+        assert cl.mix_historic_data is False
+        assert cl.jvp_rho_theta == 0.05
+        assert cl.jvp_rho_x == 1.0
+        assert cl.jvp_data_sign == 1.0
+        assert cl.ewc_lambda == 1000.0
+        assert cl.ewc_ema_decay == 0.95
+        assert cl.kfac_lambda == 0.01
+        assert cl.kfac_ema_decay == 0.95
+
+    def test_drift_detection_all_defaults(self):
+        dd = DriftDetectionCfg()
+        assert dd.detector_name == "ADWINDetector"
+        assert dd.detection_interval == 10
+        assert dd.aggregation == "mean"
+        assert dd.metric_index == 0
+        assert dd.reset_after_learning is False
+        assert dd.max_stream_updates == 20
+        assert dd.adwin_delta == 0.002
+        assert dd.adwin_minor_threshold == 0.3
+        assert dd.adwin_moderate_threshold == 0.6
+        assert dd.kswin_alpha == 0.005
+        assert dd.kswin_window_size == 100
+        assert dd.kswin_stat_size == 30
+        assert dd.kswin_seed is None
+        assert dd.ph_min_instances == 30
+        assert dd.ph_delta == 0.005
+        assert dd.ph_threshold == 50
+        assert dd.ph_alpha == 0.9999
+        assert dd.ensemble_detectors == ()
+        assert dd.ensemble_voting == "majority"
+
+    def test_logging_cfg_defaults(self):
+        lg = LoggingCfg()
+        assert lg.backend == "none"
+        assert lg.experiment_name is None
+        assert lg.mlflow_tracking_uri is None
+        assert lg.metrics_output_path is None
+
+    def test_config_top_level_defaults(self):
+        cfg = Config(
+            model=ModelCfg(name="x"),
+            data=DataCfg(name="d", path="/tmp"),
+            train=TrainCfg(batch_size=8, num_workers=0, init_lr=0.01),
+            continual_learning=ContinualLearningCfg(),
+            drift_detection=DriftDetectionCfg(),
+            seed=1,
+            device="cpu",
+        )
+        assert cfg.multi_gpu is False
+        assert cfg.verbosity == "INFO"
+        assert cfg.logging is None
+
+    def test_ensemble_detectors_coerce_to_tuple(self):
+        # TOML arrays arrive as lists; a bare string is ONE detector name,
+        # never an iterable of characters
+        dd = DriftDetectionCfg(ensemble_detectors=["ADWINDetector", "KSWINDetector"])
+        assert dd.ensemble_detectors == ("ADWINDetector", "KSWINDetector")
+        dd = DriftDetectionCfg(ensemble_detectors="ADWINDetector")
+        assert dd.ensemble_detectors == ("ADWINDetector",)

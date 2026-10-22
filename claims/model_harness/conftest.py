@@ -91,8 +91,10 @@ class DummyHarness(BaseModelHarness):
         pass
 
     def get_stream_dataloader(self):
+        # the loader itself, not a tuple: ContinuousMonitor iterates this
+        # directly, exactly like every example harness returns it
         bs = self.cfg.data.batch_size
-        return (DataLoader(self._val_ds, batch_size=bs),)
+        return DataLoader(self._val_ds, batch_size=bs)
 
     def get_train_dataloaders(self):
         bs = self.cfg.train.batch_size
