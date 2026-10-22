@@ -13,15 +13,15 @@ Read bottom-up: a claim's components must hold before it does.
 | claim | root | its own files | components | regrown + crosschecked |
 |---|---|---|---|---|
 | `apeiron-config` | `8cfb4c6c3ec8…` | 2 of 2 | — | yes |
-| `apeiron-evaluation` | `49d0b74e706d…` | 3 of 3 | — | yes |
-| `apeiron-profilers` | `6fe145d6eb07…` | 2 of 3 + 1 pinned | — | yes |
+| `apeiron-evaluation` | `da4cc107e9a8…` | 3 of 3 | — | yes |
+| `apeiron-profilers` | `54a5267fd4a0…` | 2 of 2 | — | yes |
 | `apeiron-model-harness` | `4adee990728c…` | 2 of 7 | 2 | yes |
 | `apeiron-updaters` | `01494aa9c12e…` | 7 of 14 | 3 | yes |
 | `apeiron-logger` | `1f461066564e…` | 5 of 7 | 1 | yes |
 | `apeiron-drift-detection` | `713bdfd1bf0e…` | 5 of 7 | 1 | yes |
-| `apeiron-trainer` | `f4370ebed255…` | 2 of 24 | 6 | pending |
-| `apeiron-monitor` | `d585d03dd4e9…` | 3 of 32 | 8 | pending |
-| `apeiron-entrypoints` | `d48d0bec5f9c…` | 5 of 36 | 9 | pending |
+| `apeiron-trainer` | `59fd040ade1f…` | 2 of 24 | 6 | yes |
+| `apeiron-monitor` | `1d8ba1409af4…` | 3 of 32 | 8 | yes |
+| `apeiron-entrypoints` | `e456834bf11c…` | 5 of 36 | 9 | yes |
 
 "own files" is what this layer regrows itself; the rest arrive from its
 components. The share matters when reading `ret assess`: a mutation score
@@ -111,18 +111,35 @@ divergences that appear once are findings about the producer.
 
 ## Where reconstruction stands
 
-Seven of the ten layers have been regrown from their criteria alone and
-crosschecked — original, byte copy and rebuild each passing independently
-and landing on the same root — all on the first attempt. Across those seven
-layers, 2,293 logical lines of code (blanks, comments and docstrings
-excluded) came back as 1,132: **roughly half of APEIRON's code is not
-pinned down by its tests**, even after this round of test writing.
+**All ten layers have been regrown from their criteria alone and
+crosschecked** against current roots — original, byte copy and rebuild each
+passing independently and landing on the same root, with the proof recorded
+in each claim's store. Nine passed on the first attempt; `profilers` needed
+the ATen table re-modelled as a pinned input first (LOG R11).
 
-Those proofs were recorded before the last round of pinning, which moved
-four leaf roots, so a regrowth of all ten layers against current criteria
-is queued. The top three were never attempted: the Codex account hit its
-usage limit mid-run, and nothing about those layers failed.
+How much each layer's criteria actually pin down, in logical lines of code
+(blanks, comments and docstrings excluded, since raw line counts flatter
+the result):
 
-The recursive form (`--recursive`) is not the way to finish them — nine
-chained layers multiply the producer's per-layer failure rate into a coin
-flip (LOG A24). Regrow each layer on its own.
+| layer | src | regrown | pinned |
+|---|---|---|---|
+| `config` | 231 | 163 | 71% |
+| `evaluation` | 40 | 27 | 68% |
+| `profilers` | 192 | 109 | 57% |
+| `model_harness` | 134 | 109 | 81% |
+| `updaters` | 355 | 218 | 61% |
+| `logger` | 549 | 256 | 47% |
+| `drift_detection` | 621 | 293 | 47% |
+| `trainer` | 223 | 72 | 32% |
+| `monitor` | 243 | 97 | 40% |
+| `entrypoints` | 624 | 172 | 28% |
+
+Across the whole framework, **3212 lines of code came back as 1516** — so
+roughly 47% of APEIRON is what its tests demand, and the rest is
+latitude. Read the composed layers' low numbers with care: a deep claim
+regrows only its own files, and a thin orchestrator over well-pinned
+components is a small amount of genuinely free code, not a large gap.
+
+The recursive form (`--recursive`) is not the way to do this — nine chained
+layers multiply the producer's per-layer failure rate into a coin flip (LOG
+A24). `claims/scripts/regrow.sh` does them one at a time.
