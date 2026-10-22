@@ -159,6 +159,45 @@ numerical: fixed tiny model, fixed seed, assert the actual update
 direction/penalty values for EWC, KFAC, and JVP.
 Status: open; highest-value test work in the repository.
 
+### A14 — coverage round one: the measured effect of the new tests
+Five test files written against the ranked backlog in
+[IMPROVEMENTS.md](IMPROVEMENTS.md), then pinned into their claims:
+
+| layer | mutation before | after | what was added |
+|---|---|---|---|
+| config | 0.36 | 0.68 | the complete field set and every default |
+| model-harness | 0.16 | 0.56 | transfer metrics, per-sample averaging |
+| apeiron-updaters | 0.12 | 0.32 | EWC/KFAC/JVP numerics |
+| drift-detection | 0.23 | 0.30 | severity-to-regime boundaries |
+
+Same mutant sample sizes before and after. The prior updater regrowth
+(the combined-gradient impostor of A13) fails 8 of the 11 new numerical
+tests, so the hole that admitted it is closed. New roots: config
+9cf77204, harness 5eaa8860, drift 0e01b720, updaters 51a4b922.
+
+Also newly covered, outside any claim: the three entry points
+(`tests/test_entry_points.py`), which run `main`, `drift_only`, and
+`cl_only` end to end on a tiny harness — about a thousand lines that
+had no tests at all. 262 tests pass, ruff and mypy clean.
+
+### A15 — APEIRON: the shared DummyHarness could not drive the monitor
+`tests/conftest.py`'s `DummyHarness.get_stream_dataloader` returned a
+one-element tuple, which `ContinuousMonitor` cannot iterate (it unpacks
+batches directly), so the shared fixture was unusable for any
+loop-level test — nothing had ever tried. Every example harness returns
+the loader itself. Fixed here while writing the entry-point tests.
+Status: fixed in this workspace; carry upstream with the entry-point
+tests.
+
+### A16 — APEIRON: `--trigger-at` without `--schedule fixed` dies obscurely
+`cl_only.py` defaults to `--schedule periodic`, so passing only
+`--trigger-at 7,19` (the documented way to name windows) raises
+`ValueError: --schedule periodic needs --period or --budget` — an error
+about flags the user never mentioned. Either infer `fixed` from
+`--trigger-at` or name the real problem. The current behavior is pinned
+by a test so a fix is a deliberate change.
+Status: open.
+
 ### R5 — reticuli: recipe-in-place packing dropped component links
 A produce step's `from = "<component>"` is honored by incremental
 rebuild, deep audit, and export only through the manifest's component
