@@ -18,6 +18,8 @@ requires = ["python3"]
 gate_timeout = 900.0
 environment = "requirements.lock"
 inputs = [
+    # the profiler's cost table: data, pinned here too so the room has it
+    "apeiron/profilers/aten_flops_map.py",
     "test_entry_points.py",
     "test_cl_schedules.py",
     "conftest.py",
@@ -147,12 +149,6 @@ guidance = "supplied by the apeiron-logger component"
 [[step]]
 kind = "produce"
 output = "apeiron/profilers/__init__.py"
-class = "generated"
-from = "apeiron-profilers"
-guidance = "supplied by the apeiron-profilers component"
-[[step]]
-kind = "produce"
-output = "apeiron/profilers/aten_flops_map.py"
 class = "generated"
 from = "apeiron-profilers"
 guidance = "supplied by the apeiron-profilers component"

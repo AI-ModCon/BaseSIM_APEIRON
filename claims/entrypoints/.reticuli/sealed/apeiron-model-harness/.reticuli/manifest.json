@@ -35,9 +35,9 @@
   "name": "apeiron-model-harness",
   "proof": {
     "kind": "crosscheck",
-    "m2": "0cdea6d325e63d78d962f143f22ea34c9586534f19efb976d2bbb5b1f0b98055",
-    "m3": "0cdea6d325e63d78d962f143f22ea34c9586534f19efb976d2bbb5b1f0b98055"
+    "m2": "4adee990728c4bd60559b241bdf7d2c13e3bfa6e9ab7af492d5c8289d92e6278",
+    "m3": "4adee990728c4bd60559b241bdf7d2c13e3bfa6e9ab7af492d5c8289d92e6278"
   },
   "root": "4adee990728c4bd60559b241bdf7d2c13e3bfa6e9ab7af492d5c8289d92e6278",
-  "sealed": "2026-10-22T04:47:12Z"
+  "sealed": "2026-10-22T07:28:27Z"
 }

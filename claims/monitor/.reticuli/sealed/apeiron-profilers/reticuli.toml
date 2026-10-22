@@ -1,8 +1,9 @@
 # The claim: APEIRON's FLOPs profiler.
 #
 # Pinned: test_profiler.py (copied from tests/ at 63a877a), pytest.ini, a
-# torch+pandas lock, and the ATen cost table -- reference data, so its bytes
-# belong to the identity. Generated: the profiler itself. This
+# torch+pandas lock, and the ATen cost table -- reference data the profiler
+# reads, so it is an input rather than something to regrow. Generated: the
+# profiler itself. This
 # layer depends on nothing else in the package, so it has no components.
 
 [claim]
@@ -11,23 +12,23 @@ format = 4
 requires = ["python3"]
 gate_timeout = 600.0
 environment = "requirements.lock"
-inputs = ["test_profiler.py", "pytest.ini"]
+inputs = [
+    # The cost table is reference DATA the profiler reads, not logic, so it is
+    # an INPUT: inside the root, materialized into every room, and inside the
+    # set a producer may not touch. A blind regrowth reproduced 14 of its 169
+    # entries and passed the whole gate (LOG A25); declared as a pinned OUTPUT
+    # instead, a producer rewrote it and the rebuild minted a different claim
+    # (LOG R11).
+    "apeiron/profilers/aten_flops_map.py",
+    "test_profiler.py",
+    "pytest.ini",
+]
 
 [[step]]
 kind = "produce"
 output = "apeiron/profilers/__init__.py"
 class = "generated"
 guidance = "re-export FLOPSProfiler from apeiron.profilers.count_flops"
-
-# The cost table is reference DATA, not logic, so it is pinned rather than
-# regrown: its bytes are inside the root and a rebuild receives it. A blind
-# regrowth reproduced 14 of its 169 entries and passed the whole gate
-# (claims/LOG.md, A25) -- every FLOPs figure APEIRON reports is computed
-# from this table, and no test constrains the other 155 costs.
-[[step]]
-kind = "produce"
-output = "apeiron/profilers/aten_flops_map.py"
-class = "pinned"
 
 [[step]]
 kind = "produce"

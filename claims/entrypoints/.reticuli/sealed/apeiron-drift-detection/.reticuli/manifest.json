@@ -17,9 +17,9 @@
   "name": "apeiron-drift-detection",
   "proof": {
     "kind": "crosscheck",
-    "m2": "d0eec347dc2967724b075963209f4e95d82ee8a88492b2cacae2a40217ff3bcf",
-    "m3": "d0eec347dc2967724b075963209f4e95d82ee8a88492b2cacae2a40217ff3bcf"
+    "m2": "713bdfd1bf0e332d3d2b9ad2ca3898001e7305e686b317b7ad77dabec1bf2749",
+    "m3": "713bdfd1bf0e332d3d2b9ad2ca3898001e7305e686b317b7ad77dabec1bf2749"
   },
   "root": "713bdfd1bf0e332d3d2b9ad2ca3898001e7305e686b317b7ad77dabec1bf2749",
-  "sealed": "2026-10-22T04:47:22Z"
+  "sealed": "2026-10-22T07:28:37Z"
 }

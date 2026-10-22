@@ -3,9 +3,9 @@
   "name": "apeiron-profilers",
   "proof": {
     "kind": "crosscheck",
-    "m2": "25bb0aa257fd9db9c6a08d57587bd8075245eec732708cab9fad58e5364d50c0",
-    "m3": "25bb0aa257fd9db9c6a08d57587bd8075245eec732708cab9fad58e5364d50c0"
+    "m2": "54a5267fd4a0b976b257610c393624d9eac5641f2fb428459a234c3adb4b1b51",
+    "m3": "54a5267fd4a0b976b257610c393624d9eac5641f2fb428459a234c3adb4b1b51"
   },
-  "root": "6fe145d6eb07efb19c3995feed1243ca3fa932f7963ba2020dc4980f3646d2b7",
-  "sealed": "2026-10-22T04:47:10Z"
+  "root": "54a5267fd4a0b976b257610c393624d9eac5641f2fb428459a234c3adb4b1b51",
+  "sealed": "2026-10-22T07:31:37Z"
 }

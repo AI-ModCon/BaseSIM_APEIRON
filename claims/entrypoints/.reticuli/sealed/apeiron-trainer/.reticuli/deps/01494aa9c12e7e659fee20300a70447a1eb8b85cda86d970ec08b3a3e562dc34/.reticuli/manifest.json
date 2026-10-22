@@ -47,9 +47,9 @@
   "name": "apeiron-updaters",
   "proof": {
     "kind": "crosscheck",
-    "m2": "ed5c2c29373ee9889b4e5015878f3f26a103b4e1ac456e45b7f167c4ccdf2042",
-    "m3": "ed5c2c29373ee9889b4e5015878f3f26a103b4e1ac456e45b7f167c4ccdf2042"
+    "m2": "01494aa9c12e7e659fee20300a70447a1eb8b85cda86d970ec08b3a3e562dc34",
+    "m3": "01494aa9c12e7e659fee20300a70447a1eb8b85cda86d970ec08b3a3e562dc34"
   },
   "root": "01494aa9c12e7e659fee20300a70447a1eb8b85cda86d970ec08b3a3e562dc34",
-  "sealed": "2026-10-22T04:47:14Z"
+  "sealed": "2026-10-22T07:28:29Z"
 }
