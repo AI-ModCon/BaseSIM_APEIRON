@@ -173,9 +173,9 @@
   "name": "apeiron-monitor",
   "proof": {
     "kind": "crosscheck",
-    "m2": "d585d03dd4e9410a72c3c746b997c0e710d43f6c9b6a4d132b2cdfe2e190c0a3",
-    "m3": "d585d03dd4e9410a72c3c746b997c0e710d43f6c9b6a4d132b2cdfe2e190c0a3"
+    "m2": "1d8ba1409af458dfa36f0fa9c33f1e6b00f7be29ad4fcb23f1790fc66e3c47a7",
+    "m3": "1d8ba1409af458dfa36f0fa9c33f1e6b00f7be29ad4fcb23f1790fc66e3c47a7"
   },
   "root": "1d8ba1409af458dfa36f0fa9c33f1e6b00f7be29ad4fcb23f1790fc66e3c47a7",
-  "sealed": "2026-10-22T07:28:46Z"
+  "sealed": "2026-10-22T07:40:58Z"
 }

@@ -61,7 +61,10 @@ Two rules the tooling enforces and one it does not:
 
 1. **Editing a pinned test moves the root.** That is the design — the name
    tracks the criteria — so expect `verify` to report `broken` until you
-   reseal with `ret pack`.
+   reseal with `ret pack`. A reseal also invalidates any recorded
+   reconstruction proof, and `ret status` will keep printing
+   `proof  recorded` for one earned on the old bytes (LOG R12): re-earn it
+   with `claims/scripts/regrow.sh <layer>`.
 2. **A dependent must declare every file its components supply.** Miss one
    and the warm pack still passes while `ret audit` fails, because the audit
    room is built from declarations alone.

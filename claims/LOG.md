@@ -415,6 +415,25 @@ is satisfiable by an independent reconstruction — and it is what
 `claims/README.md` recommends.
 Status: methodology; drives the per-layer regrowth script.
 
+### R12 — reticuli: `status` reports a proof that was earned on other bytes
+A recorded crosscheck proof is stored on the claim's manifest and names the
+roots it compared (`m2: f4370ebed255…`). Reseal the claim — which happens
+whenever criteria are strengthened — and the proof stays on the manifest
+naming the superseded root, while `ret status` keeps printing
+`proof  recorded`. One claim in this ladder lost its proof outright in a
+reseal and correctly showed `proof  none`; three kept a `recorded` line
+for a proof earned on bytes that no longer exist.
+
+`status` already does this correctly for the other evidence — it trusts an
+audit receipt and an assess measurement "only while the recorded root still
+matches" — so the proof line looks like an oversight rather than a design
+choice. The fix is the same comparison.
+
+Practical consequence while it stands: after any reseal, treat every
+recorded proof as stale until re-earned. `claims/scripts/regrow.sh <layer>`
+re-earns one.
+Status: open; worth reporting upstream.
+
 ### R11 — reticuli: a rebuild reports success when it mints a different claim
 Pinning the ATen cost table as `class = "pinned"` (A25) exposed this.
 `rebuild` snapshots what the producer must not touch — the recipe plus the
