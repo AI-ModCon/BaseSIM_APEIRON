@@ -218,3 +218,120 @@ class TestClOnlyEntryPoint:
 
             with pytest.raises(ValueError, match="--period or --budget"):
                 cl_only.main(["--trigger-at", "1", "--config", str(toml)])
+
+
+# ---------------------------------------------------------------------------
+# The optional branches both runners carry
+# ---------------------------------------------------------------------------
+class _TimerangeHarness(_ShiftingHarness):
+    """A harness that tracks the wall-clock span of its current window."""
+
+    def update_data_stream(self) -> None:
+        super().update_data_stream()
+        self.current_window_timerange = (
+            f"2026-01-{self._window:02d}",
+            f"2026-01-{self._window + 1:02d}",
+        )
+
+
+def _toml_with(
+    tmp_path: Path,
+    csv_path: Path,
+    *,
+    append: str = "",
+    drift: str = "",
+    model: str = "",
+) -> Path:
+    """The standard config, with extra keys added to the named sections."""
+    base = _write_toml(tmp_path, csv_path).read_text()
+    if drift:
+        base = base.replace(
+            "max_stream_updates = 3", f"max_stream_updates = 3\n{drift}"
+        )
+    if model:
+        base = base.replace('pretrained_path = ""', f'pretrained_path = ""\n{model}')
+    toml = tmp_path / "cfg2.toml"
+    toml.write_text(base + append)
+    return toml
+
+
+class TestRunnerOptions:
+    @pytest.mark.parametrize("aggregation", ["mean", "median", "last"])
+    @pytest.mark.parametrize("entry", ["drift_only", "cl_only"])
+    def test_every_aggregation_runs(self, tmp_path, aggregation, entry):
+        csv_path = tmp_path / "metrics.csv"
+        toml = _toml_with(tmp_path, csv_path, drift=f'aggregation = "{aggregation}"')
+        module = __import__(entry)
+        args = ["--schedule", "periodic", "--period", "1"] if entry == "cl_only" else []
+        with patch.object(
+            module, "get_example", side_effect=lambda cfg: _ShiftingHarness(cfg)
+        ):
+            assert module.main([*args, "--config", str(toml)]) == 0
+
+    @pytest.mark.parametrize("entry", ["main", "drift_only", "cl_only"])
+    def test_an_experiment_name_becomes_the_project(self, tmp_path, entry):
+        csv_path = tmp_path / "metrics.csv"
+        toml = _toml_with(
+            tmp_path, csv_path, append='\nexperiment_name = "my-experiment"\n'
+        )
+        module = __import__(entry)
+        args = ["--schedule", "never"] if entry == "cl_only" else []
+        seen = {}
+        with patch.object(
+            module, "get_example", side_effect=lambda cfg: _ShiftingHarness(cfg)
+        ):
+            real = module.get_logger
+
+            def capture(**kwargs):
+                logger = real(**kwargs)
+                logger.init = lambda cfg, project="x", **kw: seen.setdefault(
+                    "project", project
+                )
+                return logger
+
+            with patch.object(module, "get_logger", side_effect=capture):
+                assert module.main([*args, "--config", str(toml)]) == 0
+        assert seen["project"] == "my-experiment"
+
+    @pytest.mark.parametrize("entry", ["drift_only", "cl_only"])
+    def test_a_window_timerange_is_carried_through(self, tmp_path, entry):
+        csv_path = tmp_path / "metrics.csv"
+        toml = _write_toml(tmp_path, csv_path)
+        module = __import__(entry)
+        args = ["--schedule", "periodic", "--period", "1"] if entry == "cl_only" else []
+        with patch.object(
+            module, "get_example", side_effect=lambda cfg: _TimerangeHarness(cfg)
+        ):
+            assert module.main([*args, "--config", str(toml)]) == 0
+        assert any("data_time_start" in ln for ln in _csv_lines(csv_path))
+
+    def test_drift_only_can_reset_the_detector_after_each_event(self, tmp_path):
+        csv_path = tmp_path / "metrics.csv"
+        toml = _toml_with(tmp_path, csv_path, drift="reset_after_learning = true")
+        import drift_only
+
+        with patch.object(
+            drift_only, "get_example", side_effect=lambda cfg: _ShiftingHarness(cfg)
+        ):
+            assert drift_only.main(["--config", str(toml)]) == 0
+
+    def test_cl_only_checkpoints_each_trigger(self, tmp_path):
+        csv_path = tmp_path / "metrics.csv"
+        ckpts = tmp_path / "ckpts"
+        toml = _toml_with(
+            tmp_path,
+            csv_path,
+            model=f'max_ckpts = 5\nckpts_path = "{ckpts}"',
+        )
+        import cl_only
+
+        with patch.object(
+            cl_only, "get_example", side_effect=lambda cfg: _ShiftingHarness(cfg)
+        ):
+            assert (
+                cl_only.main(
+                    ["--schedule", "periodic", "--period", "1", "--config", str(toml)]
+                )
+                == 0
+            )
+        assert list(ckpts.glob("drift_adaptation_*.pt")), "no checkpoint was written"
