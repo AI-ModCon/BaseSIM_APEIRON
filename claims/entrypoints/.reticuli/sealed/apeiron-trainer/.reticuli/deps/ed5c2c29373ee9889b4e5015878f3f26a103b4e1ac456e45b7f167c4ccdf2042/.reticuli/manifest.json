@@ -28,7 +28,7 @@
       "component": "apeiron-model-harness",
       "input": "apeiron/model/torch_model_harness.py",
       "output": "apeiron/model/torch_model_harness.py",
-      "root": "0cdea6d325e63d78d962f143f22ea34c9586534f19efb976d2bbb5b1f0b98055"
+      "root": "d7eedc525fb2773be37c1abcb46a14e634246b19fdda87c97890f48f248c0ef7"
     },
     {
       "component": "apeiron-evaluation",
@@ -40,16 +40,16 @@
       "component": "apeiron-model-harness",
       "input": "apeiron/model/__init__.py",
       "output": "apeiron/model/__init__.py",
-      "root": "0cdea6d325e63d78d962f143f22ea34c9586534f19efb976d2bbb5b1f0b98055"
+      "root": "d7eedc525fb2773be37c1abcb46a14e634246b19fdda87c97890f48f248c0ef7"
     }
   ],
   "digest": "sha256",
   "name": "apeiron-updaters",
   "proof": {
     "kind": "crosscheck",
-    "m2": "ec3a04cd00740800b91412a2003ec41bd127180be7d3490b026bcab1d64c8814",
-    "m3": "ec3a04cd00740800b91412a2003ec41bd127180be7d3490b026bcab1d64c8814"
+    "m2": "ed5c2c29373ee9889b4e5015878f3f26a103b4e1ac456e45b7f167c4ccdf2042",
+    "m3": "ed5c2c29373ee9889b4e5015878f3f26a103b4e1ac456e45b7f167c4ccdf2042"
   },
   "root": "ed5c2c29373ee9889b4e5015878f3f26a103b4e1ac456e45b7f167c4ccdf2042",
-  "sealed": "2026-10-22T03:47:06Z"
+  "sealed": "2026-10-22T04:32:31Z"
 }

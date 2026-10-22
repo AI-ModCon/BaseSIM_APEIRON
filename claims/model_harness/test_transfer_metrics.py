@@ -62,8 +62,11 @@ class TestRegisterTask:
         dummy_harness.register_task(dummy_harness.eval())
         before = dummy_harness.eval_past_tasks()
         with torch.no_grad():
+            # one class only: adding the SAME constant to every weight and
+            # bias shifts all logits equally, which softmax cancels, so the
+            # loss would not move at all
             for p in dummy_harness.model.parameters():
-                p.add_(1.0)
+                p[0] += 5.0
         after = dummy_harness.eval_past_tasks()
         assert before != after, (
             "eval_past_tasks scores the CURRENT model on the frozen window; "

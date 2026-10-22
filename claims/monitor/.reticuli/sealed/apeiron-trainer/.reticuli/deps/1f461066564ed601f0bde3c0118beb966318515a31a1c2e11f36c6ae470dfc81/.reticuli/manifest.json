@@ -15,6 +15,11 @@
   ],
   "digest": "sha256",
   "name": "apeiron-logger",
+  "proof": {
+    "kind": "crosscheck",
+    "m2": "1f461066564ed601f0bde3c0118beb966318515a31a1c2e11f36c6ae470dfc81",
+    "m3": "1f461066564ed601f0bde3c0118beb966318515a31a1c2e11f36c6ae470dfc81"
+  },
   "root": "1f461066564ed601f0bde3c0118beb966318515a31a1c2e11f36c6ae470dfc81",
-  "sealed": "2026-10-22T03:47:09Z"
+  "sealed": "2026-10-22T04:32:34Z"
 }

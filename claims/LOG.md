@@ -327,6 +327,29 @@ changing what an independent reconstruction is *forced* to build, rather
 than merely what it is allowed to pass.
 Status: closed.
 
+### A25 — APEIRON: every reported FLOPs figure rests on an unverified table
+The sharpest finding from regrowing the whole stack.
+`apeiron/profilers/aten_flops_map.py` maps 169 ATen operation names to a
+FLOPs-per-element cost, and `FLOPSProfiler` multiplies those costs by call
+counts to produce every `cperf_*` figure APEIRON logs. A blind regrowth
+reproduced **14 of the 169 entries** and passed the entire profiler gate:
+155 operation costs are completely unconstrained. A typo scaling one
+common operation's cost would silently rescale the FLOPs reported by every
+experiment, and nothing would fail.
+
+Fixed structurally rather than by writing 169 assertions: the table is
+reference DATA, not logic, so the claim now declares it `class = "pinned"`
+instead of `generated`. Its bytes are inside the root — appending one byte
+makes `ret verify` report a different claim — and a rebuild receives the
+table rather than inventing it, which is the correct division: regrow the
+profiler, hand over the constants. Root moved 25bb0aa2 to 6fe145d6.
+
+The same question is worth asking of the reference CSVs under
+tests/references/: data that decides a verdict belongs inside an
+identity, not beside it.
+Status: addressed in the claim; upstream, consider whether the table wants
+a sanity test (costs positive, a few known operations correct).
+
 ### A24 — a nine-layer recursive rebuild compounds the producer's variance
 `ret rebuild claims/entrypoints --recursive` regrew six layers in about
 eleven minutes — config, evaluation, model-harness, updaters, logger,
@@ -343,6 +366,16 @@ of retries, measures what we actually want to know — that every boundary
 is satisfiable by an independent reconstruction — and it is what
 `claims/README.md` recommends.
 Status: methodology; drives the per-layer regrowth script.
+
+### R10 — reticuli: `status --files` omits pinned produce outputs
+A produce step declared `class = "pinned"` is inside the root — verified
+directly: appending a byte to one makes `ret verify` report a different
+claim — but it does not appear in `ret status --files`, which lists pinned
+inputs, generated outputs, the environment and the gate verdict. The
+per-file account is the view an auditor reads to see what a claim covers,
+so a covered file missing from it understates the claim.
+Status: enhancement idea; cosmetic, but it is the view that answers "what
+does this claim pin?".
 
 ### R8 — reticuli: a dependent silently under-declaring a component's files
 Adding a file to a component claim (`apeiron/model/__init__.py`) left every

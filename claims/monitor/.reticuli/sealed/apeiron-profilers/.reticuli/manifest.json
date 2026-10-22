@@ -1,6 +1,11 @@
 {
   "digest": "sha256",
   "name": "apeiron-profilers",
-  "root": "25bb0aa257fd9db9c6a08d57587bd8075245eec732708cab9fad58e5364d50c0",
-  "sealed": "2026-10-22T03:47:03Z"
+  "proof": {
+    "kind": "crosscheck",
+    "m2": "25bb0aa257fd9db9c6a08d57587bd8075245eec732708cab9fad58e5364d50c0",
+    "m3": "25bb0aa257fd9db9c6a08d57587bd8075245eec732708cab9fad58e5364d50c0"
+  },
+  "root": "6fe145d6eb07efb19c3995feed1243ca3fa932f7963ba2020dc4980f3646d2b7",
+  "sealed": "2026-10-22T04:32:28Z"
 }

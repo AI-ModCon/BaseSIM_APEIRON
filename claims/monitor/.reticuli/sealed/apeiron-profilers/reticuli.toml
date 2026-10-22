@@ -1,7 +1,8 @@
 # The claim: APEIRON's FLOPs profiler.
 #
-# Pinned: test_profiler.py (copied from tests/ at 63a877a), pytest.ini, and a
-# torch+pandas lock. Generated: the profiler and its ATen cost table. This
+# Pinned: test_profiler.py (copied from tests/ at 63a877a), pytest.ini, a
+# torch+pandas lock, and the ATen cost table -- reference data, so its bytes
+# belong to the identity. Generated: the profiler itself. This
 # layer depends on nothing else in the package, so it has no components.
 
 [claim]
@@ -18,11 +19,15 @@ output = "apeiron/profilers/__init__.py"
 class = "generated"
 guidance = "re-export FLOPSProfiler from apeiron.profilers.count_flops"
 
+# The cost table is reference DATA, not logic, so it is pinned rather than
+# regrown: its bytes are inside the root and a rebuild receives it. A blind
+# regrowth reproduced 14 of its 169 entries and passed the whole gate
+# (claims/LOG.md, A25) -- every FLOPs figure APEIRON reports is computed
+# from this table, and no test constrains the other 155 costs.
 [[step]]
 kind = "produce"
 output = "apeiron/profilers/aten_flops_map.py"
-class = "generated"
-guidance = "ATEN_FLOPS_PER_ELEMENT: a dict mapping ATen operation names (e.g. 'aten::add', 'aten::mul') to an integer FLOPs-per-element cost, used to estimate FLOPs for operations torch's FlopCounterMode does not report"
+class = "pinned"
 
 [[step]]
 kind = "produce"

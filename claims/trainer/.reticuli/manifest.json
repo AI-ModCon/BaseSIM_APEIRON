@@ -34,13 +34,13 @@
       "component": "apeiron-model-harness",
       "input": "apeiron/model/__init__.py",
       "output": "apeiron/model/__init__.py",
-      "root": "0cdea6d325e63d78d962f143f22ea34c9586534f19efb976d2bbb5b1f0b98055"
+      "root": "d7eedc525fb2773be37c1abcb46a14e634246b19fdda87c97890f48f248c0ef7"
     },
     {
       "component": "apeiron-model-harness",
       "input": "apeiron/model/torch_model_harness.py",
       "output": "apeiron/model/torch_model_harness.py",
-      "root": "0cdea6d325e63d78d962f143f22ea34c9586534f19efb976d2bbb5b1f0b98055"
+      "root": "d7eedc525fb2773be37c1abcb46a14e634246b19fdda87c97890f48f248c0ef7"
     },
     {
       "component": "apeiron-updaters",
@@ -118,23 +118,23 @@
       "component": "apeiron-profilers",
       "input": "apeiron/profilers/__init__.py",
       "output": "apeiron/profilers/__init__.py",
-      "root": "25bb0aa257fd9db9c6a08d57587bd8075245eec732708cab9fad58e5364d50c0"
+      "root": "6fe145d6eb07efb19c3995feed1243ca3fa932f7963ba2020dc4980f3646d2b7"
     },
     {
       "component": "apeiron-profilers",
       "input": "apeiron/profilers/aten_flops_map.py",
       "output": "apeiron/profilers/aten_flops_map.py",
-      "root": "25bb0aa257fd9db9c6a08d57587bd8075245eec732708cab9fad58e5364d50c0"
+      "root": "6fe145d6eb07efb19c3995feed1243ca3fa932f7963ba2020dc4980f3646d2b7"
     },
     {
       "component": "apeiron-profilers",
       "input": "apeiron/profilers/count_flops.py",
       "output": "apeiron/profilers/count_flops.py",
-      "root": "25bb0aa257fd9db9c6a08d57587bd8075245eec732708cab9fad58e5364d50c0"
+      "root": "6fe145d6eb07efb19c3995feed1243ca3fa932f7963ba2020dc4980f3646d2b7"
     }
   ],
   "digest": "sha256",
   "name": "apeiron-trainer",
   "root": "f4370ebed2550cea3b6f5d2c6135151ab12879606659ce6160ef2c630dd612b3",
-  "sealed": "2026-10-22T03:47:19Z"
+  "sealed": "2026-10-22T04:32:47Z"
 }
