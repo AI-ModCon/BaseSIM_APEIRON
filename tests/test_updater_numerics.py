@@ -363,3 +363,110 @@ class TestJVPNumerics:
         loss = upd.fwd_bwd((x, y), (xh, yh))
         assert upd.update_post_fwd_bwd() == pytest.approx(loss)
         assert upd.update_post_fwd_bwd() == 0.0
+
+
+# ---------------------------------------------------------------------------
+# Online KFAC over Conv2d layers
+# ---------------------------------------------------------------------------
+class TestKFACConv2d:
+    """The Conv2d branches of the KFAC factors.
+
+    conftest ships a TinyCNN "for updater tests that need Conv2d layers" and
+    nothing used it, so `_a_dim`/`_g_dim`/`_extract_a`/`_extract_g` had never
+    run on a convolution and neither had the penalty's `view_as` reshape.
+    Assertions are structural — Kronecker factors are Gram matrices, so their
+    dimensions, symmetry and positive-semidefiniteness hold whatever the
+    implementation — plus the documented gradient relation.
+    """
+
+    IMG, CH, NC = 8, 1, 3
+
+    def _setup(self, make_harness, default_cfg, tiny_cnn, lam=2.0, decay=0.5):
+        from torch.utils.data import TensorDataset
+
+        cfg = replace(
+            default_cfg,
+            continual_learning=ContinualLearningCfg(
+                update_mode="kfac_online", kfac_lambda=lam, kfac_ema_decay=decay
+            ),
+        )
+        g = torch.Generator().manual_seed(0)
+        data = TensorDataset(
+            torch.randn(8, self.CH, self.IMG, self.IMG, generator=g),
+            torch.randint(0, self.NC, (8,), generator=g),
+        )
+        torch.manual_seed(0)
+        harness = make_harness(cfg, model=tiny_cnn, train_data=data, val_data=data)
+        return OnlineKFACUpdater(cfg, harness), harness, data
+
+    def _batch(self, data):
+        return data.tensors[0], data.tensors[1]
+
+    def test_factor_dimensions_follow_the_layer_shapes(
+        self, make_harness, default_cfg, tiny_cnn
+    ):
+        upd, harness, _ = self._setup(make_harness, default_cfg, tiny_cnn)
+        conv = harness.model.conv
+        # A: in_channels * kH * kW; G: out_channels
+        a_dim = conv.in_channels * conv.kernel_size[0] * conv.kernel_size[1]
+        assert upd.A["conv"].shape == (a_dim, a_dim)
+        assert upd.G["conv"].shape == (conv.out_channels, conv.out_channels)
+        # the Linear head keeps its own feature dimensions
+        assert upd.A["fc"].shape == (harness.model.fc.in_features,) * 2
+        assert upd.G["fc"].shape == (harness.model.fc.out_features,) * 2
+
+    def test_committed_conv_factors_are_symmetric_psd(
+        self, make_harness, default_cfg, tiny_cnn
+    ):
+        upd, harness, data = self._setup(make_harness, default_cfg, tiny_cnn)
+        upd.cl_preprocessing()
+        harness.model.zero_grad()
+        upd.fwd_bwd(self._batch(data))
+        upd.update_post_fwd_bwd()
+        upd.update_post_optimizer_call()
+        upd.cl_postprocessing()
+
+        for name in ("conv", "fc"):
+            for factor in (upd.A[name], upd.G[name]):
+                assert factor.abs().sum() > 0, f"{name}: factor never accumulated"
+                assert_close(factor, factor.T)  # Gram matrices are symmetric
+                eigenvalues = torch.linalg.eigvalsh(factor.double())
+                assert eigenvalues.min() > -1e-6, f"{name}: not PSD"
+
+    def test_conv_penalty_is_applied_with_the_weight_shape(
+        self, make_harness, default_cfg, tiny_cnn
+    ):
+        lam = 2.0
+        upd, harness, data = self._setup(make_harness, default_cfg, tiny_cnn, lam=lam)
+        model = harness.model
+        upd.cl_preprocessing()
+        model.zero_grad()
+        upd.fwd_bwd(self._batch(data))
+        upd.update_post_fwd_bwd()
+        upd.update_post_optimizer_call()
+        upd.cl_postprocessing()
+
+        weight = model.conv.weight
+        diff = torch.randn(weight.shape, generator=torch.Generator().manual_seed(5))
+        with torch.no_grad():
+            weight.add_(diff)
+
+        model.zero_grad()
+        upd.fwd_bwd(self._batch(data))
+        base = weight.grad.detach().clone()
+        penalty = upd.update_post_fwd_bwd()
+
+        flat = diff.view(weight.shape[0], -1)
+        structured = upd.G["conv"] @ flat @ upd.A["conv"]
+        # the gradient term is reshaped back to the 4-D weight
+        assert weight.grad.shape == weight.shape
+        assert_close(
+            weight.grad - base, lam * structured.view_as(weight), atol=1e-5, rtol=1e-4
+        )
+        assert penalty > 0.0
+
+    def test_unsupported_layers_are_skipped(self, make_harness, default_cfg, tiny_cnn):
+        # AdaptiveAvgPool2d holds no weight: it must not appear among the factors
+        upd, _, _ = self._setup(make_harness, default_cfg, tiny_cnn)
+        assert set(upd.A) == {"conv", "fc"}
+        assert "pool" not in upd.theta_star
