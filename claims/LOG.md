@@ -290,6 +290,26 @@ about flags the user never mentioned. Either infer `fixed` from
 by a test so a fix is a deliberate change.
 Status: open.
 
+### A23 — the strengthened criteria reject the stand-in that used to pass
+The decisive measurement for the evidently work. Before the new tests,
+a blind codex regrowth of the drift layer compressed 1047 lines to 276
+and passed the whole gate (A11). Against the resealed claim it **fails**:
+19 of 120 tests reject it, every one in an evidently-dependent path, and
+the regrown `model_performance_detector.py` punts on the hard part
+outright with `raise NotImplementedError('Report integration requires
+Evidently')`. The boundary now demands the real pipeline — the regime
+ladder and the four result-shape refusals cannot be satisfied by a
+stub.
+
+One confound, stated: the producer cannot run the gate in this room
+(R6 — the claim's environment is py3.13/river while the host default is
+3.14), so it wrote a stub and never learned it had failed. A second
+regrowth with the furnished venv on the producer's PATH is the clean
+test of whether a reconstruction *can* satisfy the boundary, as opposed
+to whether this handicapped one did.
+Status: measurement recorded; the follow-up regrowth is the open
+question.
+
 ### R5 — reticuli: recipe-in-place packing dropped component links
 A produce step's `from = "<component>"` is honored by incremental
 rebuild, deep audit, and export only through the manifest's component
