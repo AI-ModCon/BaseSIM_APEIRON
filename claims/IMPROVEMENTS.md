@@ -47,6 +47,40 @@ device selection. `ContinuousMonitor`, `ContinuousTrainer`,
 
 What is left, and why:
 
+**Round four: all of `src/` is pinned and reconstructable.** Ten claims,
+nine layers deep, covering 32 of the 37 Python files under `src/` — the
+five left out are empty namespace markers. `ret audit claims/entrypoints`
+re-earns the whole stack, **9/9 layers earned**, in about half a minute;
+every claim also verifies fresh and audits earned on its own.
+
+Seven layers have been regrown from their criteria alone by the local Codex
+CLI and crosschecked (original, byte copy and rebuild each passing
+separately, all landing on the same root), every one on the first attempt;
+the remaining three are queued behind a Codex usage limit, not a failure.
+Across the seven, **2,293 logical lines of code came back as 1,132** — so
+about half of APEIRON's code is still not pinned down, even after this
+round of test writing.
+
+Four findings came out of doing it, and they generalize:
+
+- **A26 — a test that exists is not a criterion until a claim pins it.**
+  The regrowth dropped `save_ckpt`, `ckpts_enabled` and
+  `build_checkpoint_payload` even though `test_checkpointing.py` covers
+  them: that file was in no claim's inputs, so no gate ran it. Five of 27
+  test files were in that state. Coverage measures what the suite
+  *executes*; claims measure what it *demands*.
+- **A25 — every FLOPs figure rests on an unverified table.** A regrowth
+  reproduced 14 of `aten_flops_map.py`'s 169 operation costs and passed.
+  The table is now `class = "pinned"` — reference data inside the
+  identity, handed to a rebuild rather than invented. The same question
+  applies to `tests/references/*.csv`.
+- **A27 — the logger's eighteen explicit wrappers regrow as one
+  `__getattr__`.** Not a defect; a decision about whether static typing
+  over the facade is worth demanding.
+- **A24 — don't use `--recursive` at this depth.** Nine chained layers
+  multiply the producer's per-layer failure rate into a coin flip. Regrow
+  each layer on its own.
+
 **Round three: the evidently pipeline is done too.** `src/` is at **99%**
 (2,201 statements, 10 uncovered), 501 tests.
 `ModelPerformanceDetector` went 64% to 100% in two tiers — real evidently
