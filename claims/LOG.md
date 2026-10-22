@@ -560,8 +560,8 @@ share of a claim's generated tree that is its own code:
 | logger, drift-detection | 5 of 7 | 0.32, 0.60 | mostly |
 | updaters | 7 of 14 | 0.37 | half |
 | model-harness | 2 of 7 | 0.56 | diluted |
-| trainer | 2 of 24 | 0.12 | no |
-| monitor | 3 of 32 | 0.12 | no |
+| trainer | 2 of 24 | 0.08 | no |
+| monitor | 3 of 32 | 0.20 | no |
 | entrypoints | 5 of 36 | 0.20 | no |
 
 Checked directly rather than assumed: every surviving mutant in a 30-mutant
@@ -571,9 +571,17 @@ because those components' own claims test it. So 0.12 for the trainer is
 not "the trainer is barely specified"; it is "92% of the sample missed the
 trainer".
 
+Re-measured at current roots after the last reseal, every surviving mutant
+in a 30-mutant run against BOTH apeiron-trainer and apeiron-monitor landed
+in `configuration.py` — none in the trainer or the monitor. The dilution is
+not an occasional artefact; it is the normal case for a deep claim.
+
 Scoping mutation to a claim's own produce steps — or reporting per-step
 rates — would make the number mean what a reader assumes it means. Until
-then, read composed-claim mutation only alongside the own-files share.
+then: for a composed claim, the layer-specific measure is the **regrowth
+ratio** from `claims/scripts/surface_diff.py`, which compares only the
+files that claim regrows itself (trainer 32%, monitor 40%). Mutation is the
+right instrument for a leaf, regrowth for a composition.
 Status: enhancement idea; the numbers above are the workaround.
 
 ### R1 — reticuli: strict seatbelt broke every furnished claim on macOS
