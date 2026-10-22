@@ -229,6 +229,17 @@ making it nominally public, so the removal is the team's call rather than
 a mechanical cleanup.
 Status: open — decision needed.
 
+### A20 — APEIRON: a misspelled `aggregation` silently becomes the mean
+`ContinuousMonitor._check_drift` dispatches on
+`drift_detection.aggregation` with an `else: # Default to mean` arm, so
+`aggregation = "geometric-mean"` (or any typo) runs the mean instead of
+refusing. Same failure class as the unknown top-level config key fixed in
+the determinism branch: a configuration the user believes is in effect,
+silently is not. `detector_name` and `ensemble_voting` both raise on an
+unknown value; this one should too.
+Status: open. Current behavior is pinned by a test, so a fix is a
+deliberate change.
+
 ### A15 — APEIRON: the shared DummyHarness could not drive the monitor
 `tests/conftest.py`'s `DummyHarness.get_stream_dataloader` returned a
 one-element tuple, which `ContinuousMonitor` cannot iterate (it unpacks
