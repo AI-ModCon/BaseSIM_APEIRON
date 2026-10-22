@@ -415,6 +415,29 @@ is satisfiable by an independent reconstruction — and it is what
 `claims/README.md` recommends.
 Status: methodology; drives the per-layer regrowth script.
 
+### R11 — reticuli: a rebuild reports success when it mints a different claim
+Pinning the ATen cost table as `class = "pinned"` (A25) exposed this.
+`rebuild` snapshots what the producer must not touch — the recipe plus the
+declared inputs — and checks it before sealing. Pinned *produce outputs*
+are not in that snapshot, although they are equally inside the root. The
+producer duly rewrote `aten_flops_map.py`, so the rebuild sealed to root
+`3bf74dd0…` instead of the source's `6fe145d6…`, printed `rebuilt
+3bf74dd0…`, and exited 0.
+
+Nothing unsound happened — identity tracked the bytes exactly as it
+should, and `crosscheck` caught it immediately ("M3 earned at a different
+root") — but a successful-looking rebuild that is quietly a *different
+claim* is easy to miss, and `rebuild` is the verb people read for success.
+Either add pinned outputs to the watched set, or say so plainly:
+`rebuilt <root> — NOT the source root <root>`.
+
+APEIRON side: the table is better modelled as a pinned INPUT than a
+pinned output. Inputs are in the watched set, so the producer cannot touch
+them at all, and "constants the implementation reads" is what an input
+*is*. Changing it is queued behind the regrowth run currently using these
+claims.
+Status: open on both sides.
+
 ### R10 — reticuli: `status --files` omits pinned produce outputs
 A produce step declared `class = "pinned"` is inside the root — verified
 directly: appending a byte to one makes `ret verify` report a different
