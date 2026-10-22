@@ -327,6 +327,21 @@ changing what an independent reconstruction is *forced* to build, rather
 than merely what it is allowed to pass.
 Status: closed.
 
+### A29 — the framework's main loop is not pinned by the layer that owns it
+`ContinuousMonitor.run()` — the monitoring loop the whole framework exists
+to run — is demanded by no test in the apeiron-monitor claim: its three
+test files call `_check_drift`, `_handle_drift` and the constructor, but
+`.run()` appears zero times. A regrowth of that layer duly omitted it, and
+passed. The loop is pinned one layer up instead, by apeiron-entrypoints,
+whose tests drive `main()`.
+
+Composition therefore covers it, but the component is not independently
+meaningful: anyone auditing apeiron-monitor alone is auditing a monitor
+that need not have a loop. Worth a test at the monitor layer that drives
+`run()` over a tiny stream and asserts the batch and stream counters
+advance — the layer that owns a behaviour should be the layer that pins it.
+Status: open.
+
 ### A28 — the two side runners duplicate a loop they could inherit
 The entrypoints reconstruction regrew `drift_only.py` in **24 logical lines
 against APEIRON's 242** — by subclassing `ContinuousMonitor` and overriding
@@ -376,8 +391,45 @@ And critically, the reconstruction **still subclasses
 full record. So inheriting and keeping the record are not in tension: the
 refactor is viable, and a 242-line file that inherits instead of mirroring
 should land near 72 plus whatever the record genuinely costs.
-Status: ready to do — the criteria now hold the behaviour that the
-refactor must preserve.
+**Done.** Both runners now subclass `ContinuousMonitor`, overriding only
+what differs: `drift_only` records an event instead of dispatching the
+trainer and logs every check instead of thinning the quiet ones; `cl_only`
+consults a schedule once per window instead of a detector every N batches,
+which is why it alone still overrides `_process_stream`. Four
+behaviour-preserving seams made it possible — `check_count` and
+`last_agg_metric`, `_aggregate_buffer`, `_adapt(event_id)`, and a run
+label — plus lazy construction of the detector and trainer, so a
+drift-only run no longer builds an optimizer it never steps and a schedule
+run no longer needs a valid `detector_name` it never reads.
+
+`drift_only.py` 242 to 133 code lines, `cl_only.py` 355 to 278 (its
+remainder is the schedule classes and CLI, genuinely its own),
+`continuous_monitor.py` 203 to 200 despite gaining the seams. Both claims
+still report `verify=fresh` — identity covers the criteria, not the
+implementation, which is what made the refactor checkable rather than
+hopeful — and still earn 8/8 and 9/9 layers.
+
+Re-regrown afterwards: the entrypoints gap closed from 38% to 45% kept,
+`drift_only` specifically from 30% to 44%.
+
+Two things the re-regrowth then taught, both now pinned:
+
+- **The residual gap is mostly log prose, and should be.** Our two runners
+  make 24 `logger.info`/`debug` calls between them; the reconstruction
+  makes **zero**. No criterion demands operator-facing text, and none
+  should — pinning log wording would make every message edit a criteria
+  change. So the ratio should not be driven to 1; some latitude is correct,
+  and this is what it looks like.
+- **Removing duplication left *where* the shared loop lives unconstrained.**
+  The reconstruction removed it too, but by inventing its own
+  `StreamRunner` base inside `examples/utils.py` — behaviour kept, point
+  lost, since the loop is framework machinery and a drift-only trace is
+  comparable to a detector trace only because it is literally the same
+  loop. Four tests now pin it: both runners are `ContinuousMonitor`
+  subclasses, neither re-defines the shared machinery, and `drift_only`
+  inherits `_process_stream` identically. Entrypoints root 1d80a987.
+
+Status: closed.
 
 ### A27 — the logger's explicit delegation is a freedom, not a requirement
 `apeiron/logger/logger.py` spends 124 logical lines forwarding eighteen

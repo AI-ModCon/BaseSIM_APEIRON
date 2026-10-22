@@ -375,3 +375,46 @@ class TestScheduledCLSummary:
             built.return_value.run.return_value = {"sentinel": True}
             assert self._run(cfg, cl_only.NeverSchedule()) == {"sentinel": True}
         built.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# Where the shared loop lives
+# ---------------------------------------------------------------------------
+class TestRunnersShareTheMonitor:
+    """Both side runners must extend the framework's monitor, not re-host it.
+
+    Removing the duplicated loop leaves open *where* the shared loop lives: a
+    reconstruction satisfied every other criterion by hoisting its own base
+    class into `examples/utils.py` instead. That keeps the behaviour and loses
+    the point — the loop is framework machinery, and a drift-only run is only
+    comparable to a detector run because it is literally the same loop.
+    """
+
+    def test_the_drift_only_monitor_is_a_continuous_monitor(self):
+        from apeiron.driver.continuous_monitor import ContinuousMonitor
+
+        assert issubclass(drift_only.DriftOnlyMonitor, ContinuousMonitor)
+
+    def test_the_scheduled_runner_is_a_continuous_monitor(self):
+        from apeiron.driver.continuous_monitor import ContinuousMonitor
+
+        assert issubclass(cl_only.ScheduledCLRunner, ContinuousMonitor)
+
+    def test_neither_runner_reimplements_the_shared_machinery(self):
+        # the loop, the per-batch evaluation, the aggregation and the CL
+        # dispatch are inherited; overriding one is how a copy creeps back
+        shared = {"_evaluate_batch", "_aggregate_buffer", "_adapt", "_should_stop"}
+        for runner in (drift_only.DriftOnlyMonitor, cl_only.ScheduledCLRunner):
+            redefined = shared & set(vars(runner))
+            assert not redefined, f"{runner.__name__} re-defines {redefined}"
+
+    def test_the_drift_only_runner_inherits_the_loop_itself(self):
+        from apeiron.driver.continuous_monitor import ContinuousMonitor
+
+        # cl_only legitimately overrides _process_stream (its decision point is
+        # at the end of a window); drift_only has no reason to
+        assert "_process_stream" not in vars(drift_only.DriftOnlyMonitor)
+        assert (
+            drift_only.DriftOnlyMonitor._process_stream
+            is ContinuousMonitor._process_stream
+        )
