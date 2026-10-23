@@ -19,13 +19,17 @@ regrowth moved to a base class is not reported as missing. What survives is
 capability the regrowth genuinely does without.
 
 Usage:
-    python3 claims/scripts/surface_diff.py <room> [<claim-name>]
+    python3 claims/scripts/surface_diff.py [--json] <room> [<claim-name>]
     python3 claims/scripts/surface_diff.py /tmp/regrown/updaters updaters
+
+--json emits one object instead of the table: the totals and per-file counts,
+for a harness taking repeated draws of the same layer.
 """
 
 from __future__ import annotations
 
 import ast
+import json
 import os
 import re
 import sys
@@ -114,6 +118,10 @@ def surface(path: str) -> dict[str, set[str]] | None:
 
 
 def main(argv: list[str]) -> int:
+    argv = list(argv)
+    as_json = "--json" in argv
+    if as_json:
+        argv.remove("--json")
     if not 2 <= len(argv) <= 3:
         print(__doc__.strip().split("Usage:")[-1].strip(), file=sys.stderr)
         return 2
@@ -167,6 +175,19 @@ def main(argv: list[str]) -> int:
     if not rows:
         print(f"nothing comparable in {room}", file=sys.stderr)
         return 1
+
+    if as_json:
+        # one object per room, for harnesses that take many draws of the same
+        # layer and need the numbers rather than the table
+        json.dump({"claim": claim, "room": room,
+                   "src_lines": total_a, "regrown_lines": total_b,
+                   "kept": round(total_b / total_a, 4),
+                   "files": [{"path": rel, "src": a, "regrown": b}
+                             for rel, a, b in sorted(rows, key=lambda r: -r[1])],
+                   "dropped_public_names": sum(len(m) for _, m in dropped)},
+                  sys.stdout)
+        print()
+        return 0
 
     width = max(len(r[0]) for r in rows)
     print(f"claim {claim}  —  logical code lines\n")
