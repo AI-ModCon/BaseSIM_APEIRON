@@ -849,15 +849,39 @@ error bars and might have been the producer's luck. Measured with
 pinned to gpt-6-astra and recorded per draw, one fresh room each, no
 retries folded in, no `--recursive`:
 
-| layer | draws | kept | spread |
+**All ten layers, 3,035 logical lines — the measurement is complete.**
+
+| layer | kept | spread | lines |
 |---|---|---|---|
-| model_harness | 82%, 80%, 81% | median 81% | 2 points |
-| config | 69%, 71%, 69% | median 69% | 2 points |
-| evaluation | 65%, 65%, 65% | median 65% | 0 points |
-| updaters | 61%, 59%, 64% | median 61% | 5 points |
-| profilers | 54%, 56%, 61% | median 56% | 7 points |
-| logger | 46%, 46%, 46% | median 46% | 0 points |
-| drift_detection | failed, 50%, 43%, failed | median 46% | 7 points |
+| model_harness | 81% | 2 | 234 |
+| config | 69% | 5 | 231 |
+| evaluation | 65% | 0 | 48 |
+| updaters | 61% | 5 | 355 |
+| profilers | 56% | 7 | 314 |
+| entrypoints | 52% | 1 | 438 |
+| trainer | 47% | 2 | 223 |
+| drift_detection | 46% | 7 | 621 |
+| logger | 46% | 0 | 319 |
+| monitor | 42% | 2 | 252 |
+
+**Aggregate: kept 53%, envelope [51%, 55%]**, weighted by logical lines
+over the whole ladder.
+
+The campaign's original single-draw figure of 51% sits inside that
+envelope, at its lower edge. So the number quoted all along was not
+wrong, only unqualified — and establishing that cost 40-odd draws, which
+is the honest price of turning a quotable scalar into a defensible one.
+
+Two expectations the completed run overturned. The deep layers were
+supposed to be the least reliable, and monitor (2-point spread) and
+entrypoints (1 point) came back among the TIGHTEST boundaries in the
+ladder, every draw rebuilding first time. Failure is therefore a property
+of drift_detection's criteria specifically — 2 of 4 draws — not of depth
+or size. And monitor keeps least of all at 42% while being tightly
+bounded, so low kept and wide spread are independent: a layer can pin
+very little very consistently.
+
+Earlier per-layer readings, kept for the record:
 
 drift_detection is R7 happening again on the bench, and worse than R7
 measured: **two of four draws failed outright**, at one root with one
@@ -875,11 +899,9 @@ the attributed ones. It is right to refuse: pooling them is justified by
 what I know about how I ran them, not by anything in the record, and a
 measurement that needs its operator's memory is not yet a measurement.
 
-Aggregated over the seven layers measured so far, weighted by logical
-lines rather than averaged per layer (2,122 of the ladder's 3,035):
-**kept 55%, envelope [53%, 57%]**. The envelope takes every layer at its
-worst and then at its best simultaneously, which independent draws will
-not do, so a true interval is narrower.
+The envelope takes every layer at its worst and then at its best
+simultaneously, which independent draws will not do, so a true interval
+is narrower than the three points quoted above.
 
 A correction worth recording, because it is the kind of mistake this
 whole entry exists to prevent. With drift_detection at one successful
@@ -893,26 +915,22 @@ a single kept-ratio as a scalar commits.
 
 So the honest figure is an aggregate noise floor near ±2 points, with
 individual layers up to 7. That makes the campaign's 47-to-51 movement
-comparable to the conservative envelope rather than several times it.
-Since the envelope is deliberately pessimistic, the movement is probably
-still signal, but "probably" is as far as four points will carry on this
-evidence. Settling it wants a paired comparison — the same layers before
-and after the criteria changed, several draws each — not more layers.
+comparable to the conservative envelope rather than several times it —
+too close to call from these draws alone. Settling it needed a paired
+comparison, the same layer before and after its criteria changed, and
+**A35 ran it: the ranges come back disjoint with a 15-point gap**, so the
+direction the single draws suggested is real even though those draws
+could not establish it.
 
-The 55% is not yet comparable with the campaign's 51%: three layers
-remain (trainer, monitor, entrypoints — 913 lines), and they are the
-large ones that historically kept least, so the figure will fall.
-trainer has one draw so far, 46%.
-
-**Paused by the producer, not by the criteria.** The Codex plan's usage
-limit arrived during trainer's second draw ("try again at 3:16 PM"), and
-the next two draws returned in five and six seconds. The harness recorded
-them as `quota` and left them out of every statistic, which is the rule
-that keeps this measurement honest: counting a rate limit as a failed
-reconstruction would report a weak specification where there is only an
-exhausted plan. Two layers and two trainer draws remain when the limit
-resets; nothing already measured is lost, since each draw is written as
-it completes.
+**Paused once by the producer, not by the criteria.** The Codex plan's
+usage limit arrived during trainer's second draw, and the next two draws
+returned in five and six seconds. The harness recorded them as `quota`
+and left them out of every statistic, which is the rule that keeps this
+measurement honest: counting a rate limit as a failed reconstruction
+would report a weak specification where there is only an exhausted plan.
+After the reset the remaining draws completed — monitor 3/3, entrypoints
+3/3, trainer 2 more — and nothing measured before the pause was lost,
+because each draw is written as it completes.
 
 Two readings. First, the noise floor at fixed criteria is small — 0 to 7
 points per layer, and it does average out: those spreads collapse to a
@@ -930,8 +948,12 @@ on a draw that rebuilt at all. A layer that fails often has a kept-ratio
 only over its successes, and the report says so rather than averaging a
 failure in as a zero.
 Kind: measurement
-Status: open — leaves measured; the remaining seven layers are running.
-Supersedes the bare single-draw figures quoted earlier in this log.
+Status: **closed** — all ten layers measured over the full 3,035 logical
+lines: kept 53%, envelope [51%, 55%], every counted draw attributed to
+gpt-6-astra. Supersedes every bare single-draw figure quoted earlier in
+this log. The reticle is calibrated on the current state; what remains
+before proposing changes is re-earning the ten proofs so each names its
+oracle (they all predate R14's fix).
 
 ### A35 — the paired experiment: strengthening criteria did move what a reconstruction is forced to build
 The claim the whole method rests on had never been tested. Everything
@@ -1012,10 +1034,23 @@ mapping held before it was named.
 **Recurrence makes the weakest step measurable.** R7 said a divergence
 recurring across draws is a finding about the boundary while a one-off is
 a finding about the producer, and that distinction was being made by eye.
-`claims/scripts/recurrence.py` counts it. Over the draws on disk: **13
-public names no draw reproduced, 0 dropped by only some draws**, and
-**18 of 18 probed behaviours dropped by every draw**. No partial results
-at all, so none of this is producer noise.
+`claims/scripts/recurrence.py` counts it. Over all ten layers: **18 public names no draw reproduced, 1 dropped by
+only some draws**, and **18 of 18 probed behaviours dropped by every
+draw**.
+
+The single partial result is the first producer noise the dataset has
+produced, and it is worth having: `budget` in `cl_only.py`, absent from
+one entrypoints draw of three. That is a finding about the producer, not
+the boundary, and it is exactly what the partial column exists to catch —
+without it, one draw's omission would have been filed as a missing test.
+
+The newly measured layers added the sharpest kind-1 candidates so far.
+monitor dropped four names in every draw — `aggregation`, `metric_idx`,
+and, more pointedly, **`label` and `last_agg_metric`, two of the seams
+introduced during the loop-duplication refactor specifically to make the
+loop testable.** Three independent reconstructions did without them, so
+the monitor tests do not exercise the seams added for their benefit.
+entrypoints dropped `reset_on_detect` in all three.
 
 The scan and the behaviours answer different questions, and the split
 matters for triage:
