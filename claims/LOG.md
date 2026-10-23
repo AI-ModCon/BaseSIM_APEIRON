@@ -996,10 +996,37 @@ As a separate root the *difference* between the two is the measurement,
 and that difference is the evidence for Ana's position: if documenting a
 default closes the gap, the CI assertion is redundant.
 
-Set up and sealed: the drift-detection layer with `drift_detectors.md`
-pinned as an input, root `1a4a6ccd` against the tests-only
-`713bdfd1`, all 121 tests passing warm. The recipe carries the reason, so
-the variant explains itself.
+**All ten variants are now sealed**, each at its own root with its
+layer's real suite passing warm, built by
+`claims/scripts/docs_variants.sh` so the set is reproducible rather than
+nine remembered manual steps. Each recipe carries a banner explaining why
+that root exists, so a stray claim directory explains itself.
+
+| layer | doc pinned | variant root | tests-only root |
+|---|---|---|---|
+| config | `configurations.md` | `0ed053b3` | `8cfb4c6c` |
+| evaluation | `api/evaluation.md` | `52ec8eff` | `da4cc107` |
+| profilers | `profiler.md` | `1288537b` | `54a5267f` |
+| model_harness | `model_harness.md` | `115d9ebb` | `4adee990` |
+| updaters | `continuous_learning.md` | `9db3b517` | `01494aa9` |
+| logger | `tracking.md` | `1226990b` | `1f461066` |
+| drift_detection | `drift_detectors.md` | `1a4a6ccd` | `713bdfd1` |
+| trainer | `continuous_learning.md` | `1ac79a88` | `1b7fe903` |
+| monitor | `architecture.md` | `bbc9cf6b` | `f3515468` |
+| entrypoints | `quickstart.md` | `dbfbe38b` | `9778517046` |
+
+The mapping is each layer's OWN documentation, not everything a
+contributor might read: `architecture.md` is the global overview and is
+excluded except for monitor, whose loop it is the only doc to describe.
+Narrow keeps each result attributable to one document, which is the point
+— the question is *which* documentation is load-bearing, not whether
+reading everything helps.
+
+Building the set also exposed that the recipes write `inputs` two ways, a
+multi-line list and a single line. The first version of the script
+handled only the shape the first layer used and silently skipped
+`evaluation` — worth catching, since a skipped layer would have quietly
+shrunk the experiment.
 
 **Result: unresolved.** The Codex plan's limit arrived mid-run — one
 tests-only draw at 42% (consistent with A33's 43-50% range) and zero
