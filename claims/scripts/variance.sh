@@ -45,6 +45,12 @@ LAYERS=("$@")
 [ ${#LAYERS[@]} -eq 0 ] && LAYERS=("${ALL[@]}")
 
 mkdir -p "$ROOMS" "$OUT_DIR"
+# The model must be in the env of `ret` ITSELF, not only of the producer
+# child: the kernel writes the fallback declaration from its own environment,
+# so exporting it to the producer alone leaves a draw unattributed when the
+# producer cannot observe what ran (measured: the first three draws here
+# recorded no model at all).
+export RETICULI_MODEL=$MODEL
 ret() { PYTHONPATH=$RETICULI $PY -m reticuli "$@"; }
 
 if ! ret --version >/dev/null 2>&1; then

@@ -57,6 +57,7 @@ pinned claim files, where a renumber would move claim roots.
 | A30 | criteria-gap | closed | the forgetting metric a CL paper reports was unverified |
 | A31 | defect | open | the transfer row cannot be joined to the event that produced it |
 | A32 | criteria-gap | closed | two more logged quantities nobody named |
+| A33 | measurement | open | the kept-ratio's noise floor, per layer |
 | R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
 | R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
 | R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
@@ -69,6 +70,8 @@ pinned claim files, where a renumber would move claim roots.
 | R10 | enhancement | closed | reticuli: `status --files` omits pinned produce outputs |
 | R11 | enhancement | closed | reticuli: a rebuild reports success when it mints a different claim |
 | R12 | enhancement | closed | reticuli: `status` reports a proof that was earned on other bytes |
+| R13 | bug | closed | reticuli: no codex rebuild has ever recorded a cost |
+| R14 | bug | closed | reticuli: a proof recorded which oracle it survived nowhere |
 
 ## Findings
 
@@ -833,6 +836,97 @@ findings about the boundary; divergences that appear once are findings
 about the producer.
 Kind: methodology
 Status: methodology note — applies to every regrowth result in this log.
+See A33, which measures the distribution this note argues for.
+
+### A33 — measurement: the kept-ratio's noise floor, per layer
+R7 said to read regrowth as a sample and the campaign then reported
+single draws anyway: 47% early, 51% after the criteria were strengthened.
+Two single draws cannot be compared, so that 4-point movement had no
+error bars and might have been the producer's luck. Measured with
+`claims/scripts/variance.sh` — three independent draws per layer, model
+pinned to gpt-6-astra and recorded per draw, one fresh room each, no
+retries folded in, no `--recursive`:
+
+| layer | draws | kept | spread |
+|---|---|---|---|
+| config | 69%, 71%, 69% | median 69% | 2 points |
+| evaluation | 65%, 65%, 65% | median 65% | 0 points |
+| profilers | 54%, 56%, 61% | median 56% | 7 points |
+
+A separate earlier run of config gave 68%, 72%, 67%, so over six draws
+config sits at median 69% with a 5-point range.
+
+Two readings. First, the noise floor at fixed criteria is small — 0 to 7
+points, and the aggregate over ten layers should be tighter still, since
+independent per-layer draws average out. So the 47-to-51 movement is
+plausibly real signal rather than sampling, which is the opposite of what
+I expected when I started measuring. Second, the spread is itself a
+diagnostic: evaluation's criteria pin their layer so firmly that three
+draws land on the same number, while profilers both varies most and keeps
+least, which says its criteria are the loosest of the three leaves.
+
+A caution that survives the measurement: the ratios above are conditioned
+on a draw that rebuilt at all. A layer that fails often has a kept-ratio
+only over its successes, and the report says so rather than averaging a
+failure in as a zero.
+Kind: measurement
+Status: open — leaves measured; the remaining seven layers are running.
+Supersedes the bare single-draw figures quoted earlier in this log.
+
+### R13 — reticuli: no codex rebuild has ever recorded a cost
+Every usage drop this campaign produced reads exactly
+`{"vendor": "codex", "metered": false}` — no tokens, in forty-odd
+rebuilds. The producer's token scan accepts a key only when it says
+`total`, but `codex exec --json` reports usage on `turn.completed` as
+`input_tokens` / `output_tokens`, so it matched nothing, silently, from
+the first rebuild onward. The consequence reached further than a blank
+column: the three-machine cost band had no shared unit for any codex leg
+and fell back to wall-clock for all of them.
+
+Found while chasing R14 — the fix for one exposed the other, because both
+come from the same wrong assumption about which schema codex prints.
+Kind: bug
+Status: fixed upstream in reticuli PR #7: totals now come from the
+explicit usage block (input + output; cached_input is a subset of input
+and reasoning_output of output, so adding either double-counts), with the
+old scan kept only as a fallback for older codex versions. Verified live:
+one config draw recorded 57,036 tokens.
+
+### R14 — reticuli: a proof recorded which oracle it survived nowhere
+A recorded proof says an independent redo failed to land outside the
+claim, which is a statement *about a producer* — a stronger one may break
+tomorrow what this one could not. All ten proofs this campaign recorded
+name no model, for two independent reasons.
+
+The kernel took the model from `RETICULI_MODEL`, a declaration by the
+caller, which is empty whenever the producer picks its own default — that
+is, every CLI-driven rebuild, including all of ours. And the composed
+path (the only one a layered claim uses) wrote `{kind, m2, m3}` with
+*roots* in the digest fields and no producer at all, while the kernel's
+own recorder wrote root, both digests, the independence line and a
+timestamp. So a composed proof stated neither what it compared nor whose
+search it survived.
+
+A third defect sat behind the first: the observer written to fix it read
+the shapes of codex's persisted rollout log, but `codex exec --json`
+prints a different family on stdout (`thread.started`, `turn.started`,
+`item.completed`, `turn.completed`) and none of it names the model. The
+measurement harness caught that itself, by reporting `3 draw(s) recorded
+no model` — the unit tests had been written against the same wrong
+assumption as the code.
+Kind: bug
+Status: fixed upstream in reticuli PR #7. Producers may report
+vendor/model/provider/version on the usage drop and an observation
+outranks the environment; `model_source` distinguishes observed,
+requested, declared and unrecorded. The model is resolved by joining the
+two schemas — `thread.started` carries the thread id that identifies the
+rollout log, which does name it. The composed path now records what the
+kernel's does, plus the layers covered, and `ret status` prints the oracle
+beside a recorded proof or says the redo named none.
+
+Note for this workspace: the ten existing proofs predate the fix and name
+no oracle. They are not wrong, only mute; re-earning them with
+`claims/scripts/regrow.sh` records the oracle going forward.
 
 ### R4 — reticuli: a composed claim's mutation score is mostly not its own
 Assess samples mutation sites across every generated file in a claim,
