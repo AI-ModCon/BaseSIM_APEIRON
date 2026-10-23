@@ -58,6 +58,7 @@ pinned claim files, where a renumber would move claim roots.
 | A31 | defect | open | the transfer row cannot be joined to the event that produced it |
 | A32 | criteria-gap | closed | two more logged quantities nobody named |
 | A33 | measurement | open | the kept-ratio's noise floor, per layer |
+| A34 | methodology | open | the divergence kinds are a triage function, and recurrence is its evidence |
 | R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
 | R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
 | R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
@@ -930,6 +931,75 @@ failure in as a zero.
 Kind: measurement
 Status: open — leaves measured; the remaining seven layers are running.
 Supersedes the bare single-draw figures quoted earlier in this log.
+
+### A34 — the divergence kinds are a triage function, and recurrence is its evidence
+Two taxonomies have been running in parallel here without the link
+between them being written down. The five divergence **kinds** classify
+what a reconstruction did differently; this log's **Kind** field
+(defect / decision / criteria-gap) classifies what a finding becomes. The
+mapping between them is nearly deterministic, and it decides the work:
+
+| divergence kind | upstream work | vehicle | who decides |
+|---|---|---|---|
+| substantive, and it passes | a test, with a falsification | PR | nobody — it is a hole |
+| domain knowledge simplified | a test, or pin the data as an input | PR | nobody |
+| dropped, nothing asked | a test **or** a deletion | issue, then PR | the team: is it wanted? |
+| equivalent, different | a refactor proposal | issue | the team: worth it? |
+| for humans only | none | — | nobody |
+
+Only two kinds generate a question a maintainer must answer, which is
+why the eighteen-item PR table was tractable: the three items held back
+for conversation (A19, A22, A27) are exactly a kind-1 with the
+wanted-or-not bit unresolved, a kind-4 judgment, and a kind-3. The
+mapping held before it was named.
+
+**Recurrence makes the weakest step measurable.** R7 said a divergence
+recurring across draws is a finding about the boundary while a one-off is
+a finding about the producer, and that distinction was being made by eye.
+`claims/scripts/recurrence.py` counts it. Over the draws on disk: **13
+public names no draw reproduced, 0 dropped by only some draws**, and
+**18 of 18 probed behaviours dropped by every draw**. No partial results
+at all, so none of this is producer noise.
+
+The scan and the behaviours answer different questions, and the split
+matters for triage:
+
+* The **name scan** catches API gaps — `VOTING_STRATEGIES` on
+  EnsembleDetector, `flop_counter`, the trainer's `criterion`, the
+  `MetricFn`/`CriterionFn` aliases.
+* It is **blind to behaviour**: the dropped `resolved_config.json` write,
+  the uncapped `max_task_records`, river reimplemented in the standard
+  library, the `cperf_` payload. Those need declared probes, which is
+  what the MARKERS table holds.
+
+**The instrument lied twice before it was usable, and that is the
+finding.** The first implementation reported 20 dropped names in the
+logger layer. All of them were artifacts: `MLFlowLogger` inherits from
+`WandBLogger` across modules and `surface_diff` only folds bases defined
+in the same file, while `WandBLogger.step` moved from a `@property` to an
+instance attribute that the member scan never looked for. Correcting it
+by walking the whole AST then swung the other way and reported local
+variables (`cfg`, `k`, `maxk`, `df`) as missing API. Only a structured
+walk — module and class definitions, plus attributes assigned to `self` —
+gives a signal worth acting on. Separately, the `prefix` probe reported
+the flag as surviving until it was anchored to `def log(`, because a bare
+match also hit an unrelated `_flatten_config(prefix='')`.
+
+So: triage amplifies instrument error directly into work. Twenty bogus PR
+candidates were one unreviewed script away. Any recurrence count used for
+triage has to resolve inheritance, movement between modules and instance
+attributes first, and every behavioural probe has to be anchored.
+
+One honest limit on recurrence as a ranking: 8 of the 13 unanimous name
+drops are the updaters caching config values on `self`
+(`lambda_ewc`, `rho_theta`, `ema_decay`...) where the draws read
+`cfg.continual_learning.*` inline instead. Unanimous, and still kind 3 —
+no upstream work. Recurrence says whether the criteria pin something; the
+kind says whether anyone should care. Both are needed.
+Kind: methodology
+Status: open — the mapping is now in the reconstruct-codebase skill as the
+triage step; the counts above want re-running when monitor and
+entrypoints are drawn.
 
 ### R13 — reticuli: no codex rebuild has ever recorded a cost
 Every usage drop this campaign produced reads exactly
