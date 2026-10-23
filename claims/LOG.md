@@ -854,13 +854,16 @@ retries folded in, no `--recursive`:
 | evaluation | 65%, 65%, 65% | median 65% | 0 points |
 | updaters | 61%, 59%, 64% | median 61% | 5 points |
 | profilers | 54%, 56%, 61% | median 56% | 7 points |
-| drift_detection | failed, 50% | median 50% | n=1 built |
 | logger | 46%, 46%, 46% | median 46% | 0 points |
+| drift_detection | failed, 50%, 43%, failed | median 46% | 7 points |
 
-drift_detection is R7 happening again on the bench: of three draws at one
-root with one producer, the first failed outright and the second kept 50%.
-Its ratio is therefore over survivors only, and the report says so rather
-than averaging the failure in as a zero.
+drift_detection is R7 happening again on the bench, and worse than R7
+measured: **two of four draws failed outright**, at one root with one
+pinned producer, and the two that finished landed 7 points apart. Its
+ratio is therefore over survivors only — the report says so rather than
+averaging a failure in as a zero — and the failure RATE is a second
+measurement of the same boundary. A layer that reconstructs half the time
+is telling you something its kept-ratio does not.
 
 A separate earlier run of config gave 68%, 72%, 67%, so over six draws
 config sits at median 69% with a 5-point range. Those three earlier draws
@@ -872,27 +875,31 @@ measurement that needs its operator's memory is not yet a measurement.
 
 Aggregated over the seven layers measured so far, weighted by logical
 lines rather than averaged per layer (2,122 of the ladder's 3,035):
-**kept 56%, envelope [55%, 57%]**. The envelope takes every layer at its
+**kept 55%, envelope [53%, 57%]**. The envelope takes every layer at its
 worst and then at its best simultaneously, which independent draws will
-not do, so a true interval is narrower still.
+not do, so a true interval is narrower.
 
-Watch the envelope narrow as layers are added, which is the aggregation
-argument made visible:
+A correction worth recording, because it is the kind of mistake this
+whole entry exists to prevent. With drift_detection at one successful
+draw I read the aggregate as 56% with a 2-point envelope and wrote that
+the noise floor was about one point. That zero spread was an ARTIFACT OF
+n=1: a layer measured once cannot disagree with itself. Its second
+success came in 7 points away, on 621 lines, and the aggregate envelope
+widened to 4 points. A single draw of a layer reports a spread of zero
+and means nothing by it — exactly the error, one level up, that reporting
+a single kept-ratio as a scalar commits.
 
-| layers | lines covered | kept | envelope width |
-|---|---|---|---|
-| 4 | 597 | 67% | 4 points |
-| 7 | 2,122 | 56% | 2 points |
+So the honest figure is an aggregate noise floor near ±2 points, with
+individual layers up to 7. That makes the campaign's 47-to-51 movement
+comparable to the conservative envelope rather than several times it.
+Since the envelope is deliberately pessimistic, the movement is probably
+still signal, but "probably" is as far as four points will carry on this
+evidence. Settling it wants a paired comparison — the same layers before
+and after the criteria changed, several draws each — not more layers.
 
-So the aggregate figure this project quotes carries roughly a ±1 point
-noise floor at fixed criteria, while individual layers carry up to 7.
-That settles the question the measurement was built to answer: the
-campaign's 47-to-51 movement is several times the aggregate noise, so it
-is signal. Single-layer claims are the ones that need the error bars.
-
-The 56% is not yet comparable with the campaign's 51%: three layers
+The 55% is not yet comparable with the campaign's 51%: three layers
 remain (trainer, monitor, entrypoints — 913 lines), and they are the
-large ones that historically kept least, so the final figure will fall.
+large ones that historically kept least, so the figure will fall.
 
 Two readings. First, the noise floor at fixed criteria is small — 0 to 7
 points per layer, and it does average out: those spreads collapse to a
