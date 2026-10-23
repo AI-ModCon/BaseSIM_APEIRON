@@ -852,18 +852,35 @@ retries folded in, no `--recursive`:
 | config | 69%, 71%, 69% | median 69% | 2 points |
 | evaluation | 65%, 65%, 65% | median 65% | 0 points |
 | profilers | 54%, 56%, 61% | median 56% | 7 points |
+| model_harness | 82%, 80%, 81% | median 81% | 2 points |
 
 A separate earlier run of config gave 68%, 72%, 67%, so over six draws
-config sits at median 69% with a 5-point range.
+config sits at median 69% with a 5-point range. Those three earlier draws
+used the same pinned model but did not RECORD it (they predate the
+provenance fix, R14), and `variance_report.py` refuses to pool them with
+the attributed ones. It is right to refuse: pooling them is justified by
+what I know about how I ran them, not by anything in the record, and a
+measurement that needs its operator's memory is not yet a measurement.
+
+Aggregated over the four layers measured so far, weighted by logical
+lines rather than averaged per layer (597 lines of src): **kept 67%,
+envelope [66%, 70%]**. The envelope takes every layer at its worst and
+then at its best simultaneously, which independent draws will not do, so
+a true interval is narrower than that. This figure is NOT comparable with
+the campaign's 51% — that was over all ten layers and 3,035 lines, and
+the layers still to measure are the large ones that historically kept
+least.
 
 Two readings. First, the noise floor at fixed criteria is small — 0 to 7
-points, and the aggregate over ten layers should be tighter still, since
-independent per-layer draws average out. So the 47-to-51 movement is
-plausibly real signal rather than sampling, which is the opposite of what
-I expected when I started measuring. Second, the spread is itself a
-diagnostic: evaluation's criteria pin their layer so firmly that three
-draws land on the same number, while profilers both varies most and keeps
-least, which says its criteria are the loosest of the three leaves.
+points per layer, and it does average out: those spreads collapse to a
+4-point envelope in aggregate. So the 47-to-51 movement is plausibly real
+signal rather than sampling, which is the opposite of what I expected
+when I started measuring. Second, the spread is itself a diagnostic,
+independent of the kept-ratio: evaluation's criteria pin their layer so
+firmly that three draws land on the same number, while profilers both
+varies most and keeps least, which says its criteria are the loosest
+measured. model_harness is the opposite case — 81% kept with a 2-point
+spread, the tightest boundary in the ladder so far.
 
 A caution that survives the measurement: the ratios above are conditioned
 on a draw that rebuilt at all. A layer that fails often has a kept-ratio
