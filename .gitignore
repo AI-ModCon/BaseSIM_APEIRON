@@ -1,9 +1,11 @@
 # Data and configs
 *.toml
+!tutorials/**/*.toml
 
 # Logging files
 *.db
 wandb/
+/output/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -15,6 +17,7 @@ data/*
 
 # bash
 *.sh
+!tutorials/**/*.sh
 
 
 # Files
