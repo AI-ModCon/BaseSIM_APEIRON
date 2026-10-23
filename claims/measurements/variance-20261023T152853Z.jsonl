@@ -1,0 +1,3 @@
+{"claim": "trainer", "crosschecked": true, "draw": 1, "dropped_public_names": 0, "files": [{"path": "apeiron/training/continuous_trainer.py", "regrown": 100, "src": 222}, {"path": "apeiron/training/__init__.py", "regrown": 2, "src": 1}], "kept": 0.4574, "model": "gpt-6-astra", "model_source": "observed", "regrown_lines": 102, "seconds": 75, "src_lines": 223, "status": "rebuilt"}
+{"claim": "trainer", "crosschecked": false, "draw": 2, "model": "gpt-6-astra", "model_source": "observed", "seconds": 5, "status": "quota"}
+{"claim": "trainer", "crosschecked": false, "draw": 3, "model": "gpt-6-astra", "model_source": "observed", "seconds": 6, "status": "quota"}

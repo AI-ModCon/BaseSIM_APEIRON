@@ -900,6 +900,17 @@ and after the criteria changed, several draws each — not more layers.
 The 55% is not yet comparable with the campaign's 51%: three layers
 remain (trainer, monitor, entrypoints — 913 lines), and they are the
 large ones that historically kept least, so the figure will fall.
+trainer has one draw so far, 46%.
+
+**Paused by the producer, not by the criteria.** The Codex plan's usage
+limit arrived during trainer's second draw ("try again at 3:16 PM"), and
+the next two draws returned in five and six seconds. The harness recorded
+them as `quota` and left them out of every statistic, which is the rule
+that keeps this measurement honest: counting a rate limit as a failed
+reconstruction would report a weak specification where there is only an
+exhausted plan. Two layers and two trainer draws remain when the limit
+resets; nothing already measured is lost, since each draw is written as
+it completes.
 
 Two readings. First, the noise floor at fixed criteria is small — 0 to 7
 points per layer, and it does average out: those spreads collapse to a
