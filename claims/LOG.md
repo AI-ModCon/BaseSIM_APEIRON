@@ -849,10 +849,18 @@ retries folded in, no `--recursive`:
 
 | layer | draws | kept | spread |
 |---|---|---|---|
+| model_harness | 82%, 80%, 81% | median 81% | 2 points |
 | config | 69%, 71%, 69% | median 69% | 2 points |
 | evaluation | 65%, 65%, 65% | median 65% | 0 points |
+| updaters | 61%, 59%, 64% | median 61% | 5 points |
 | profilers | 54%, 56%, 61% | median 56% | 7 points |
-| model_harness | 82%, 80%, 81% | median 81% | 2 points |
+| drift_detection | failed, 50% | median 50% | n=1 built |
+| logger | 46%, 46%, 46% | median 46% | 0 points |
+
+drift_detection is R7 happening again on the bench: of three draws at one
+root with one producer, the first failed outright and the second kept 50%.
+Its ratio is therefore over survivors only, and the report says so rather
+than averaging the failure in as a zero.
 
 A separate earlier run of config gave 68%, 72%, 67%, so over six draws
 config sits at median 69% with a 5-point range. Those three earlier draws
@@ -862,14 +870,29 @@ the attributed ones. It is right to refuse: pooling them is justified by
 what I know about how I ran them, not by anything in the record, and a
 measurement that needs its operator's memory is not yet a measurement.
 
-Aggregated over the four layers measured so far, weighted by logical
-lines rather than averaged per layer (597 lines of src): **kept 67%,
-envelope [66%, 70%]**. The envelope takes every layer at its worst and
-then at its best simultaneously, which independent draws will not do, so
-a true interval is narrower than that. This figure is NOT comparable with
-the campaign's 51% — that was over all ten layers and 3,035 lines, and
-the layers still to measure are the large ones that historically kept
-least.
+Aggregated over the seven layers measured so far, weighted by logical
+lines rather than averaged per layer (2,122 of the ladder's 3,035):
+**kept 56%, envelope [55%, 57%]**. The envelope takes every layer at its
+worst and then at its best simultaneously, which independent draws will
+not do, so a true interval is narrower still.
+
+Watch the envelope narrow as layers are added, which is the aggregation
+argument made visible:
+
+| layers | lines covered | kept | envelope width |
+|---|---|---|---|
+| 4 | 597 | 67% | 4 points |
+| 7 | 2,122 | 56% | 2 points |
+
+So the aggregate figure this project quotes carries roughly a ±1 point
+noise floor at fixed criteria, while individual layers carry up to 7.
+That settles the question the measurement was built to answer: the
+campaign's 47-to-51 movement is several times the aggregate noise, so it
+is signal. Single-layer claims are the ones that need the error bars.
+
+The 56% is not yet comparable with the campaign's 51%: three layers
+remain (trainer, monitor, entrypoints — 913 lines), and they are the
+large ones that historically kept least, so the final figure will fall.
 
 Two readings. First, the noise floor at fixed criteria is small — 0 to 7
 points per layer, and it does average out: those spreads collapse to a
