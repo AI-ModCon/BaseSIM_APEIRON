@@ -59,6 +59,7 @@ pinned claim files, where a renumber would move claim roots.
 | A32 | criteria-gap | closed | two more logged quantities nobody named |
 | A33 | measurement | open | the kept-ratio's noise floor, per layer |
 | A34 | methodology | open | the divergence kinds are a triage function, and recurrence is its evidence |
+| A35 | measurement | open | the paired experiment: strengthening criteria did move what a reconstruction is forced to build |
 | R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
 | R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
 | R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
@@ -931,6 +932,61 @@ failure in as a zero.
 Kind: measurement
 Status: open — leaves measured; the remaining seven layers are running.
 Supersedes the bare single-draw figures quoted earlier in this log.
+
+### A35 — the paired experiment: strengthening criteria did move what a reconstruction is forced to build
+The claim the whole method rests on had never been tested. Everything
+measured before this looked at ONE generation of criteria; the central
+claim is about the DIFFERENCE between two, and it rested on two single
+draws (47% then 51%) whose gap I had already downgraded from "several
+times the noise" to "comparable to the envelope" (A33).
+
+Design: one layer, one producer pinned and recorded, the implementation
+under test held constant, and two roots that differ only in criteria.
+An old rebuild room serves as the *before* generation, because it carries
+the recipe and pinned inputs it was built from and still verifies at its
+own root. For config:
+
+* **before** — root `adec2e2b`, `test_config.py` at 9.7K
+* **after** — root `8cfb4c6c`, `test_config.py` at 15.4K plus
+  `test_device_selection.py`
+* `src/apeiron/config/` untouched since the campaign began, so the
+  criteria are the only variable
+
+| generation | draws | kept |
+|---|---|---|
+| before `adec2e2b` | 4 | 50%, 50%, 50%, 50% |
+| after `8cfb4c6c` | 5 | 65%, 67%, 69%, 69%, 71% |
+
+**Median moves +19 points and the ranges are disjoint with a 15-point
+gap.** Three further draws at the after root (67%, 68%, 72%) are
+consistent and excluded, because they predate the provenance fix and
+record no model. Every draw above is attributed to gpt-6-astra.
+
+The test is deliberately crude and stated rather than dressed up: the
+move counts only if the two observed ranges do not overlap. On four and
+five draws that is a weak test and an honest one; a t-test on these
+numbers would read as far more than it is.
+
+So the claim is supported, for this layer and this pair of generations:
+strengthening the criteria changed what an independent reconstruction was
+forced to build, by much more than repeated drawing moves it. What it
+does NOT establish: a general magnitude, or that any criteria change
+moves the ratio. One layer, one pair. The cheap way to widen it is to run
+the same pairing on drift_detection, whose criteria also moved during the
+campaign.
+
+**An unexpected observation, offered as a hypothesis rather than a
+finding.** The weaker criteria produced the *more repeatable*
+reconstruction — four draws returning exactly 50%, zero spread — while
+the stronger criteria spread over six points. The natural reading is that
+a weak suite demands so little that the minimum passing implementation is
+nearly unique, whereas a strong suite demands more code and there are
+more ways to write it. That sits awkwardly with profilers, which has both
+the widest spread and nearly the lowest kept-ratio, so it is not a law.
+Worth testing directly if the spread is ever used as a diagnostic.
+Kind: measurement
+Status: open — the claim is supported on config; widening it to a second
+layer is the next cheap experiment.
 
 ### A34 — the divergence kinds are a triage function, and recurrence is its evidence
 Two taxonomies have been running in parallel here without the link

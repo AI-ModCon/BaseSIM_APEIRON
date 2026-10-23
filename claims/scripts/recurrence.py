@@ -52,7 +52,13 @@ DRAWS = {
     "updaters": ["var4/updaters-1", "var4/updaters-2", "var4/updaters-3"],
     "logger": ["var4/logger-1", "var4/logger-2"],
     "drift_detection": ["var4/drift_detection-2", "var5/drift_detection-1"],
-    "trainer": ["var6/trainer-1"],
+    # the final coverage run; a room that does not exist is skipped, so
+    # listing them ahead of the draws costs nothing
+    "trainer": ["var6/trainer-1", "var-final/trainer-1", "var-final/trainer-2"],
+    "monitor": ["var-final/monitor-1", "var-final/monitor-2",
+                "var-final/monitor-3"],
+    "entrypoints": ["var-final/entrypoints-1", "var-final/entrypoints-2",
+                    "var-final/entrypoints-3"],
 }
 
 
