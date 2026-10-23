@@ -60,6 +60,7 @@ pinned claim files, where a renumber would move claim roots.
 | A33 | measurement | open | the kept-ratio's noise floor, per layer |
 | A34 | methodology | open | the divergence kinds are a triage function, and recurrence is its evidence |
 | A35 | measurement | open | the paired experiment: strengthening criteria did move what a reconstruction is forced to build |
+| A36 | measurement | open | does the documentation close the gaps? (set up, unresolved) |
 | R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
 | R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
 | R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
@@ -954,6 +955,67 @@ gpt-6-astra. Supersedes every bare single-draw figure quoted earlier in
 this log. The reticle is calibrated on the current state; what remains
 before proposing changes is re-earning the ten proofs so each names its
 oracle (they all predate R14's fix).
+
+### A36 — does the documentation close the gaps? (set up, unresolved)
+Ana's reply to the config-defaults PR proposed documenting the defaults
+instead of asserting them in CI: "instead of asserting in CI you could
+add default values in the documentation if your code uses both to
+reproduce the code." Two things follow, and the first is that she is
+right on the narrow point — a test asserting `detection_interval == 10`
+does not catch a bug, it catches a *change*, so it is a regression lock
+whose maintenance cost falls on her. Those defaults are granted latitude,
+not a hole: **A3/A12-class items downgraded from criteria-gap to
+decision, and the assertion PR should not be pushed.** The human ruling
+on a kind-1 divergence is exactly what the taxonomy asks for (A34), and
+this is the taxonomy working.
+
+The second is more interesting. **The documentation already says almost
+everything the reconstructions dropped**, and we never put it in the
+room:
+
+* `docs/configurations.md` carries a defaults table — `detection_interval
+  = 10`, `ewc_lambda = 1000.0`, `adwin_delta = 0.002`, `max_ckpts`
+* `docs/drift_detectors.md` states outright "Uses Kolmogorov-Smirnov
+  windowing from `river`" and "Online mean-shift detector from `river`"
+* `docs/tracking.md` documents the `cperf_*` counters
+
+So the campaign's single largest divergence — both drift draws
+reimplementing ADWIN, KSWIN and Page-Hinkley from scratch in the standard
+library (A33) — happened while a file in the repository said to use
+river. The knowledge is not missing. It is unpinned.
+
+**Why this must be a separate claim and not an added input.** Gates
+decide; documentation is read by the producer and nothing verifies that
+it was obeyed. A reconstruction that ignores a document still passes the
+gate and still lands on the same root. Pinning docs into the production
+claims would therefore raise the kept-ratio while leaving verification
+strength untouched, silently changing the measurand from "what the tests
+determine" to "what tests plus docs let a producer guess" — and it would
+move all ten roots and void the baseline A33 just finished calibrating.
+As a separate root the *difference* between the two is the measurement,
+and that difference is the evidence for Ana's position: if documenting a
+default closes the gap, the CI assertion is redundant.
+
+Set up and sealed: the drift-detection layer with `drift_detectors.md`
+pinned as an input, root `1a4a6ccd` against the tests-only
+`713bdfd1`, all 121 tests passing warm. The recipe carries the reason, so
+the variant explains itself.
+
+**Result: unresolved.** The Codex plan's limit arrived mid-run — one
+tests-only draw at 42% (consistent with A33's 43-50% range) and zero
+usable draws on the documented side. Recorded as `quota`, excluded, and
+NOT read as a negative: a side with no draws is not a side that failed.
+Resumes at the stated reset with the variant already sealed, so the
+remaining cost is draws only.
+
+Prediction on record, to be judged against the result rather than after
+it: the hand-rolled detectors disappear and the ratio clears this layer's
+7-point spread. Both negative outcomes are informative — a producer that
+reads "from river" and still hand-rolls would show that unenforced prose
+does not constrain reconstruction, which would count against documenting
+as a substitute for asserting.
+Kind: measurement
+Status: open — set up, sealed, awaiting draws.
 
 ### A35 — the paired experiment: strengthening criteria did move what a reconstruction is forced to build
 The claim the whole method rests on had never been tested. Everything
