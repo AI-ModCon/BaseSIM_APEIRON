@@ -60,7 +60,7 @@ pinned claim files, where a renumber would move claim roots.
 | A33 | measurement | open | the kept-ratio's noise floor, per layer |
 | A34 | methodology | open | the divergence kinds are a triage function, and recurrence is its evidence |
 | A35 | measurement | open | the paired experiment: strengthening criteria did move what a reconstruction is forced to build |
-| A36 | measurement | open | does the documentation close the gaps? (set up, unresolved) |
+| A36 | measurement | open | does the documentation close the gaps? NEGATIVE on drift: prose does not constrain reconstruction |
 | R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
 | R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
 | R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
@@ -1028,19 +1028,66 @@ handled only the shape the first layer used and silently skipped
 `evaluation` — worth catching, since a skipped layer would have quietly
 shrunk the experiment.
 
-**Result: unresolved.** The Codex plan's limit arrived mid-run — one
-tests-only draw at 42% (consistent with A33's 43-50% range) and zero
-usable draws on the documented side. Recorded as `quota`, excluded, and
-NOT read as a negative: a side with no draws is not a side that failed.
-Resumes at the stated reset with the variant already sealed, so the
-remaining cost is draws only.
+**RESULT ON drift_detection: negative, and my prediction was wrong.**
 
-Prediction on record, to be judged against the result rather than after
-it: the hand-rolled detectors disappear and the ratio clears this layer's
-7-point spread. Both negative outcomes are informative — a producer that
-reads "from river" and still hand-rolls would show that unenforced prose
-does not constrain reconstruction, which would count against documenting
-as a substitute for asserting.
+| side | draws | kept | range |
+|---|---|---|---|
+| tests only `713bdfd1` | 3 (1 failed) | 37%, 47% | [37, 47] |
+| tests + doc `1a4a6ccd` | 3 (0 failed) | 45%, 47%, 47% | [45, 47] |
+
+The median moves +5 points but **the ranges overlap**, so the report
+declines to call it, and it is right to. I predicted the hand-rolled
+detectors would disappear and the ratio would clear this layer's 7-point
+spread. Neither happened.
+
+The mechanism check is more damning than the ratio. Every documented-side
+draw still hand-rolled the detectors, and **not one generated file in any
+of the three rooms mentions river at all**:
+
+| room | `river` mentions | hand-rolled classes |
+|---|---|---|
+| after-1 | 0 | 4 |
+| after-2 | 0 | 2 |
+| after-3 | 0 | 5 |
+
+Every confound checked before concluding, because a negative result is
+exactly where an instrument error hides:
+
+* the doc WAS materialized into all three rooms — 13,789 bytes, saying
+  `river` three times
+* no `.md` in the tests-only rooms, so the pairing really differed
+* `river==0.23.0` is pinned in the claim's own environment, so it was
+  importable; hand-rolling was a choice, not a necessity
+* the test files themselves mention river four times — but only in
+  docstrings and comments ("the behavioral tests drive real river
+  detectors", "stands in for the river detector"). Nothing in the suite
+  imports it or asserts that the implementation does.
+
+So three separate forms of prose said "river" — the documentation, the
+test docstrings, and the dependency lock — and three independent
+reconstructions ignored all of them. **Prose does not constrain
+reconstruction; only gates do.** A producer optimises for passing the
+gate, and a document is not a gate. That is the finding, and it is the
+opposite of what I expected.
+
+**What this does and does not say about Ana's proposal.** It is direct
+evidence against documentation substituting for assertions *for this kind
+of specification* — which library implements an algorithm, a structural
+decision the producer must choose to honour. It is NOT yet evidence about
+her actual case, config defaults, which are small concrete facts sitting
+in a table and much easier to copy than a dependency is to adopt. Those
+may behave completely differently, and the config variant (`0ed053b3`) is
+already sealed, so that pair is one run away and is the test that
+answers her directly. Reporting this as a verdict on her suggestion would
+overreach.
+
+One secondary observation, offered as a hypothesis: the documented side
+was more RELIABLE — 3 of 3 rebuilt against 2 of 3 — and tighter, [45, 47]
+against [37, 47]. Documentation may buy consistency without changing
+content. On three draws that is not a claim, and it is cheap to test.
+Kind: measurement
+Status: open — negative on drift_detection; config (the case Ana actually
+raised) is sealed and unrun, and the other eight variants stand.
 Kind: measurement
 Status: open — set up, sealed, awaiting draws.
 
