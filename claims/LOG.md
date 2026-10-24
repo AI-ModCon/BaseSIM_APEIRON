@@ -76,7 +76,7 @@ pinned claim files, where a renumber would move claim roots.
 | R12 | enhancement | closed | reticuli: `status` reports a proof that was earned on other bytes |
 | R13 | bug | closed | reticuli: no codex rebuild has ever recorded a cost |
 | R14 | bug | closed | reticuli: a proof recorded which oracle it survived nowhere |
-| R15 | bug | fixed here | reticuli: `--producer codex` reached no adapter, and the adapter could not have run |
+| R15 | bug | closed | reticuli: `--producer codex` reached no adapter, and the adapter could not have run |
 
 ## Findings
 
@@ -1415,14 +1415,26 @@ carries the thread id". That mechanism is now gone upstream of us. The
 fix held for one codex version, which is the honest lifetime of any
 assertion about someone else's stdout.
 Kind: bug
-Status: fixed here, upstream in reticuli PR #11. `codex` and `claude` are
+Status: closed — merged upstream as reticuli PR #11. `codex` and `claude` are
 nameable in a CLI-producer table that preflights a binary on PATH;
 `--sandbox workspace-write` replaces the bypass; the rollout log is
 identified by mtime against a watermark sampled before launch when no
 thread id is offered. `handlers_check` exercises both tables and
 `surface_check` now requires every shipped adapter to be nameable and
 named in help — an adapter nothing can reach is a trap, and that is the
-gate that should have caught this. `gate.py` → `repo-ok`, 209 tests.
+gate that should have caught this. `gate.py` → `repo-ok`, 209 tests, CI
+green on macOS and Linux across 3.11/3.12/3.13.
+
+A second lesson, about this repository rather than about codex: three
+local checks are not one check, and they catch disjoint things. `pytest`
+passed while the gate was red (the earlier PR #4/#5 incident); `gate.py`
+passed while `ret verify .` was red here, because the repository claim
+pins `criteria/*.py` and a gate cannot notice that its own criterion
+moved; and resealing the repository then invalidated the zeta population
+registry, which stores the root its members were earned against. The
+merge order that actually works is pytest → gate.py → selfclaim re-pin →
+`ret pack .` → zeta population → ruff, and CI is the only thing that
+checks all of them.
 
 ### R13 — reticuli: no codex rebuild has ever recorded a cost
 Every usage drop this campaign produced reads exactly
