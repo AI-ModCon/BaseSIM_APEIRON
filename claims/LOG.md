@@ -60,7 +60,7 @@ pinned claim files, where a renumber would move claim roots.
 | A33 | measurement | open | the kept-ratio's noise floor, per layer |
 | A34 | methodology | open | the divergence kinds are a triage function, and recurrence is its evidence |
 | A35 | measurement | open | the paired experiment: strengthening criteria did move what a reconstruction is forced to build |
-| A36 | measurement | open | does the documentation close the gaps? NEGATIVE on drift: prose does not constrain reconstruction |
+| A36 | measurement | open | does the documentation close the gaps? negative on drift, strongly positive on config defaults -- with a worse failure mode |
 | R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
 | R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
 | R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
@@ -1085,9 +1085,84 @@ One secondary observation, offered as a hypothesis: the documented side
 was more RELIABLE — 3 of 3 rebuilt against 2 of 3 — and tighter, [45, 47]
 against [37, 47]. Documentation may buy consistency without changing
 content. On three draws that is not a claim, and it is cheap to test.
+**RESULT ON config: documentation DOES substitute, substantially — and
+its failure mode is worse than assertion's.**
+
+The first config run was **confounded, and the null meant nothing**:
+tests+doc against tests, on the current claim, moved 68% to 69% with
+overlapping ranges. Then the mechanism check showed every draw on *both*
+sides reproducing all 41 field defaults exactly, which is not guessable
+(`ph_alpha = 0.9999`), so the information had to be in the inputs — and
+it was: the campaign's own strengthening of `test_config.py` (9.7K to
+15.4K) added `assert dd.ph_alpha == 0.9999` and its siblings. **The
+control already contained the treatment.** A paired null result reads as
+a finding when it can just be a design error; this one was.
+
+Re-run against the WEAK criteria, where the defaults are genuinely
+unpinned:
+
+| side | draws | kept | defaults correct |
+|---|---|---|---|
+| weak tests `adec2e2b` | 3 | 51%, 48%, 50% | **8 of 41** (33 absent) |
+| weak tests + `configurations.md` `4a118c06` | 3 | 69%, 68%, 70% | **34 of 41** (5 wrong, 2 absent) |
+
+**Median moves +19 points, ranges disjoint** — and 69% is the same level
+the strengthened tests reach (68-71%). So on the kept-ratio,
+documentation and assertion do about equally well.
+
+On the defaults themselves, assertion wins but documentation gets most of
+the way: 8 → 41 with tests, 8 → 34 with the document.
+
+**The important part is the five it got WRONG**, where the undocumented
+control merely left them absent:
+
+| field | code | documented draw wrote |
+|---|---|---|
+| `LoggingCfg.backend` | `'none'` | `'wandb'` |
+| `Config.logging` | `None` | `LoggingCfg()` |
+| `ensemble_detectors` | `()` | `['ADWINDetector', 'KSWINDetector', …]` |
+| `pretrained_path` | `''` | `None` |
+| `ckpts_path` | `''` | `None` |
+
+Every one traces to the producer reading the document's **illustrative
+examples as normative defaults**. The file shows `backend = "wandb"` and
+`ensemble_detectors = [...]` in sample snippets beside tables stating the
+real defaults, and is internally ambiguous about the difference — line 38
+shows `max_ckpts = 1` in an example while line 46's table says
+"Default: 0".
+
+That is the asymmetry worth carrying to Ana: an absent field fails
+loudly; a wrong default misconfigures silently. `backend = 'wandb'`
+instead of `'none'` is a run talking to wandb when it should not, which
+is **A18**, already logged as a defect.
+
+**And obeying the documentation found a documentation bug.** Checking all
+17 defaults the tables state against the dataclass fields: 2 disagree.
+`pretrained_path` is a wording difference (`''` documented as "none"),
+but `configurations.md:300` states `backend` defaults to **wandb** while
+the field defaults to `'none'` — the doc describes the
+missing-`[logging]`-section path, the field describes the section-present
+path, and nothing distinguishes them. A18 again, from the other side.
+
+(Two instrument errors on the way, both the same shape as A34's: a
+defaults regex that truncated `0.05` to `0` reported seven false
+mismatches until the character class admitted `.`, and the kept-ratio is
+structurally blind to this question anyway, since a default is the same
+line count whether right or wrong. The ratio said "no effect"; only
+reading the values said what happened.)
+
+**Recommendation for the exchange with Ana.** Her objection stands — 41
+individual default assertions are a regression lock she would maintain
+for little gain. Prose alone does not close it either, because it
+introduces silent wrong values. The synthesis is one test that checks the
+documentation's defaults table against the dataclass fields: it pins the
+values, costs nothing when a default is deliberately retuned (the table
+is updated, which should happen regardless), keeps the docs honest, and
+would have caught the `backend` disagreement on the day it appeared.
 Kind: measurement
-Status: open — negative on drift_detection; config (the case Ana actually
-raised) is sealed and unrun, and the other eight variants stand.
+Status: open — negative on drift_detection (prose did not displace a
+structural choice), strongly positive on config defaults with the
+caveats above. Eight variants remain unrun.
 Kind: measurement
 Status: open — set up, sealed, awaiting draws.
 
