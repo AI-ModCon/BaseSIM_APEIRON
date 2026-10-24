@@ -62,6 +62,8 @@ pinned claim files, where a renumber would move claim roots.
 | A35 | measurement | open | the paired experiment: strengthening criteria did move what a reconstruction is forced to build |
 | A36 | measurement | open | does the documentation close the gaps? negative on drift, strongly positive on config defaults -- with a worse failure mode |
 | A37 | measurement | open | the three river detectors are domesticated: pinned behaviour, independent redos, river replaceable but not yet replaced |
+| A38 | measurement | open | behaviour, not lines: four reconstructions match the source on 441 probe cases off the pinned set |
+| A39 | defect | open | APEIRON: `EnsembleDetector` reports a nondeterministic regime on a tied vote |
 | R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
 | R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
 | R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
@@ -1435,6 +1437,122 @@ registry, which stores the root its members were earned against. The
 merge order that actually works is pytest → gate.py → selfclaim re-pin →
 `ret pack .` → zeta population → ruff, and CI is the only thing that
 checks all of them.
+
+### A38 — behaviour, not lines: the reconstructions match where it counts
+A33's headline is a kept-ratio -- 53% of logical lines regrow across ten
+layers. A37 then showed what that number cannot see: the Page-Hinkley
+reconstruction regrew at high fidelity, passed its gate, was independently
+redone three times with all three agreeing, and was still a different
+algorithm, diverging from the implementation it replaced across a whole
+family of inputs no criterion visited. Lines-kept scored it well. A
+differential probe against an oracle found it immediately.
+
+So the question was generalised. `claims/scripts/behaviour_probe.py` drives a
+layer's regrown implementation and the source it replaced through inputs the
+criteria do not pin, and reports where their observable behaviour parts. The
+oracle is built by mirroring the claim's own `apeiron/**` layout and
+refilling it from `src/apeiron/**`, so the two sides differ in their
+implementation and nothing else -- necessary because the welded package
+`__init__` (A1) makes the source tree unimportable one layer at a time.
+
+| layer | probe cases | agree | diverge |
+|---|---|---|---|
+| config | 82 | 82 | 0 |
+| evaluation | 39 | 39 | 0 |
+| profilers | 269 | 269 | 0 |
+| drift_detection | 51 | 41 | 0 (10 not comparable, see A39) |
+| **total** | **441** | **431** | **0** |
+
+**Zero divergences.** On everything comparable, these four reconstructions
+are behaviourally indistinguishable from the code they replaced -- including
+in the places the criteria never look: how a `--set` value is typed, what
+`deep_update` does when a scalar lands on a section, which regime a
+threshold sweep selects, what the FLOP formatters print at every decade
+boundary, what `accuracy` does with tied logits or an empty batch, what the
+aten FLOP table contains key by key (A25's unverified table, compared
+entry for entry).
+
+That is a real and somewhat surprising positive, and it sharpens A37 rather
+than softening it: the layers whose criteria are *tests of APEIRON's own
+behaviour* reproduce that behaviour, while the layer that failed was the one
+whose criteria pinned a THIRD PARTY's behaviour through a wrapper. A
+reconstruction is faithful to what the gate actually executes.
+
+Each probe was validated against deliberately wrong implementations, because
+a probe that cannot fail is not evidence (the A37 lesson, learned again):
+config catches a `deep_update` that replaces instead of merging (6 cases)
+and an `env_overrides` that returns nothing (9); evaluation catches
+`accuracy` computed by argmax equality instead of top-k ranking (3, all in
+the degenerate shapes -- the ordinary cases agree, which is the whole point);
+profilers catches a single aten constant moved by 1 and a formatter
+threshold moved by a decade (4).
+
+The probe needed four corrections of its own, every one a false reading, and
+they are worth recording because each is a way an instrument lies:
+
+  * two temporary directories inside one error message, reported as a
+    divergence
+  * a config so minimal that `Config.__init__` refused it, so a third of the
+    probe compared one constructor error to itself and called it agreement
+  * `{tag}_flop` (a count) and `{tag}_flops` (a throughput) differing by one
+    character, so a substring filter let two wall-clock readings through
+  * the builtin `hash()` for trace digests, which is per-process randomised,
+    reporting 30 divergences in which every visible field matched
+
+Not probed, and not claimed: `trainer`, `monitor`, `model_harness` and
+`logger`. The first three need a model and data in the loop and the last
+needs its backends; a probe for those is a larger instrument than this one,
+and reporting them as covered would be the same error as the weak streams in
+A37.
+Kind: measurement
+Status: open -- four layers probed at 441 cases with no divergence; six
+layers unprobed and named as such.
+
+### A39 — APEIRON: `EnsembleDetector` reports a nondeterministic regime
+`EnsembleDetector.update` resolves the regime by majority vote over its
+sub-detectors:
+
+    regime_votes = [s.regime for s in signals]
+    regime = max(set(regime_votes), key=regime_votes.count)
+
+`max` over a **set** has no defined order. When the vote ties -- the ordinary
+case for an even number of detectors, and the only case for two -- the winner
+is whichever member set iteration happens to yield first. For `Enum` members
+that is `hash(member._name_)`, a string hash, which Python randomises per
+process. The same ensemble, fed the same stream, reports a different regime
+from one run to the next.
+
+Measured on upstream `main` at 63a877a over sixteen hash seeds: at the step
+where ADWIN fires and Page-Hinkley has not, the tie resolves to `stable` on
+10 seeds and `continual_learning` on 6. The regime is what the driver acts on
+-- stable, continual_learning, fine_tuning, retrain -- so an identical
+experiment can take a different adaptation path on a rerun with nothing in
+the logs to explain it, and a `seed` in the config does not help because the
+randomisation is of hashes, not of the RNG.
+
+The verdict and the drift score are unaffected: both are computed by
+counting, not by set order. That is why the suite never caught it -- a test
+asserting `drift_detected` passes every time -- and it is also why this is
+not an A37-style reconstruction divergence. The line is byte-identical in the
+source and in the regrown implementation; the reconstruction reproduced the
+defect faithfully. The behaviour probe (A38) found it only because it
+compared whole verdict traces and the traces would not sit still, which is
+why that harness now separates "unstable within one implementation" from
+"different between two".
+
+Falsification: `python3 claims/scripts/falsify_ensemble_regime.py
+<path/to/src/apeiron>` -- exits 0 when the regime flips across seeds, 1 when
+it does not. Verified against a clean `git archive` of upstream `main`, not
+just this workspace.
+
+A deterministic fix has to decide what a tie means, which is a judgment
+call and adjacent to A22 (the regime can already outvote its own verdict):
+the most severe regime among the votes, the one the combined verdict
+implies, or the first in a declared precedence order. Picking one is the
+team's call; any of them is deterministic.
+Kind: defect
+Status: open -- reproduced on upstream main with a runnable falsification;
+the fix needs a decision about tie semantics, so it is not a silent patch.
 
 ### R13 — reticuli: no codex rebuild has ever recorded a cost
 Every usage drop this campaign produced reads exactly
