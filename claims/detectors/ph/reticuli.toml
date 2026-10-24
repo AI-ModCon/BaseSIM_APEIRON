@@ -1,0 +1,63 @@
+# The claim: Page-Hinkley change detection, domesticated.
+#
+# river.drift.PageHinkley 0.23.0 was the implementation APEIRON depended on.
+# Its observable behaviour is recorded in check_page_hinkley.py over twelve
+# streams and is now the acceptance boundary; any implementation reproducing
+# it is admitted, and river is no longer required.
+#
+# STANDARD LIBRARY ONLY, and that is the payoff: river 0.23.0 ships no cp314
+# wheels, which is why every claim in the APEIRON ladder carries a python3.13
+# pin (A8). No `environment` is declared because none is needed.
+#
+# THIS RECIPE PREVIOUSLY CLAIMED, in this comment, that "Page-Hinkley has no
+# residue outside the common prior; ADWIN does, and domesticating it would
+# mean pinning that residue first." Both halves were wrong and both were
+# corrected by measurement rather than argument:
+#
+#   ADWIN was domesticated (apeiron-adwin, root 75b10bd0f050). The ten-sample
+#   divergence was not a capability limit. Given criteria that pinned river's
+#   exact firing index, a producer wrote the real exponential-histogram
+#   algorithm and matched river on 7/7 held-out streams. The divergence was
+#   the absence of a gate, not the absence of an ability.
+#
+#   Page-Hinkley DOES have a residue, and the six-stream version of these
+#   criteria did not catch it. All three reconstructions agreed with river on
+#   every pinned stream, so the claim sealed; a held-out probe over seven
+#   unseen streams then found `slow_sine`, where the sealed implementation
+#   fires at 342 and river at 340. The cause is structural, not numerical:
+#   river measures the statistic's distance from its own running minimum,
+#   while the reconstruction clamped the accumulator at zero. The two forms
+#   agree on every stream that rises from a floor and disagree on every
+#   stream that dips and recovers, and all six pinned streams were the former.
+#
+# The lesson is about this tool rather than about Page-Hinkley: passing the
+# criteria is evidence bounded by what the criteria exercise, and a claim's
+# verdict says nothing about regimes no stream visits. Twelve streams in four
+# groups now cover sharp change, no change, monotone drift, and dip-and-recover,
+# and criterion 2 asserts the running minimum directly instead of inferring it
+# from one stream's index. Both ends were checked before sealing: the criteria
+# admit river itself, and they refuse the clamped form that version two
+# admitted.
+#
+# Six mutants are refused -- downward drift ignored, no reset after firing,
+# delta dropped, min_instances ignored, threshold off by an order, accumulator
+# clamped at zero -- and an algebraic rewrite of the same accumulator is
+# admitted, which is the equivalence class behaving correctly.
+
+[claim]
+name = "apeiron-page-hinkley"
+format = 4
+requires = ["python3"]
+inputs = ["check_page_hinkley.py", "ph_streams.py"]
+
+[[step]]
+kind = "produce"
+output = "page_hinkley.py"
+class = "generated"
+guidance = "a Page-Hinkley change detector reproducing the behaviour check_page_hinkley.py pins, including on the dip-and-recover streams"
+
+[[step]]
+kind = "gate"
+output = "PH_OK"
+class = "validated"
+run = "python3 check_page_hinkley.py"

@@ -1,0 +1,22 @@
+{
+  "digest": "sha256",
+  "name": "apeiron-adwin",
+  "proof": {
+    "independence": "declared: codex/gpt-6-astra, blind workspace (a declaration on the redo's ledger, not proven)",
+    "kind": "crosscheck",
+    "layers": [],
+    "m2": "c96b2accd8f094b9bcd2438025575d594be4bbdf0244c77a9cb22d62ec5342e3",
+    "m3": "9c2c629dfb3c8f592ecb32b120cded304683a1baeeb643c854ce10c80a66b129",
+    "producer": {
+      "blind": true,
+      "declared": true,
+      "model": "gpt-6-astra",
+      "model_source": "observed",
+      "vendor": "codex"
+    },
+    "recorded": "2026-10-24T03:01:21Z",
+    "root": "75b10bd0f050ec073c6ff72a627c63c73a161816296109c2f96ba427cb3974f8"
+  },
+  "root": "75b10bd0f050ec073c6ff72a627c63c73a161816296109c2f96ba427cb3974f8",
+  "sealed": "2026-10-24T03:01:21Z"
+}

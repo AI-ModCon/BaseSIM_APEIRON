@@ -1,0 +1,40 @@
+# The claim: ADWIN adaptive-windowing drift detection, domesticated.
+#
+# river.drift.ADWIN 0.23.0 was the implementation APEIRON depended on. Its
+# observable behaviour at delta=0.002 is recorded in check_adwin.py over six
+# streams and is now the acceptance boundary.
+#
+# This claim exists because of a result that reversed an earlier reading.
+# Measured unconstrained, three independent reconstructions of ADWIN all
+# fired ten to seventeen samples EARLIER than river and agreed with each
+# other more closely than with it (claims/LOG.md A36) -- which looked like a
+# capability limit, as though river's windowing lay outside what a producer
+# could recover. It does not. Given criteria that pin river's exact firing
+# index, the same producer wrote the real exponential-histogram algorithm,
+# bucket compression and Hoeffding cut included, and matched river on all
+# six pinned streams AND on seven held-out streams it had never seen.
+#
+# So the ten-sample divergence was never a limit of capability; it was the
+# absence of a gate. Unconstrained, the cheap approximation passes, so the
+# cheap approximation is what gets written. Prose suggests; execution binds.
+#
+# STANDARD LIBRARY ONLY: river 0.23.0 ships no cp314 wheels, which is why
+# every claim in the APEIRON ladder carries a python3.13 pin (A8).
+
+[claim]
+name = "apeiron-adwin"
+format = 4
+requires = ["python3"]
+inputs = ["check_adwin.py"]
+
+[[step]]
+kind = "produce"
+output = "adwin.py"
+class = "generated"
+guidance = "an ADWIN drift detector reproducing the behaviour check_adwin.py pins"
+
+[[step]]
+kind = "gate"
+output = "ADWIN_OK"
+class = "validated"
+run = "python3 check_adwin.py"

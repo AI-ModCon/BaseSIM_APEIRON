@@ -61,6 +61,7 @@ pinned claim files, where a renumber would move claim roots.
 | A34 | methodology | open | the divergence kinds are a triage function, and recurrence is its evidence |
 | A35 | measurement | open | the paired experiment: strengthening criteria did move what a reconstruction is forced to build |
 | A36 | measurement | open | does the documentation close the gaps? negative on drift, strongly positive on config defaults -- with a worse failure mode |
+| A37 | measurement | open | the three river detectors are domesticated: pinned behaviour, independent redos, river replaceable but not yet replaced |
 | R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
 | R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
 | R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
@@ -75,6 +76,7 @@ pinned claim files, where a renumber would move claim roots.
 | R12 | enhancement | closed | reticuli: `status` reports a proof that was earned on other bytes |
 | R13 | bug | closed | reticuli: no codex rebuild has ever recorded a cost |
 | R14 | bug | closed | reticuli: a proof recorded which oracle it survived nowhere |
+| R15 | bug | fixed here | reticuli: `--producer codex` reached no adapter, and the adapter could not have run |
 
 ## Findings
 
@@ -1302,6 +1304,125 @@ Kind: methodology
 Status: open — the mapping is now in the reconstruct-codebase skill as the
 triage step; the counts above want re-running when monitor and
 entrypoints are drawn.
+
+### A37 — the three river detectors are domesticated
+APEIRON's three statistical detectors wrap `river.drift`. Each is now a
+claim whose acceptance criteria pin *river's observable behaviour* rather
+than describe its algorithm, so any implementation reproducing that
+behaviour is admitted and river becomes replaceable with proof. Prose
+cannot do this job — A36 measured that documentation does not constrain a
+reconstruction — but a gate can, because a gate executes.
+
+| claim | root | mutation | criteria shape |
+|---|---|---|---|
+| `apeiron-page-hinkley` | `f298db23fe39` | 25/30 | exact firing indices, 12 streams |
+| `apeiron-adwin` | `75b10bd0f050` | 19/30 | exact firing indices, 6 streams |
+| `apeiron-kswin` | `36a20881d0ea` | 19/30 | exact counts + index envelope, 5 streams x 40 seeds |
+
+Each carries a recorded three-machine proof — M1, M2 (byte copy via
+export/import), M3 (blind independent redo) on one root, every machine's
+verdicts re-earned — and every proof names its oracle, which is what R14
+bought: `{"blind": true, "model": "gpt-6-astra", "model_source":
+"observed", "vendor": "codex"}`. All three are pulled into a drift
+variant (`bc674cd0f7bd`) that audits `4/4 earned`.
+
+**Generalisation was measured separately from the gates**, because
+passing criteria is not equivalence: each reconstruction was run against
+river on streams no claim pins. ADWIN 15/15 exact, including the
+multi-firing cases. KSWIN 15/15 on counts *and* envelopes, reproducing
+even river's seed-dependent variability (`[0,1,2]` detections on one
+stream, `[3,4]` on another). Page-Hinkley 19/19 exact — after the
+correction below.
+
+**Two earlier conclusions are reversed.** ADWIN's ten-sample divergence
+(A36) was *not* a capability limit: given criteria pinning river's exact
+index, the producer wrote the real exponential-histogram algorithm with
+bucket compression, and matched river everywhere. The divergence was the
+absence of a gate, not the absence of an ability. And KSWIN has no
+residue at all — river's own first-fire index spans [209, 213] across 40
+seeds, so what was called a two-sample divergence was intrinsic
+randomness. That is why its criteria pin counts exactly and bound the
+index with river's own spread: an exact index is not a property of KSWIN,
+only of KSWIN plus one draw.
+
+**The Page-Hinkley correction is the most useful result here, because it
+is a failure of this method caught by this method.** The first claim
+sealed on six streams; all three independent redos agreed with river on
+every one. A held-out probe over seven unseen streams then found
+`slow_sine`, where the sealed implementation fires at 342 and river at
+340. The cause is structural, not numerical: Page-Hinkley has two
+standard spellings that are not equivalent — clamp the accumulator at
+zero, or measure its distance from its own running minimum. They agree on
+every stream that rises from a floor and disagree on every stream that
+dips and recovers, and all six pinned streams were the former. River uses
+the running-minimum form. River also seeds its downward extremum at `-1`
+rather than `-inf` or `0`, which is arbitrary and observable; the
+completed criteria carry it, and the blind redo reproduced it, which no
+prose specification would have forced.
+
+The claim now pins twelve streams in four groups (sharp change, no
+change, monotone drift, dip-and-recover) and asserts the running minimum
+directly rather than inferring it from one index. Both ends were checked
+before resealing: the criteria admit river itself, and they refuse the
+implementation the six-stream version admitted. Mutation score rose
+22/30 → 25/30 on the same code, which is the strengthening showing up
+independently.
+
+The generalisable lesson is about the instrument, not the detector: **a
+claim's verdict is evidence bounded by what its criteria exercise, and
+says nothing about regimes no input visits.** Three independent redos
+agreeing is not equivalence either — they agreed with each other because
+they shared a prior, and all three were wrong in the same way. Only an
+oracle probed outside the pinned set separated them. For a claim whose
+whole purpose is to replace a dependency, a held-out differential probe
+should be part of sealing, not a later thought.
+
+What this does **not** yet buy: `statistical_detectors.py` still imports
+river and the lock still pins `river==0.23.0`, so the layer carries the
+proofs without depending on them and **A8 stays open**. Collecting the
+payoff means changing APEIRON's imports, which is the team's call, not
+this workspace's. Two further caveats worth carrying: KSWIN's claim is
+weaker by construction than the other two, and all three proofs come
+from one producer family, so they bound what that family could not break
+rather than what nothing can.
+Kind: measurement
+Status: open — three claims sealed, proofs recorded, held-out
+generalisation measured; the APEIRON import change that would collect A8
+is unproposed.
+
+### R15 — reticuli: `--producer codex` reached no adapter
+`ret rebuild --producer codex` failed with `Error: stdin is not a
+terminal`, which reads as a codex problem and is not one.
+`_expand_producer`'s name table matched only `openai|anthropic`, so
+`codex` and `claude` — both shipped under `producers/` — fell through to
+the verbatim-command path and reticuli ran the *bare binary*, which with
+no arguments opens an interactive UI, reads the piped prompt, and exits.
+The adapter that knows how to pass a prompt and observe the model was
+never entered, and nothing said the name was unknown.
+
+Two version skews sat behind it, both the same shape as R13/R14 — code
+written against a codex schema that has since moved. The adapter named
+`--dangerously-bypass-approvals-and-sandbox`, which on codex >= 0.155
+refuses a piped prompt for the same reason, so fixing the dispatch alone
+surfaced the identical error one layer down. And model resolution joined
+on the thread id from a `thread.started` event, which codex 0.155 no
+longer emits — so every rebuild would again have recorded no oracle, the
+exact silence R14 was opened to fix.
+
+Worth noting against R14's own status line: that entry records the fix as
+"the model is resolved by joining the two schemas — `thread.started`
+carries the thread id". That mechanism is now gone upstream of us. The
+fix held for one codex version, which is the honest lifetime of any
+assertion about someone else's stdout.
+Kind: bug
+Status: fixed here, upstream in reticuli PR #11. `codex` and `claude` are
+nameable in a CLI-producer table that preflights a binary on PATH;
+`--sandbox workspace-write` replaces the bypass; the rollout log is
+identified by mtime against a watermark sampled before launch when no
+thread id is offered. `handlers_check` exercises both tables and
+`surface_check` now requires every shipped adapter to be nameable and
+named in help — an adapter nothing can reach is a trap, and that is the
+gate that should have caught this. `gate.py` → `repo-ok`, 209 tests.
 
 ### R13 — reticuli: no codex rebuild has ever recorded a cost
 Every usage drop this campaign produced reads exactly

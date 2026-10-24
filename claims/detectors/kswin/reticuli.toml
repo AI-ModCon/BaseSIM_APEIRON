@@ -1,0 +1,36 @@
+# The claim: KSWIN drift detection, domesticated as far as it CAN be.
+#
+# KSWIN draws its reference window at random, so an exact firing index is
+# not a property of the algorithm -- it is a property of the algorithm plus
+# one draw. Measured over 40 seeds, river's own first detection on the step
+# stream lands anywhere in [209, 213]. Pinning one index would pin river's
+# RNG consumption order and reject correct implementations for drawing
+# differently.
+#
+# So this claim pins what is invariant and bounds what is not: detection
+# COUNTS, which never vary across 40 seeds, exactly; the index where it is
+# stable; and an envelope elsewhere, taken from the reference's own spread
+# rather than invented. The criteria also require that the seed genuinely
+# changes the draw, which rejects an implementation that ignores it and
+# would otherwise satisfy every count.
+#
+# A weaker claim than apeiron-adwin's, deliberately, and the strongest this
+# algorithm supports. STANDARD LIBRARY ONLY (A8).
+
+[claim]
+name = "apeiron-kswin"
+format = 4
+requires = ["python3"]
+inputs = ["check_kswin.py"]
+
+[[step]]
+kind = "produce"
+output = "kswin.py"
+class = "generated"
+guidance = "a KSWIN drift detector reproducing the envelope check_kswin.py pins"
+
+[[step]]
+kind = "gate"
+output = "KSWIN_OK"
+class = "validated"
+run = "python3 check_kswin.py"

@@ -1,0 +1,22 @@
+{
+  "digest": "sha256",
+  "name": "apeiron-page-hinkley",
+  "proof": {
+    "independence": "declared: codex/gpt-6-astra, blind workspace (a declaration on the redo's ledger, not proven)",
+    "kind": "crosscheck",
+    "layers": [],
+    "m2": "3262e624a66680bf9a6fb56f365989f00280fdb0abfe3adedddcbb0d48ed3b52",
+    "m3": "115130bc79a24d9d6309c8df39b89068f7701e37d068df8328ae96dd52726800",
+    "producer": {
+      "blind": true,
+      "declared": true,
+      "model": "gpt-6-astra",
+      "model_source": "observed",
+      "vendor": "codex"
+    },
+    "recorded": "2026-10-24T03:26:15Z",
+    "root": "f298db23fe390fc1a5fb13ec5167cf05ecafd197f440261ed6e14ef50b73bc69"
+  },
+  "root": "f298db23fe390fc1a5fb13ec5167cf05ecafd197f440261ed6e14ef50b73bc69",
+  "sealed": "2026-10-24T03:26:15Z"
+}
