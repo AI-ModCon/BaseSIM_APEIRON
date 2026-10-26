@@ -68,6 +68,7 @@ pinned claim files, where a renumber would move claim roots.
 | A41 | defect | fixed here | APEIRON: a run does not reproduce itself -- `seed` never reaches the loaders' RNG |
 | A42 | measurement | open | a training RESULT pinned as a claim: reduced MNIST run, 1,665 metrics exact, 9/9 layers earned |
 | A43 | methodology | closed | pinning a result: six unconstrained degrees of freedom, found by adversarial search, then reproduced exactly |
+| A44 | measurement | closed | cross-family: Claude Opus reproduces the same training result first try, from a different implementation |
 | R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
 | R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
 | R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
@@ -84,6 +85,7 @@ pinned claim files, where a renumber would move claim roots.
 | R14 | bug | closed | reticuli: a proof recorded which oracle it survived nowhere |
 | R15 | bug | closed | reticuli: `--producer codex` reached no adapter, and the adapter could not have run |
 | R16 | bug | fixed here | reticuli: the producer contract tells a model to read pinned DATA in full |
+| R17 | bug | fixed here | reticuli: the claude producer records no oracle, so its proofs name none |
 
 ## Findings
 
@@ -2100,6 +2102,89 @@ Status: fixed here on the reticuli branch `fix/producer-data-inputs`, which
 re-ran the rebuild successfully (the producer then wrote all six files
 instead of none). Wants its own tests and a gate run before it goes
 anywhere; no PR opened.
+
+### A44 — cross-family: a second prior reaches the same root, first try
+Every proof in this campaign names one oracle, `gpt-6-astra`, so "no
+adversary could break it" has been bounded by a single prior the whole time.
+A43 sharpened the worry: eight attempts of one producer family tuning the
+criteria is exactly the setup where some of the resulting "completeness"
+could be an artefact of that family's defaults rather than a property of the
+boundary.
+
+It is not. `claude:claude-opus-5` reached the claim's root on its **first
+attempt**:
+
+    claim root               f90832b74f95
+    opus reconstruction      f90832b74f95
+    harness gate             pass
+    run gate                 31 metric series by digest, trained weights
+                             match, drift at [350], final accuracy 100.0
+    initial / trained        343b640f / 3bcb1141 (pinned 3bcb1141)
+    elapsed                  6m57s
+
+Checked the same way as A43's: no reference-reading or copying anywhere, both
+RNGs seeded, torch imported and used, and the weights genuinely moved by
+training.
+
+**The two implementations are not the same code.** All four generated files
+differ, and the sizes are not close:
+
+| | codex | opus |
+|---|---|---|
+| main.py | 22 | 77 |
+| examples/utils.py | 8 | 40 |
+| examples/mnist/model.py | 39 | 71 |
+| examples/mnist/utils.py | 121 | 255 |
+| **total** | **192** | **455** |
+
+So the criteria pin the BEHAVIOUR to bit-identity -- the same trace, the same
+trained weights -- while leaving the code itself genuinely free, across two
+producer families with different priors. That is the strongest statement this
+method has produced, and it is the one the single-oracle caveat most needed.
+
+Worth noting what Opus wrote in its own docstring, unprompted: "Layer shapes
+are carried by `examples/mnist/mnist.pth` -- the checkpoint is loaded with
+`strict=True`, so the module below is the only arrangement that accepts it."
+It worked out that the pinned artefact constrains the architecture, which is
+the property A43 observed from the other side. The criteria taught it, which
+is what criteria are for.
+
+One caveat that does survive. Opus ran against criteria that six prior
+attempts had already completed; it did not have to discover the six gaps,
+only to satisfy them. So this establishes that the FINISHED boundary is
+family-independent, not that a second family would have found the same gaps.
+Testing the latter would mean rebuilding the criteria from scratch with Opus
+doing the searching -- a different and longer experiment.
+Kind: measurement
+Status: closed -- cross-family reproduction verified at f90832b74f95 with
+both gates and an independent implementation.
+
+### R17 — reticuli: the claude producer records no oracle
+`producers/claude.py` writes its usage drop as a hardcoded literal:
+
+    json.dump({"vendor": "claude-code", "metered": False}, f)
+
+No model, no `model_source`, no tokens, no CLI version. Beside what codex
+records for the same rebuild --
+
+    {"vendor": "codex", "metered": false, "tokens": 847349,
+     "model": "gpt-6-astra", "provider": "openai",
+     "producer_version": "0.155.1", "model_source": "observed"}
+
+-- the difference is the whole of R14, fixed for one adapter and never for
+the other. A proof earned with the claude producer says "claude-code" and
+stops, so the thing A44 exists to establish -- that a SECOND, NAMED family
+reached the root -- cannot be read off the proof that would record it. The
+model was passed on the command line as `claude:claude-opus-5` and the
+adapter forwards it to `claude --model`; it simply does not write it down.
+
+At minimum it can record the requested model with `model_source:
+"requested"`, which is honest and strictly better than silence. Reading the
+model back from Claude Code's own session record would make it `observed`,
+matching what codex now does.
+Kind: bug
+Status: fixed here on the reticuli branch `fix/producer-data-inputs`
+alongside R16. Wants tests and a gate run; no PR opened.
 
 ### R13 — reticuli: no codex rebuild has ever recorded a cost
 Every usage drop this campaign produced reads exactly
