@@ -2,8 +2,8 @@
   "model": {
     "name": "dummy",
     "pretrained_path": "examples/mnist/mnist.pth",
-    "max_ckpts": 0,
-    "ckpts_path": "output/mnist/"
+    "max_ckpts": 2,
+    "ckpts_path": "ckpts"
   },
   "data": {
     "name": "mnist",

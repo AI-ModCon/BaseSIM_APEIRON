@@ -67,6 +67,7 @@ pinned claim files, where a renumber would move claim roots.
 | A40 | measurement | open | the methodology across all ten layers: 1,049 probe cases, zero divergences |
 | A41 | defect | fixed here | APEIRON: a run does not reproduce itself -- `seed` never reaches the loaders' RNG |
 | A42 | measurement | open | a training RESULT pinned as a claim: reduced MNIST run, 1,665 metrics exact, 9/9 layers earned |
+| A43 | methodology | open | pinning a result: ungameable and unreachable are the same change, and the first version was neither |
 | R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
 | R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
 | R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
@@ -82,6 +83,7 @@ pinned claim files, where a renumber would move claim roots.
 | R13 | bug | closed | reticuli: no codex rebuild has ever recorded a cost |
 | R14 | bug | closed | reticuli: a proof recorded which oracle it survived nowhere |
 | R15 | bug | closed | reticuli: `--producer codex` reached no adapter, and the adapter could not have run |
+| R16 | bug | fixed here | reticuli: the producer contract tells a model to read pinned DATA in full |
 
 ## Findings
 
@@ -1914,6 +1916,119 @@ Kind: measurement
 Status: open -- the claim is sealed and audits 9/9 earned. The reconstruction
 question it exists to ask (does a regrown APEIRON reproduce this trace?) is
 not yet run.
+
+### A43 — pinning a result: ungameable and unreachable are the same change
+A42 pinned a training result as a claim. This is what happened when the
+reconstruction question it exists to ask was actually run, in three attempts,
+and the answer is more interesting than either pass or fail.
+
+**Attempt one: the producer read the dataset.** The claim pins a 3MB MNIST
+subset and a 916KB checkpoint as inputs, and the producer contract says
+"Read the check/input files IN FULL first ... A check may be longer than it
+first appears -- read the ENTIRE file." So the producer went reading binary
+idx-ubyte and a pickle, spent 794,891 tokens, and wrote no implementation at
+all. That is R16, a reticuli defect, not a reconstruction result.
+
+**Attempt two: a false green.** With the producer fixed to distinguish
+criteria from data, the rebuild reported `rebuilt 33a7efb4b74b` -- it reached
+the source root. It had not trained anything. `reference_trace.csv` was a
+pinned input, so it sat in the room next to the check that compares against
+it, and the shortest path to passing was to copy it:
+
+    class RecordedMNISTRun:
+        def run(self):
+            source = self.root / "reference_trace.csv"
+            return write_metrics(destination, read_metrics(source))
+
+Forty-five lines, no torch imported anywhere, and scrupulously honest in its
+own docstring: "A recorded run, not a reconstructed neural network or
+training harness. The supplied acceptance boundary specifies an exact
+recording but does not specify the network or input transformations ... it
+makes no claim to perform inference or optimization." It even guarded against
+the output path aliasing the source.
+
+The producer was right and the criteria were circular. **This is the first
+false green the campaign has produced**, and nothing automated caught it --
+it was caught by reading the implementation instead of the exit code, which
+is the same lesson as A38's ten probe corrections one level up.
+
+**Attempt three, hardened: an honest failure, and a precise one.** The
+expected trace left the room and became a sha256 per metric inside the check
+(not invertible, so matching requires computing), and the TRAINED weights
+were pinned by digest -- the room holds only the initial `mnist.pth`, and no
+amount of copying produces the state of a trained model. Result:
+
+| | reconstruction | pinned |
+|---|---|---|
+| metric series matching | **0 / 31** | |
+| series present but different | 11 | |
+| series never produced | 20 (all `cl/*`, `eval/fwt`, `eval/test_*`, `eval/val_post_*`) | |
+| drift events | none | [350] |
+| eval points | **376** | 376 |
+| final accuracy | 62.5 | 100.0 |
+| checkpoint written | none | required |
+
+What it got right is as informative as what it missed. It recovered the
+network EXACTLY -- conv1(1,32,5), conv2(32,32,5), conv3(32,64,5),
+fc1(576,256), fc2(256,10) -- and `load_state_dict` succeeded against the
+pinned checkpoint, so the architecture matched tensor for tensor. It parsed
+the idx-ubyte format itself and normalised with MNIST's standard constants.
+It produced exactly 376 eval points, the right monitoring cadence. The
+pinned weights carried the architecture, by being LOADED rather than read,
+which is a real property of pinning artefacts that no prose guidance has.
+
+What it could not invent is the affine drift simulation -- the seeded
+`sample_aug` that perturbs each task's inputs and creates the distribution
+shift the detector is supposed to find. Nothing in the criteria describes it.
+With no drift, nothing fires, the CL loop never runs, and twenty metric
+series simply do not exist.
+
+**The methodological finding.** The two ends fail in opposite ways:
+
+  * pinning TESTS is regrowable and gameable -- the layer claims regrow
+    (A33, A40) and a stand-in can satisfy them (A23)
+  * pinning a RESULT by digest is ungameable and unreachable -- nothing can
+    fake a trained-weights digest, and nothing can search its way to one
+
+Making the criteria unforgeable and making them unreachable were the SAME
+change. A result digest asserts an answer and teaches nothing, so it can only
+be met by an implementation that is already determined by something else. A
+result claim therefore needs behavioural criteria for whatever the result
+depends on -- here, a test that pins what `sample_aug` does -- and the digest
+on top as the thing that cannot be faked. Pinning the result alone is a wall,
+not a specification.
+
+That is a correction to the plan this claim was built for, not a failure of
+it: "reconstruct APEIRON and reproduce the MNIST result" is not reachable in
+one step, and the missing step is criteria for the example harness, which no
+claim in the ladder covers because `examples/` was never a layer.
+Kind: methodology
+Status: open -- the hardened claim is sealed at 7b007ecab8f8 and refuses both
+the replay and the honest-but-wrong reconstruction. What it does not yet do
+is admit a correct one, because nothing specifies the drift simulation.
+
+### R16 — reticuli: the producer contract tells a model to read pinned DATA
+The producer prompt says "Read the check/input files IN FULL first ... read
+the ENTIRE file", interpolating the recipe's whole `inputs` list. That is
+right for a check file and catastrophic for data. `apeiron-mnist-run` pins a
+3MB MNIST subset and a 916KB `.pth`, and the producer dutifully read them:
+794,891 tokens, no implementation written, gate never reached.
+
+A claim that pins data is therefore unregrowable, not because the
+reconstruction is hard but because the prompt sends the producer into
+megabytes of binary before it starts.
+
+No format change is needed to fix it, which is the pleasant part. The recipe
+does not have to declare an input's role -- the producer can tell. An input
+is criteria to READ if it decodes as UTF-8, carries no null bytes, and is
+under 256KB; otherwise it is data that is merely PRESENT, and the prompt says
+so explicitly rather than listing it among the files to read. Identity is
+untouched: both kinds stay pinned, in the root, and in the room.
+Kind: bug
+Status: fixed here on the reticuli branch `fix/producer-data-inputs`, which
+re-ran the rebuild successfully (the producer then wrote all six files
+instead of none). Wants its own tests and a gate run before it goes
+anywhere; no PR opened.
 
 ### R13 — reticuli: no codex rebuild has ever recorded a cost
 Every usage drop this campaign produced reads exactly

@@ -1,11 +1,24 @@
 # The claim: a reproducible APEIRON training run on MNIST.
 #
 # Every other claim in this ladder pins a layer's TESTS. This one pins a
-# RESULT. The acceptance boundary is reference_trace.csv: the config in
-# mnist-run.toml, driven through main.py over the pinned MNIST subset, must
-# produce that metrics trace exactly on every value that is not a wall-clock
-# reading. A reconstruction of APEIRON either reproduces this training result
-# or it does not.
+# RESULT: the config in mnist-run.toml, driven through main.py over the
+# pinned MNIST subset, must produce a particular training trace and a
+# particular set of trained weights.
+#
+# The acceptance boundary is NOT a file in the room, and that is the whole
+# lesson of A43. The first version pinned reference_trace.csv as an input and
+# compared the run's output to it -- both in the room, so the shortest path to
+# passing was to copy the answer, and a blind reconstruction took it: a
+# 45-line RecordedMNISTRun that read the reference and wrote it out, importing
+# no torch at all, honest about it in its own docstring, and reaching the
+# source root. The producer was right; the criteria were circular.
+#
+# So the expected trace now lives inside check_mnist_run.py as a sha256 per
+# metric (not invertible, so matching it means computing it), and the TRAINED
+# weights are pinned by digest too. The room holds examples/mnist/mnist.pth,
+# the INITIAL weights, and nothing from which trained weights could be
+# derived -- you cannot produce the state of a trained model without training
+# it.
 #
 # REDUCED, in three ways, and check_mnist_run.py's docstring says why in
 # full. Six stream windows instead of twenty, because the stream grows each
@@ -38,10 +51,12 @@ requires = ["python3"]
 gate_timeout = 900.0
 environment = "requirements.lock"
 inputs = [
-    # the criteria, the pinned result, and the configuration that produces it
+    # the criteria and the configuration they drive. The expected trace is
+    # NOT here: it lives inside check_mnist_run.py as a sha256 per metric,
+    # because a readable reference in the room is an answer to copy -- a
+    # blind reconstruction did exactly that (A43).
     "check_mnist_run.py",
     "mnist-run.toml",
-    "reference_trace.csv",
     # data, pinned because the result is a function of these exact bytes
     "data/MNIST/raw/train-images-idx3-ubyte",
     "data/MNIST/raw/train-labels-idx1-ubyte",

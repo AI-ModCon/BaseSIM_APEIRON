@@ -9,8 +9,8 @@ name = "dummy"
 pretrained_path = "examples/mnist/mnist.pth"
 
 # enables checkpointing
-max_ckpts = 0 # Increment to enable
-ckpts_path = "output/mnist/"
+max_ckpts = 2 # the check pins the trained weights
+ckpts_path = "ckpts"
 
 [data]
 name = "mnist"
