@@ -1,0 +1,7 @@
+{
+  "digest": "sha256",
+  "input:check_page_hinkley.py": "efe197a84900f34aa0b1b5e0326e65e5bb988783f80240517f89b68ddb51e9a8",
+  "input:ph_streams.py": "48f3d5a5cdb1a670bd01bf397ad5edb460a5b0b2f0ea0a380f0523d996a49c54",
+  "pinned:PH_OK": "dc51b8c96c2d745df3bd5590d990230a482fd247123599548e0632fdbf97fc22",
+  "recipe": "{\"claim\": {\"format\": 4, \"inputs\": [\"check_page_hinkley.py\", \"ph_streams.py\"], \"name\": \"apeiron-page-hinkley\", \"requires\": [\"python3\"]}, \"step\": [{\"class\": \"generated\", \"kind\": \"produce\", \"output\": \"page_hinkley.py\"}, {\"class\": \"validated\", \"kind\": \"gate\", \"output\": \"PH_OK\", \"run\": \"python3 check_page_hinkley.py\"}]}"
+}

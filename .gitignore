@@ -238,9 +238,26 @@ __marimo__/
 **/.reticuli/ledger.jsonl
 **/.reticuli/tmp/
 
-# A claim's pinned inputs must be tracked, whatever their extension. The
-# blanket `*.csv` above would have silently dropped
-# claims/mnist_run/reference_trace.csv -- the pinned training result the
-# claim's whole acceptance boundary is -- leaving a claim that cannot verify
-# on a fresh clone. Same shape as A4, which was the blanket *.toml/*.json.
+# A claim's pinned inputs must be tracked, whatever their extension. This is
+# A4 again: the blanket `*.toml`, `*.json` and `*.csv` rules above are from
+# the Python gitignore template and they silently drop claim inputs. The
+# existing `!**/reticuli.toml` covers recipes by name, which is not enough --
+# claims/mnist_run pins `mnist-run.toml` (the configuration under test) and
+# `reference_trace.csv` (the pinned training result that IS its acceptance
+# boundary). Both were ignored, and the claim failed `ret verify` in a clean
+# checkout of its own commit while verifying fine in the working tree.
+#
+# Negated by directory rather than by filename, so the next claim to pin a
+# config or a data table does not rediscover this.
+!claims/**/*.toml
+!claims/**/*.json
 !claims/**/*.csv
+
+# ...but not the verdict caches and scratch under .reticuli/. A committed
+# cached verdict is one somebody else's machine earned, which is exactly the
+# confusion R12 was opened for. `manifest.json` and `parts.json` are identity
+# and stay tracked; the rest are run artifacts.
+claims/**/.reticuli/assess.json
+claims/**/.reticuli/audit.json
+claims/**/.reticuli/mutation_score.json
+claims/**/.reticuli/tmp/

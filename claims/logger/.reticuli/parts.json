@@ -1,0 +1,12 @@
+{
+  "digest": "sha256",
+  "input:conftest.py": "ef9a97d9d4b3ef16ca50fb52922d2054effc9e3bf69e7d39824c9a251eddaa7b",
+  "input:pytest.ini": "8250d20f42b419af40706490ead78aabab9feba93eab09a3f626e3de5256e1f4",
+  "input:requirements.lock": "ba71677acfc3e553bef92829d7fee612328456f776ae87c9ed92848572db66e4",
+  "input:test_logger.py": "17e5e3347dd99e80c86c0d3f3166ed27b002075e5e65ecd372fc18856d29f451",
+  "input:test_logger_facade.py": "275da22c1e092fe07ccef23ec211f1af23f6ec66d0c4dac49eed62c2d334a951",
+  "input:test_mlflow_logger.py": "d3fa2d4ab20975d04e811b66781bbe931f445a893529ce54cea506a0baf5e0fc",
+  "input:test_wandb_run_paths.py": "8140805929d2c1433175921ef30b70cc38dfd1dfa8db9fa13691f0d0278fe06c",
+  "pinned:LOGGER_OK": "2689367b205c16ce32ed4200942b8b8b1e262dfc70d9bc9fbc77c49699a4f1df",
+  "recipe": "{\"claim\": {\"environment\": \"requirements.lock\", \"format\": 4, \"gate_timeout\": 600.0, \"inputs\": [\"test_logger.py\", \"test_logger_facade.py\", \"test_mlflow_logger.py\", \"test_wandb_run_paths.py\", \"conftest.py\", \"pytest.ini\"], \"name\": \"apeiron-logger\", \"requires\": [\"python3\"]}, \"step\": [{\"class\": \"generated\", \"from\": \"apeiron-config\", \"kind\": \"produce\", \"output\": \"apeiron/config/__init__.py\"}, {\"class\": \"generated\", \"from\": \"apeiron-config\", \"kind\": \"produce\", \"output\": \"apeiron/config/configuration.py\"}, {\"class\": \"generated\", \"kind\": \"produce\", \"output\": \"apeiron/logger/__init__.py\"}, {\"class\": \"generated\", \"kind\": \"produce\", \"output\": \"apeiron/logger/console_logger.py\"}, {\"class\": \"generated\", \"kind\": \"produce\", \"output\": \"apeiron/logger/logger.py\"}, {\"class\": \"generated\", \"kind\": \"produce\", \"output\": \"apeiron/logger/mlflow_logger.py\"}, {\"class\": \"generated\", \"kind\": \"produce\", \"output\": \"apeiron/logger/wandb_logger.py\"}, {\"class\": \"validated\", \"kind\": \"gate\", \"output\": \"LOGGER_OK\", \"run\": \"PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_logger.py test_logger_facade.py test_mlflow_logger.py test_wandb_run_paths.py && printf ok > LOGGER_OK\"}]}"
+}
