@@ -36,10 +36,26 @@ HOW THE ORACLE IS BUILT, and why it is not just `src/`. `src/apeiron/
 __init__.py` eagerly imports every layer (A1), so importing one layer from
 the source tree drags in river, evidently, wandb and mlflow. The claims work
 around this by carrying an implicit namespace package with no welded
-`__init__`. The oracle tree here is built the same way -- the claim's own
-`apeiron/**` layout, refilled with bytes from `src/apeiron/**` -- so the two
-sides differ in their implementation and in nothing else. A file the claim
-carries that the source does not have is reported rather than skipped.
+`__init__`. The oracle tree is assembled the same way: every file the claim's
+recipe declares as a `produce` step is refilled from the repository (from
+`src/` for package modules and the runnable entrypoints, from the repository
+root for `examples/`), and every file the recipe PINS as an input is copied
+from the claim itself, because a pinned input is identical on both sides by
+definition. So the two trees differ in their implementation and in nothing
+else. A generated file the source does not have is reported rather than
+papered over with the subject's own bytes.
+
+The file list comes from the recipe rather than from globbing because the
+recipe is the authority on what the claim treats as regrowable. Globbing
+`apeiron/**` silently missed the entrypoints layer's three runnable scripts,
+which sit at the claim root and are that layer's entire content.
+
+ALL TEN LAYERS are probed. A layer is driven through the module it owns; the
+lower layers it carries are probed in their own right rather than twice.
+`main.py` is the one piece deliberately not driven end to end -- it calls
+`get_example(cfg)`, which needs MNIST or CIFAR on disk -- so its import
+surface and argument handling are probed and the loop it runs is probed in
+the monitor layer.
 
 CAVEAT on this workspace: `src/apeiron/` carries the campaign's own
 "fixed here" patches for `evaluation.py` and `continuous_monitor.py`
@@ -56,15 +72,17 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import tomllib
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 PROBES = pathlib.Path(__file__).resolve().parent / "probes"
 
-#: Layers with a probe. The ones left out need a model and data in the loop
-#: (trainer, monitor, model_harness) or an external service (logger's
-#: backends); a probe for those is a bigger instrument than this one and
-#: pretending otherwise would report coverage we do not have.
-LAYERS = ("config", "evaluation", "profilers", "drift_detection")
+#: Layers with a probe, in dependency order. All ten of the campaign's
+#: layers are covered; a layer named here is driven through its own module,
+#: with the lower layers it carries already probed in their own right.
+LAYERS = ("config", "evaluation", "profilers", "logger", "model_harness",
+          "updaters", "drift_detection", "trainer", "monitor",
+          "entrypoints")
 
 
 def _claim_dir(layer: str) -> pathlib.Path:
@@ -74,25 +92,64 @@ def _claim_dir(layer: str) -> pathlib.Path:
     return d
 
 
+def _source_of(rel: str) -> pathlib.Path:
+    """Where a claim's generated file came from in the repository.
+
+    Package modules live under `src/`; so do the runnable entrypoints
+    (`main.py`, `drift_only.py`, `cl_only.py`). The example harnesses live at
+    the repository root instead, outside `src/`, which is why this is a
+    mapping rather than one prefix.
+    """
+    if rel.startswith("examples/"):
+        return ROOT / rel
+    return ROOT / "src" / rel
+
+
 def _oracle_tree(layer: str, into: pathlib.Path) -> list[str]:
-    """Mirror the claim's apeiron/** layout, filled from src/apeiron/**."""
+    """Refill the claim's GENERATED files from the repository source.
+
+    The file list comes from the recipe's `produce` steps rather than from
+    globbing, because that is precisely the set the claim treats as
+    regrowable -- everything else in the claim directory is pinned criteria,
+    which must be identical on both sides and is simply not copied. Globbing
+    `apeiron/**` missed the entrypoints layer's three runnable scripts, which
+    sit at the claim root and are the whole content of that layer.
+    """
     claim = _claim_dir(layer)
-    subject = claim / "apeiron"
-    source = ROOT / "src" / "apeiron"
+    recipe = tomllib.loads((claim / "reticuli.toml").read_text())
+    generated = [step["output"] for step in recipe.get("step", [])
+                 if step.get("kind") == "produce"]
+
     missing = []
-    for path in sorted(subject.rglob("*.py")):
-        rel = path.relative_to(subject)
-        origin = source / rel
-        target = into / "apeiron" / rel
+    for rel in sorted(generated):
+        if not rel.endswith(".py"):
+            continue
+        origin = _source_of(rel)
+        target = into / rel
         target.parent.mkdir(parents=True, exist_ok=True)
         if origin.is_file():
             shutil.copy2(origin, target)
         else:
-            # The claim carries a file the source does not. Usually a
-            # producer's own helper split; record it, and leave the oracle
-            # without it so an import error is visible rather than papered
+            # The claim declares a generated file the source does not have --
+            # usually a producer's own helper split. Recorded, and left out
+            # of the oracle so an import error is visible rather than papered
             # over with the subject's own bytes.
-            missing.append(str(rel))
+            missing.append(rel)
+
+    # The claim's PINNED INPUTS come from the claim itself, not the source.
+    # They are identical on both sides by definition -- that is what pinned
+    # means -- so copying them keeps the comparison honest while making the
+    # oracle importable. The profilers layer pins `aten_flops_map.py` as data
+    # rather than generating it, and without this the oracle tree cannot
+    # import its own profiler at all.
+    for rel in sorted(recipe.get("claim", {}).get("inputs", [])):
+        origin = claim / rel
+        if not origin.is_file():
+            continue
+        target = into / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if not target.exists():
+            shutil.copy2(origin, target)
     return missing
 
 

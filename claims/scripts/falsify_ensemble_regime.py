@@ -29,7 +29,6 @@ The verdict and the drift score are NOT affected -- both are computed by
 counting, not by set order -- which is why the test suite does not catch it:
 a test asserting `drift_detected` passes every time.
 """
-import math
 import os
 import pathlib
 import subprocess
@@ -91,7 +90,7 @@ def main(argv: list[str]) -> int:
                          f"{proc.stderr.strip()[-2000:]}")
             seen.setdefault(proc.stdout.strip(), []).append(seed)
 
-    print(f"EnsembleDetector(voting='any'), two detectors, identical stream.")
+    print("EnsembleDetector(voting='any'), two detectors, identical stream.")
     print(f"regime reported at step 223, over {len(SEEDS)} hash seeds:\n")
     for regime, seeds in sorted(seen.items(), key=lambda kv: -len(kv[1])):
         print(f"  {regime:<22} {len(seeds):>2}/{len(SEEDS)} seeds  "

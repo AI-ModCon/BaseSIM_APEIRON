@@ -122,14 +122,29 @@ def main() -> int:
         out[f"trace[{name}]"] = attempt(lambda m=make: trace(m(), values))
 
     # --- 2. where the regime thresholds cut -------------------------------
-    # A22: the regime can outvote the verdict. These sweep the boundary so a
-    # reconstruction that uses >= where the source uses > is visible.
-    for minor, moderate in ((0.3, 0.6), (0.0, 0.0), (1.0, 1.0),
-                            (0.6, 0.3), (-1.0, 2.0)):
+    # A22: the regime can outvote the verdict.
+    #
+    # The thresholds below include the EXACT values drift_score takes on this
+    # stream -- 0.0, 0.01 and 0.02 -- because a comparison's boundary is only
+    # observable when a score lands on it. The first version of this sweep
+    # used round numbers (0.3/0.6, 1.0, ...) that no score ever reaches, and
+    # a mutant that changed every `<` to `<=` in the regime ladder was not
+    # detected at all. Same failure as the formatter decades in A38: a probe
+    # that straddles no boundary cannot see one move.
+    SCORES = (0.0, 0.01, 0.02)
+    boundaries = [(s, s) for s in SCORES]
+    boundaries += [(s, s + 0.01) for s in SCORES]
+    boundaries += [(0.005, 0.015), (0.01, 0.02), (0.02, 0.01)]
+    for minor, moderate in (((0.3, 0.6), (0.0, 0.0), (1.0, 1.0),
+                             (0.6, 0.3), (-1.0, 2.0)) + tuple(boundaries)):
         out[f"regime[ADWIN,{minor},{moderate}]"] = attempt(
             lambda a=minor, b=moderate: trace(
                 ADWINDetector(delta=0.002, minor_threshold=a,
                               moderate_threshold=b), values))
+        out[f"regime[PageHinkley,{minor},{moderate}]"] = attempt(
+            lambda a=minor, b=moderate: trace(
+                PageHinkleyDetector(minor_threshold=a,
+                                    moderate_threshold=b), values))
 
     # --- 3. KSWIN's seeding, which is the one stochastic surface ----------
     out["KSWIN[same-seed-twice]"] = attempt(

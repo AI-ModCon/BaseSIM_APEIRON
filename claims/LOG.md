@@ -64,6 +64,7 @@ pinned claim files, where a renumber would move claim roots.
 | A37 | measurement | open | the three river detectors are domesticated: pinned behaviour, independent redos, river replaceable but not yet replaced |
 | A38 | measurement | open | behaviour, not lines: four reconstructions match the source on 441 probe cases off the pinned set |
 | A39 | defect | open | APEIRON: `EnsembleDetector` reports a nondeterministic regime on a tied vote |
+| A40 | measurement | open | the methodology across all ten layers: 1,049 probe cases, zero divergences |
 | R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
 | R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
 | R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
@@ -1508,6 +1509,13 @@ Kind: measurement
 Status: open -- four layers probed at 441 cases with no divergence; six
 layers unprobed and named as such.
 
+SUPERSEDED IN PART by A40, which probes all ten. The four layers this entry
+declined to claim are now covered: the fixtures they needed -- a fixed-weight
+model, fixed loaders, a concrete harness -- turned out to be a shared module
+rather than "a larger instrument". The judgement that stands is the one about
+not reporting coverage we do not have; the list of what was uncovered has
+simply moved on.
+
 ### A39 — APEIRON: `EnsembleDetector` reports a nondeterministic regime
 `EnsembleDetector.update` resolves the regime by majority vote over its
 sub-detectors:
@@ -1553,6 +1561,133 @@ team's call; any of them is deterministic.
 Kind: defect
 Status: open -- reproduced on upstream main with a runnable falsification;
 the fix needs a decision about tie semantics, so it is not a silent patch.
+
+### A40 — the methodology applied to all ten layers: 1,049 cases, zero divergences
+A38 probed four layers. This extends the same instrument to all ten, which
+required building what the earlier note said it would not pretend to have:
+deterministic fixtures for the layers that need a model and data in the loop.
+`claims/scripts/probes/_fixtures.py` supplies a fixed-weight model, fixed
+loaders, a concrete `BaseModelHarness` and a config built through the layer's
+own loader -- imported by the probe drivers and never by the layers, so both
+sides of a comparison get byte-identical fixtures and differ only in the
+implementation being driven.
+
+| layer | cases | agree | diverge | mutants caught |
+|---|---|---|---|---|
+| config | 82 | 82 | 0 | 6 and 9 |
+| evaluation | 39 | 39 | 0 | 3 |
+| profilers | 269 | 269 | 0 | 4 |
+| logger | 103 | 103 | 0 | 4 |
+| model_harness | 72 | 72 | 0 | 6 |
+| updaters | 143 | 143 | 0 | 7 |
+| drift_detection | 70 | 60 | 0 (10 unstable, A39) | 7 |
+| trainer | 58 | 58 | 0 | 14 |
+| monitor | 91 | 91 | 0 | 21 |
+| entrypoints | 122 | 122 | 0 | 10 |
+| **total** | **1,049** | **1,039** | **0** | |
+
+**Zero divergences across every layer.** On everything comparable, each
+regrown implementation is behaviourally indistinguishable from the code it
+replaced. The ten unstable cases are all `EnsembleDetector` and are unstable
+*identically on both sides* -- that is A39, a defect the reconstruction
+reproduced faithfully rather than a difference between the two.
+
+Three results are worth naming individually.
+
+**The updaters layer answers A13 directly.** A12 recorded that the updater
+math is "nearly criterion-free" and A13 that the JVP/SAM updater is
+interchangeable with a different algorithm as far as the tests can tell. The
+probe does not ask whether the hooks exist; it runs each updater through real
+forward/backward cycles and compares the resulting GRADIENTS and WEIGHTS
+exactly. With SGD and no momentum a step is a closed-form function of the
+gradient, so two implementations of the same mathematics land on identical
+numbers and two implementations of different mathematics cannot. All 143
+cases match, including after a closed CL cycle where the regularisers are
+live. Whatever the criteria fail to demand, the reconstruction did not take
+the freedom.
+
+**A20 is sharper than recorded.** The monitor's aggregation falls back to the
+mean for anything it does not recognise, and the fallback is
+*case-sensitive*: `median` works, `Median` silently becomes the mean, as do
+`avg`, `average`, `max`, `first`, `''` and `none`. A20 described it as a
+misspelling hazard; it is also a casing hazard.
+
+**The probe reproduced A19 quantitatively.** Mean-reduction loss over three
+batches is 0.588 against 0.196 over one -- exactly 3x -- while
+sum-reduction is stable at 1.177.
+
+Every probe is validated against a deliberately wrong implementation,
+because a probe that cannot fail is not evidence. The mutants are listed
+above; each was chosen to be plausible rather than absurd (a `deep_update`
+that replaces instead of merging, `accuracy` by argmax equality instead of
+top-k, one aten FLOP constant moved by 1, an `INFO:n` tier that stops
+lowering the level, `_to_scalar` taking the first element instead of the
+mean, the regime ladder's `<` becoming `<=`, BWT dividing by `len+1`).
+
+**The instrument needed ten corrections, and that is the methodological
+content of this entry.** Each is a distinct way a differential probe reports
+agreement it has not earned:
+
+  1. two temporary directory paths inside one error message, read as a difference
+  2. a minimal config so minimal that `Config.__init__` refused it, so a third of the build cases compared one constructor error to itself
+  3. `{tag}_flop` (a count) and `{tag}_flops` (a throughput) differing by one character, so a substring filter let two wall-clock readings through
+  4. the builtin `hash()` for trace digests, which is per-process randomised: 30 "divergences" in which every visible field matched
+  5. a seed list (0, 1, 2) that happened to resolve the A39 tie the same way every time, so the instability it was added to detect stayed invisible until seed 5
+  6. formatter magnitudes that jumped from 1e9 to 1.5e12, so a mutant moving a threshold from 1e12 to 1e11 landed in the gap and was missed
+  7. the regularisers probed cold, before any CL cycle had closed -- EWC's and KFAC's Fisher estimates are all zeros then, so `lambda * 0 * diff` is zero for every lambda, and the probe reported every knob as dead code and every mode as identical. **A false finding about APEIRON, produced entirely by driving the trivial case.**
+  8. the same probe, corrected, still taking only ONE step after the cycle -- `cl_postprocessing` re-anchors `theta_star` to the current weights, so `p - theta_star` is exactly zero on the next step and the penalty still cannot bite
+  9. `drift_windows` rendered without being called, yielding four bound-method reprs carrying memory addresses
+  10. regime thresholds set to round numbers no `drift_score` ever reaches, so a mutant changing every `<` to `<=` in the ladder was not detected at all
+
+Numbers 7 and 8 are the ones to remember: an under-reaching probe does not
+merely fail to find things, it manufactures findings. Had that output been
+written up unexamined, this ledger would now claim that `ewc_lambda`,
+`kfac_lambda` and all three JVP knobs are dead code. Both are wired in; the
+probe was measuring the state before they apply.
+
+Those two corrections also turn out to carry the updaters layer's whole
+claim. The mutant for that layer flips the sign of the EWC penalty --
+`p.grad.add_` to `p.grad.sub_`, same magnitude and shape, opposite direction.
+It is caught in exactly four cases, and every one of them is an `after-cycle`
+case; all the cold cases agree, because cold the penalty is zero either way.
+A probe that had kept its original shape would have passed that mutant and
+reported 143/143 agreement anyway -- the same number, meaning nothing.
+
+Two guards now make a repeat harder rather than relying on care. `show()`
+refuses to render any object whose repr carries a memory address, turning
+that silent instability into a loud failure. And the harness runs each side
+under several hash seeds and separates "unstable within one implementation"
+from "different between two", so nondeterminism is reported as itself.
+
+What is still not claimed: `main.py` is not driven end to end, because it
+calls `get_example(cfg)` and needs MNIST or CIFAR on disk. Its import surface
+and argument handling are probed, and the loop it runs is the monitor's,
+which is. And the oracle for `evaluation` and `monitor` is this workspace's
+patched source rather than upstream `main` (A19, A28), so agreement there is
+agreement with the patched behaviour.
+On the aggregate figure: every per-layer row above was verified on its own
+run. A single ten-layer pass recorded 1,046 cases with zero divergences
+before the model_harness probe grew by three checkpoint cases (below), so the
+1,049 total is that run plus those three, not a separate measurement.
+
+One more thing the probe found, about itself and then about APEIRON.
+`save_ckpt` writes to `Path(cfg.model.ckpts_path)`, and that field's default
+is the empty string, which resolves to the PROCESS WORKING DIRECTORY. The
+first version of the model_harness probe called it with the default and wrote
+a `latest` pointer file into the repository root -- caught when `git status`
+showed an unexpected file at commit time, not by any check. The probe now
+points every checkpoint case at a temporary directory and records the
+default's resolved path by reading it rather than by writing.
+
+That default is worth a look on its own terms: a run with `max_ckpts` set and
+`ckpts_path` left alone drops checkpoints and an unprefixed `latest` file
+wherever it was launched from, which for most people is a repository. Same
+shape as A18 -- a default that quietly does something surprising -- and
+recorded here rather than as its own finding because the severity is a
+papercut and nothing is corrupted. Promote it if the team disagrees.
+Kind: measurement
+Status: open -- all ten layers probed at 1,049 cases with no divergence; the
+one piece deliberately undriven is named.
 
 ### R13 — reticuli: no codex rebuild has ever recorded a cost
 Every usage drop this campaign produced reads exactly
