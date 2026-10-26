@@ -56,6 +56,12 @@ inputs = [
     # because a readable reference in the room is an answer to copy -- a
     # blind reconstruction did exactly that (A43).
     "check_mnist_run.py",
+    # the harness's behaviour, pinned the way the ten layer claims pin
+    # theirs. A43: the result digest alone is unforgeable AND unreachable --
+    # a blind reconstruction recovered the network from the pinned weights
+    # and still matched 0 of 31 metric series, because nothing told it what
+    # the drift simulation is. This file tells it.
+    "check_mnist_harness.py",
     "mnist-run.toml",
     # data, pinned because the result is a function of these exact bytes
     "data/MNIST/raw/train-images-idx3-ubyte",
@@ -286,6 +292,12 @@ kind = "produce"
 output = "examples/mnist/utils.py"
 class = "generated"
 guidance = "MNIST loading, the affine sampler, loader construction"
+
+[[step]]
+kind = "gate"
+output = "HARNESS_OK"
+class = "validated"
+run = "python3 check_mnist_harness.py"
 
 [[step]]
 kind = "gate"

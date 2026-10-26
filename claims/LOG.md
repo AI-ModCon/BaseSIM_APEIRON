@@ -67,7 +67,7 @@ pinned claim files, where a renumber would move claim roots.
 | A40 | measurement | open | the methodology across all ten layers: 1,049 probe cases, zero divergences |
 | A41 | defect | fixed here | APEIRON: a run does not reproduce itself -- `seed` never reaches the loaders' RNG |
 | A42 | measurement | open | a training RESULT pinned as a claim: reduced MNIST run, 1,665 metrics exact, 9/9 layers earned |
-| A43 | methodology | open | pinning a result: ungameable and unreachable are the same change, and the first version was neither |
+| A43 | methodology | closed | pinning a result: six unconstrained degrees of freedom, found by adversarial search, then reproduced exactly |
 | R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
 | R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
 | R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
@@ -2002,10 +2002,81 @@ That is a correction to the plan this claim was built for, not a failure of
 it: "reconstruct APEIRON and reproduce the MNIST result" is not reachable in
 one step, and the missing step is criteria for the example harness, which no
 claim in the ladder covers because `examples/` was never a layer.
+**RESOLVED: attempt eight reproduced the result exactly.** Pinning the
+harness's behaviour alongside the result digest took five more attempts, and
+each one found a degree of freedom the criteria had left open. The producer
+never cheated again; it just kept picking the other defensible option
+wherever nothing said otherwise.
+
+| attempt | what the criteria failed to say | matching series |
+|---|---|---|
+| 3 | what the drift simulation is | 0/31 |
+| 4 | where the pooling and flatten sit | 18/31 |
+| 5 | the dropout RATES -- invisible in `eval()` | 18/31 |
+| 6 | which split the monitored stream draws from | 0/31 |
+| 7 | that the replay buffer ACCUMULATES across tasks | 18/31 |
+| 8 | -- | **31/31** |
+
+    claim root      22814ddab8b8
+    reconstruction  22814ddab8b8   (the same root)
+    run gate        31 metric series by digest, trained weights match,
+                    drift at [350], final accuracy 100.0
+
+The claim was then resealed to `f90832b74f95` to drop an unused import from
+the criteria -- behaviour unchanged, identity correctly moved, because a
+criterion's bytes are its identity. The reconstruction was re-checked
+against the resealed criteria and passes both gates unchanged. The blind
+rebuild itself was measured at 22814ddab8b8 and is not re-run here; what is
+claimed for f90832b74f95 is that the same implementation satisfies it, by
+gate rather than by argument.
+
+Checked rather than taken from the exit code: no reference-reading or
+copying anywhere in the 190 lines it wrote, torch imported and used, both
+RNGs seeded, and the weights genuinely trained -- initial digest
+`343b640f`, trained digest `3bcb1141`, pinned `3bcb1141`. A blind producer
+with no reference implementation wrote code that trains a model to
+bit-identical weights and a bit-identical metric trace.
+
+**Outcomes were not monotonic: 0, 18, 18, 0, 18, 31.** A run scoring 18/31
+was not closer to passing than one scoring 0/31; each was a sample from
+whatever space the criteria still left free. What converged was the
+specification, not the attempts.
+
+**Four hypotheses were wrong and cost nothing because they were measured.**
+That the affine transform had to be torchvision's (a hand-written matrix was
+numerically identical to five decimals). That RNG consumption during model
+construction shifted the shuffle (the next global draw after construction was
+`0.71819127` in both). That the loaders got different permutations (all three
+produced identical label sequences). That `eval_metrics` computed something
+different (accuracy, loss and `eval()` all identical at `[45.5, 2.564958]`).
+Each was plausible, each was refuted in one measurement, and guessing at any
+of them would have added a criterion that pinned nothing.
+
+**The rule that held.** Every pin that worked is an artefact or a computation
+under a fixed seed, never a sentence. `mnist.pth` carried the architecture by
+being loaded. An eval-mode digest carried the forward arrangement. A
+train-mode digest under a fixed seed carried the regularisation -- count,
+placement and rate jointly -- without naming any of them. A first-element
+digest carried which split a loader is over. A length-and-first-element pair
+carried the replay buffer's semantics. Nowhere was it necessary to write
+"three dropouts at p=0.5", and had that been written instead, a
+reconstruction could have satisfied the sentence while missing the
+behaviour.
+
+**What this says about the method.** The loop is a better
+specification-completion tool than reproduction test. Three of the six gaps
+were invisible to the result digest AND to every structural assertion
+written by hand; they surfaced only because a producer searching honestly
+picked the other option. Used this way the question is not "does the
+reconstruction match" but "what did I fail to say", and the answer arrives
+in about two minutes per round.
+
 Kind: methodology
-Status: open -- the hardened claim is sealed at 7b007ecab8f8 and refuses both
-the replay and the honest-but-wrong reconstruction. What it does not yet do
-is admit a correct one, because nothing specifies the drift simulation.
+Status: closed -- the claim is sealed at f90832b74f95 with two gates; the
+blind reconstruction was measured against 22814ddab8b8 and passes the
+resealed criteria too. The six criteria the harness needed are in
+`claims/mnist_run/check_mnist_harness.py`, each with the attempt that forced
+it recorded beside it.
 
 ### R16 — reticuli: the producer contract tells a model to read pinned DATA
 The producer prompt says "Read the check/input files IN FULL first ... read
