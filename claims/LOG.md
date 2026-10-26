@@ -1729,11 +1729,83 @@ shuffling is loose.
 
 Seeding the global RNG before the harness is built is sufficient: every
 non-wall-clock metric becomes identical. The residue is `*_time` and the
-`*_flops` throughputs derived from it, which no fix can make equal. A
-belt-and-braces version would also pass an explicit `generator=` to the three
-shuffled loaders, which is what makes it hold with `num_workers > 0` as well
--- the shipped config uses `num_workers = 4`, so that part is not optional
-for the real run.
+`*_flops` throughputs derived from it, which no fix can make equal.
+
+**Correction.** This entry first claimed that explicit `generator=` arguments
+on the three shuffled loaders were "not optional" because the shipped config
+sets `num_workers = 4`. That was asserted, not measured, and it is wrong. The
+whole surface was then characterised:
+
+| device | num_workers | seeded | non-wall-clock agreement |
+|---|---|---|---|
+| cpu | 0 | no | ~46% -- the defect |
+| cpu | 0 | yes | 100% |
+| cpu | 4 | yes | 100% |
+| mps | 0 | yes | 100% |
+| mps | 4 | yes | 100% |
+
+One line covers every cell. Workers do not need a generator because
+`RandomSampler` computes the permutation in the PARENT process, seeded from
+the global CPU RNG, and each worker's seed is derived from that same
+generator; the MNIST transforms carry no per-sample randomness, since the
+affine augmentation is a fixed transform per task. `torch.manual_seed` also
+covers the mps backend, so no `torch.mps.manual_seed` call is needed --
+checked directly.
+
+Device choice is not a reproducibility problem either, which was the other
+thing worth ruling out given that `device = "auto"` selects mps on Apple
+hardware. Across cpu and mps at one seed: `eval/accuracy` identical to the
+point, `drift/metric_0` identical, and `eval/loss` agreeing to 2e-6. The
+shuffle permutation is device-independent by construction (the sampler draws
+from the CPU generator whatever the compute device), so what is left is
+float arithmetic, not behaviour.
+
+A third nondeterminism source went unexamined: `torch.use_deterministic_algorithms`
+is never set anywhere, so a kernel without a deterministic implementation
+could still bite on a different device or a longer run.
+
+**The drift events reproduce; the numbers do not.** The first measurements
+were taken on a run so short that `drift/score` never left zero -- the
+detector never spoke, so nothing about detection was being tested. Closing
+that needed a longer run, and the shipped config turned out to be
+unrunnable for a reason worth recording on its own: `update_data_stream()`
+extends the stream each window and every window re-evaluates the whole grown
+stream, so the cost is QUADRATIC in window count. Two windows take 18s, four
+63s, six 81s; `max_stream_updates = 20` with `max_iter = 600` did not finish
+in the time available and was abandoned twice.
+
+At six windows the detector fires 92 times in 187 checks -- a dense band
+from step 1054 -- and the unseeded runs agree on every one of those
+positions. That is not evidence of robustness: a detector pinned to the rail
+fires at the same dense set whatever the metrics do, so the configuration
+cannot discriminate. `reset_after_learning = true` brings it down to two
+events, which can move. It does not:
+
+| | drift events | final accuracy | metric agreement |
+|---|---|---|---|
+| unseeded, run 1 | [1054, 1810] | 93.750 | |
+| unseeded, run 2 | [1054, 1810] | 93.750 | 49.5% vs run 1 |
+| unseeded, run 3 | [1054, 1810] | **100.000** | |
+| seeded, runs 1-2 | [1054, 1810] | 100.000 | **100%** |
+
+Three unseeded runs, two sparse events, identical positions. So the honest
+statement is narrower than the one this entry was heading towards: **the
+framework agrees with itself about WHEN the data changed and disagrees about
+HOW WELL it did.** The mechanism explains it -- the drift is an affine
+augmentation applied at deterministic points with a properly seeded
+transform, so the detector meets the same large shift in the same place
+whatever order the batches arrived in.
+
+That is still the serious half for a paper. Event positions are not what gets
+published; accuracy, BWT and forgetting curves are, and final accuracy moved
+between 93.75 and 100.0 across three runs of one config.
+
+One knob was nearly mis-recorded on the way. In the dense regime
+`adwin_delta` appeared inert -- 0.002 and 1e-8, six orders apart, gave
+byte-identical output. In the sparse regime it is plainly wired in: 1e-8
+yields one event where 0.002 yields two. Saturation was masking it. Exactly
+the failure A38 records twice over, caught this time before it reached the
+ledger.
 
 Why this ranks above A39 despite being easier to fix: A39 perturbs the
 ensemble's regime on a tied vote. This perturbs every metric of every run.
@@ -1750,10 +1822,10 @@ failed. It is a prerequisite for the reconstruction work, not a by-product
 of it.
 Kind: defect
 Status: fixed here -- `claims/scripts/falsify_run_reproducibility.py`
-reproduces it (exit 0) and verifies the fix (`--seeded`, exit 1). Wants an
-upstream PR; the fix is `torch.manual_seed(cfg.seed)` in `main.py` before
-`get_example`, plus seeded generators on the three shuffled loaders for the
-`num_workers > 0` case.
+reproduces it (exit 0) and verifies the fix (`--seeded`, exit 1), with
+`--device` and `--workers` to re-run any cell of the matrix above. Wants an
+upstream PR; the fix is one line, `torch.manual_seed(cfg.seed)` in `main.py`
+before `get_example`.
 
 ### R13 — reticuli: no codex rebuild has ever recorded a cost
 Every usage drop this campaign produced reads exactly

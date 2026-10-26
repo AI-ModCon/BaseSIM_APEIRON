@@ -38,6 +38,29 @@ non-wall-clock pairs identical, accuracy gap 0.000. The only residue is
 wall-clock -- `*_time` and the `*_flops` throughputs derived from it -- which
 no fix can make identical.
 
+One line covers the whole surface. Measured with --device and --workers:
+
+    device  workers  seeded   agreement
+    cpu     0        no       ~46%  (the defect)
+    cpu     0        yes      100%
+    cpu     4        yes      100%
+    mps     0        yes      100%
+    mps     4        yes      100%
+
+Workers need no `generator=`: RandomSampler computes the permutation in the
+parent process from the global CPU RNG, worker seeds derive from that same
+generator, and the MNIST transforms carry no per-sample randomness. And
+`torch.manual_seed` covers the mps backend, so no `torch.mps.manual_seed` is
+required. Across cpu and mps at one seed, `eval/accuracy` and
+`drift/metric_0` are identical and `eval/loss` agrees to 2e-6 -- float
+arithmetic, not behaviour.
+
+Not established: this is a short run in which no drift ever fired, so
+whether a 2e-6 difference compounds over the shipped max_iter = 600 and flips
+a detection at a threshold is untested; and
+`torch.use_deterministic_algorithms` is never set anywhere, so a
+nondeterministic kernel remains a possible third source.
+
     python3 claims/scripts/falsify_run_reproducibility.py \\
         --python .venv/bin/python --config examples/mnist/mnist.toml
 
@@ -63,23 +86,42 @@ import tempfile
 TIMED = ("_time", "_flops", "throughput")
 
 SEEDING_WRAPPER = '''
+"""Seed the global RNG, then hand off to APEIRON's own main.
+
+The __main__ guard is not decoration. macOS starts DataLoader workers with
+`spawn`, so every worker re-imports this module; without the guard each one
+would start its own training run and the parent would die with "DataLoader
+worker exited unexpectedly, details are lost due to multiprocessing". That
+is a defect in this wrapper, not in APEIRON, and it is exactly how the
+num_workers > 0 cell of the determinism matrix first failed.
+"""
 import sys
-import torch
-from apeiron.config.configuration import build_config
 
-argv = sys.argv[1:]
-cfg = build_config(argv)
-torch.manual_seed(cfg.seed)
-import random
-random.seed(cfg.seed)
-try:
-    import numpy as np
-    np.random.seed(cfg.seed)
-except ImportError:
-    pass
 
-from src.main import main
-sys.exit(main(argv))
+def _seed_and_run() -> int:
+    import random
+
+    import torch
+    from apeiron.config.configuration import build_config
+
+    argv = sys.argv[1:]
+    cfg = build_config(argv)
+    # torch.manual_seed covers every backend including mps, verified
+    # separately; no torch.mps.manual_seed call is needed.
+    torch.manual_seed(cfg.seed)
+    random.seed(cfg.seed)
+    try:
+        import numpy as np
+        np.random.seed(cfg.seed)
+    except ImportError:
+        pass
+
+    from src.main import main
+    return main(argv)
+
+
+if __name__ == "__main__":
+    sys.exit(_seed_and_run())
 '''
 
 
@@ -100,12 +142,13 @@ def keyed(path: pathlib.Path) -> dict:
 
 
 def run(python: str, config: str, out_csv: pathlib.Path, root: pathlib.Path,
-        wrapper: pathlib.Path | None) -> None:
+        wrapper: pathlib.Path | None, device: str = "cpu",
+        workers: int = 0) -> None:
     argv = ([python, str(wrapper)] if wrapper else [python, "-m", "src.main"])
     argv += ["--config", config,
              "--set", f"logging.metrics_output_path={out_csv}",
-             "--set", "device=cpu",
-             "--set", "train.num_workers=0",
+             "--set", f"device={device}",
+             "--set", f"train.num_workers={workers}",
              "--set", "logging.backend=none"]
     proc = subprocess.run(argv, capture_output=True, text=True, cwd=str(root),
                           env={"PATH": "/usr/bin:/bin", "PYTHONPATH": str(root),
@@ -123,6 +166,16 @@ def main(argv: list[str]) -> int:
                     help="seed the global RNG first -- verifies the fix")
     ap.add_argument("--root", default=".",
                     help="repository root; main.py resolves paths against it")
+    ap.add_argument("--device", default="cpu",
+                    help="cpu, mps or cuda. The shipped config says 'auto', "
+                         "which selects mps on Apple hardware, so cpu here is "
+                         "a deliberately favourable setting")
+    ap.add_argument("--workers", type=int, default=0,
+                    help="train.num_workers. The shipped config says 4; 0 "
+                         "removes worker RNG and ordering from the picture")
+    ap.add_argument("--keep", default=None,
+                    help="directory to leave the two metric CSVs in, for "
+                         "cross-configuration comparison")
     a = ap.parse_args(argv)
     root = pathlib.Path(a.root).resolve()
 
@@ -132,9 +185,13 @@ def main(argv: list[str]) -> int:
         if a.seeded:
             wrapper = d / "seeded_main.py"
             wrapper.write_text(SEEDING_WRAPPER)
-        first, second = d / "first.csv", d / "second.csv"
+        keep = pathlib.Path(a.keep).resolve() if a.keep else d
+        keep.mkdir(parents=True, exist_ok=True)
+        tag = f"{a.device}-w{a.workers}{'-seeded' if a.seeded else ''}"
+        first, second = keep / f"{tag}-1.csv", keep / f"{tag}-2.csv"
         for target in (first, second):
-            run(a.python, a.config, target, root, wrapper)
+            run(a.python, a.config, target, root, wrapper,
+                device=a.device, workers=a.workers)
 
         A, B = keyed(first), keyed(second)
 
@@ -157,7 +214,7 @@ def main(argv: list[str]) -> int:
 
     mode = "seeded" if a.seeded else "as shipped"
     print(f"two runs of {a.config} ({mode}), seed unchanged, "
-          f"device cpu, num_workers 0\n")
+          f"device {a.device}, num_workers {a.workers}\n")
     print(f"  comparable (step, metric) pairs : {len(shared)}")
     print(f"  identical                       : {same}/{len(shared)} "
           f"({100 * same / len(shared):.1f}%)")
