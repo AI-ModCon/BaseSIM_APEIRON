@@ -66,6 +66,7 @@ pinned claim files, where a renumber would move claim roots.
 | A39 | defect | open | APEIRON: `EnsembleDetector` reports a nondeterministic regime on a tied vote |
 | A40 | measurement | open | the methodology across all ten layers: 1,049 probe cases, zero divergences |
 | A41 | defect | fixed here | APEIRON: a run does not reproduce itself -- `seed` never reaches the loaders' RNG |
+| A42 | measurement | open | a training RESULT pinned as a claim: reduced MNIST run, 1,665 metrics exact, 9/9 layers earned |
 | R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
 | R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
 | R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
@@ -1744,7 +1745,27 @@ whole surface was then characterised:
 | mps | 0 | yes | 100% |
 | mps | 4 | yes | 100% |
 
-One line covers every cell. Workers do not need a generator because
+**Second correction: it is two RNGs, not one line.** Everything in the table
+above was measured through a wrapper that seeded `torch`, `random` AND
+`numpy`, so "one line" was never what was tested. Building the run claim
+(A42) applied only `torch.manual_seed` and the residue showed up at once:
+three runs wrote 1843, 1842 and 1846 rows. `ContinuousMonitor._log_metrics`
+samples its `detected=0` rows at ten percent --
+
+    log_detected = drift_signal.drift_detected or (np.random.random() <= 0.1)
+
+-- from the numpy global RNG, which `torch.manual_seed` does not touch. So
+the SHAPE of the metrics file varies even once the batch order is fixed: a
+reader counting `drift/detected` rows gets a different answer per run, though
+no value ever disagrees and the real detections are never dropped. Seeding
+numpy as well makes three runs byte-identical. The fix is
+`torch.manual_seed(cfg.seed)` plus `np.random.seed(cfg.seed)`.
+
+Found by pinning a result rather than by pinning tests, which is the
+methodological point of A42: the unit-test claims could not see this because
+no test reads the metrics file's row count.
+
+With that said, workers still do not need a generator, because
 `RandomSampler` computes the permutation in the PARENT process, seeded from
 the global CPU RNG, and each worker's seed is derived from that same
 generator; the MNIST transforms carry no per-sample randomness, since the
@@ -1824,8 +1845,75 @@ Kind: defect
 Status: fixed here -- `claims/scripts/falsify_run_reproducibility.py`
 reproduces it (exit 0) and verifies the fix (`--seeded`, exit 1), with
 `--device` and `--workers` to re-run any cell of the matrix above. Wants an
-upstream PR; the fix is one line, `torch.manual_seed(cfg.seed)` in `main.py`
-before `get_example`.
+upstream PR; the fix is `torch.manual_seed(cfg.seed)` and
+`np.random.seed(cfg.seed)` in `main.py` before `get_example` -- two RNGs,
+see the second correction above.
+
+### A42 — a training result pinned as a claim
+Every other claim in this ladder pins a layer's TESTS. `claims/mnist_run`
+pins a RESULT: the configuration in `mnist-run.toml`, driven through
+`main.py` over a pinned MNIST subset, must produce the metrics trace in
+`reference_trace.csv` exactly, on every value that is not a wall-clock
+reading.
+
+    apeiron-mnist-run   root 33a7efb4b74b   9/9 layers earned
+    gate                1,665 metrics exact, drift at [350],
+                        final accuracy 100.0, 57s under seatbelt
+
+That is a far stronger acceptance boundary than a unit test, and it is the
+one the next stage needs: a reconstruction of APEIRON either reproduces this
+training result or it does not.
+
+**Reduced in three ways, and the recipe says so in full.** Six stream
+windows instead of twenty, because `update_data_stream()` extends the stream
+each window and every window re-evaluates the whole grown stream -- the cost
+is quadratic in window count (18s, 63s, 81s at two, four, six windows) and
+twenty never finished. Fifty CL iterations instead of six hundred, same
+reason. And the first 2,000 train and 2,000 validation examples of real
+MNIST rather than all 70,000, rewritten in the same idx-ubyte format and
+pinned as claim inputs at 3MB; the full 64MB cannot be pinned, and leaving
+the dataset as an external precondition would make the claim reproducible
+only on a machine that already has it at the right path.
+
+Three further settings differ from the example's defaults and not for cost:
+`device = "cpu"` and `num_workers = 0` keep the platform out of the
+comparison (both were measured not to matter, A41, but a claim should not
+depend on that holding); `backend = "none"` keeps the gate off the network;
+and `reset_after_learning = true`, because with it `false` the detector fires
+on roughly half of all checks and a saturated detector makes the drift
+assertion say nothing.
+
+So this is a reproducible result, not a scientific one. The model reaches
+100% on 2,000 images, which no paper would report. What the claim
+establishes is that the framework CAN produce a training trace reproducible
+to the last digit, and that a regrowth has to land on exactly it.
+
+**The claim cannot pass unseeded, which is the design.** `main.py` is a
+generated file here, so a reconstruction has to arrive at the seeding itself.
+Stripping both seed calls makes the gate fail on final accuracy -- 87.5
+against the pinned 100.0 -- and exit 1. The one-line (two-line) upstream fix
+A41 asks for is therefore not argued for in prose anywhere in this claim; it
+is required in order to pass. That is the most useful property the claim has:
+the gate IS the argument.
+
+**It also found what the ten unit-test claims could not.** Applying only
+`torch.manual_seed` left the trace's SHAPE varying -- 1843, 1842, 1846 rows
+across three runs -- because the monitor samples its `detected=0` log rows at
+ten percent from numpy's RNG. No value ever disagreed; only whether a row
+existed. No unit test reads the metrics file's row count, so nothing in the
+layer claims could have caught it, and A41's "one line" conclusion was wrong
+until this claim was built. Pinning a result tests a different thing from
+pinning behaviour, and this is the evidence for that being worth the trouble.
+
+Noticed in passing and not chased: `examples/mnist/model.py` hardcodes
+`get_mnist_train("./data")` and never reads `cfg.data.path`, which the
+shipped config documents as "folder or file later for custom dataset". The
+field is inert for mnist, and the data root is whatever directory the process
+was started in.
+Kind: measurement
+Status: open -- the claim is sealed and audits 9/9 earned. The reconstruction
+question it exists to ask (does a regrown APEIRON reproduce this trace?) is
+not yet run.
 
 ### R13 — reticuli: no codex rebuild has ever recorded a cost
 Every usage drop this campaign produced reads exactly

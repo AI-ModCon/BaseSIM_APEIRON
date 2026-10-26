@@ -1,0 +1,43 @@
+# The claim: APEIRON's FLOPs profiler.
+#
+# Pinned: test_profiler.py (copied from tests/ at 63a877a), pytest.ini, a
+# torch+pandas lock, and the ATen cost table -- reference data the profiler
+# reads, so it is an input rather than something to regrow. Generated: the
+# profiler itself. This
+# layer depends on nothing else in the package, so it has no components.
+
+[claim]
+name = "apeiron-profilers"
+format = 4
+requires = ["python3"]
+gate_timeout = 600.0
+environment = "requirements.lock"
+inputs = [
+    # The cost table is reference DATA the profiler reads, not logic, so it is
+    # an INPUT: inside the root, materialized into every room, and inside the
+    # set a producer may not touch. A blind regrowth reproduced 14 of its 169
+    # entries and passed the whole gate (LOG A25); declared as a pinned OUTPUT
+    # instead, a producer rewrote it and the rebuild minted a different claim
+    # (LOG R11).
+    "apeiron/profilers/aten_flops_map.py",
+    "test_profiler.py",
+    "pytest.ini",
+]
+
+[[step]]
+kind = "produce"
+output = "apeiron/profilers/__init__.py"
+class = "generated"
+guidance = "re-export FLOPSProfiler from apeiron.profilers.count_flops"
+
+[[step]]
+kind = "produce"
+output = "apeiron/profilers/count_flops.py"
+class = "generated"
+guidance = "regenerate FLOPSProfiler(warmup_iters=...): per-tag FLOPs and wall-clock measurement. measure_flops(tag) is a context manager using torch.utils.flop_counter.FlopCounterMode; measure_flops_optimizer(model, device, tag) uses torch.profiler and estimates total FLOPs as (FLOPs per parameter element, summed from ATEN_FLOPS_PER_ELEMENT times each operation's call count) times the trainable parameter count. get_performance() averages FLOPs, time and throughput per tag; print_performance(logger, level) reports them; format_flops renders with T/G/M/K suffixes."
+
+[[step]]
+kind = "gate"
+output = "PROFILER_OK"
+class = "validated"
+run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_profiler.py && printf ok > PROFILER_OK"

@@ -1,0 +1,25 @@
+{
+  "components": [
+    {
+      "component": "apeiron-config",
+      "input": "apeiron/config/__init__.py",
+      "output": "apeiron/config/__init__.py",
+      "root": "8cfb4c6c3ec8271793474817dc365bca23b325ab5d16503febe8c2e40903637a"
+    },
+    {
+      "component": "apeiron-config",
+      "input": "apeiron/config/configuration.py",
+      "output": "apeiron/config/configuration.py",
+      "root": "8cfb4c6c3ec8271793474817dc365bca23b325ab5d16503febe8c2e40903637a"
+    }
+  ],
+  "digest": "sha256",
+  "name": "apeiron-logger",
+  "proof": {
+    "kind": "crosscheck",
+    "m2": "1f461066564ed601f0bde3c0118beb966318515a31a1c2e11f36c6ae470dfc81",
+    "m3": "1f461066564ed601f0bde3c0118beb966318515a31a1c2e11f36c6ae470dfc81"
+  },
+  "root": "1f461066564ed601f0bde3c0118beb966318515a31a1c2e11f36c6ae470dfc81",
+  "sealed": "2026-10-22T17:04:10Z"
+}

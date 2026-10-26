@@ -1,0 +1,74 @@
+# The claim: APEIRON's console and wandb loggers, composed on apeiron-config.
+#
+# Pinned: test_logger.py (copied from tests/ at 63a877a), pytest.ini, and a
+# torch+pandas+wandb lock (wandb is a module-level import of the wandb
+# logger). Supplied by the apeiron-config component: the Config the wandb
+# logger serializes. Generated: console_logger.py and wandb_logger.py.
+# Deliberately unclaimed: logger.py (the facade) and mlflow_logger.py --
+# tests/test_logger.py never imports them, so they have no criteria here;
+# they join when the facade gets tests of its own.
+
+[claim]
+name = "apeiron-logger"
+format = 4
+requires = ["python3"]
+gate_timeout = 600.0
+environment = "requirements.lock"
+inputs = [
+    "test_logger.py",
+    "test_logger_facade.py",
+    "test_mlflow_logger.py",
+    "test_wandb_run_paths.py",
+    "conftest.py",
+    "pytest.ini",
+]
+
+[[step]]
+kind = "produce"
+output = "apeiron/config/__init__.py"
+class = "generated"
+from = "apeiron-config"
+guidance = "supplied by the apeiron-config component"
+
+[[step]]
+kind = "produce"
+output = "apeiron/config/configuration.py"
+class = "generated"
+from = "apeiron-config"
+guidance = "supplied by the apeiron-config component"
+
+[[step]]
+kind = "produce"
+output = "apeiron/logger/__init__.py"
+class = "generated"
+guidance = "re-export the logging surface: Logger, get_logger, reset_logger, configure_backend, MetricsBackend from logger; WandBLogger, StageType, VALID_STAGES from wandb_logger; MLFlowLogger from mlflow_logger; ConsoleLogger from console_logger"
+
+[[step]]
+kind = "produce"
+output = "apeiron/logger/console_logger.py"
+class = "generated"
+guidance = "regenerate the console logger: ConsoleLogger(verbosity) over the logging module with a ColoredFormatter and a StepFilter; verbosity strings parse as LEVEL or LEVEL:tier via _parse_verbosity (an invalid tier falls back to tier 0)"
+
+[[step]]
+kind = "produce"
+output = "apeiron/logger/wandb_logger.py"
+class = "generated"
+guidance = "regenerate the wandb metrics backend: StageType and VALID_STAGES (eval, drift, cl), WandBLogger with init(cfg, project) (serializes the frozen Config via dataclasses.asdict), log of per-stage metric dicts, url read from the wandb Run.url property, and finish()"
+
+[[step]]
+kind = "produce"
+output = "apeiron/logger/mlflow_logger.py"
+class = "generated"
+guidance = "regenerate the MLflow metrics backend, mirroring WandBLogger's interface for drop-in replacement but differing deliberately in three ways: metric keys are prefixed with the stage and a DOT (not a slash), and slashes in caller keys are converted to dots; metrics are logged against the PER-STAGE step rather than the global one, so sparse global steps cannot downsample away rare events; and booleans are converted to int 0/1 rather than cast through float, while non-numeric values are dropped since MLflow accepts only numbers. mlflow is imported lazily. init flattens the frozen Config to dot-separated params truncated at 500 characters, maps a group and tags to run tags, and notes to mlflow.note.content. finish marks a nonzero exit code as FAILED. url returns None for a local (file:// or absolute-path) tracking store."
+
+[[step]]
+kind = "produce"
+output = "apeiron/logger/logger.py"
+class = "generated"
+guidance = "regenerate the Logger facade: selects the metrics backend from a 'wandb' | 'mlflow' | 'none' literal, where 'none' (and any unrecognized value) is a DISABLED WandBLogger; delegates the metrics surface (init, stage, step, current_stage, get_stage_step, log, save, to_dataframe, to_csv, finish, url) and the console surface (verbosity property, debug/info/warning/error/critical/exception) to the two halves. Module-level get_logger() is a singleton that IGNORES its arguments once an instance exists; reset_logger() clears it. configure_backend(cfg) reads cfg.logging.backend, defaulting to 'wandb' when cfg or cfg.logging is None, raising ValueError on an unknown name, and calling mlflow.set_tracking_uri when a tracking uri is configured."
+
+[[step]]
+kind = "gate"
+output = "LOGGER_OK"
+class = "validated"
+run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_logger.py test_logger_facade.py test_mlflow_logger.py test_wandb_run_paths.py && printf ok > LOGGER_OK"

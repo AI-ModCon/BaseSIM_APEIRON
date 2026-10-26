@@ -1,0 +1,462 @@
+"""
+Model performance-based drift detector using evidently.
+
+This detector monitors model predictions and performance metrics to detect drift.
+It uses evidently's data drift detection capabilities for comprehensive analysis.
+
+Reference: https://github.com/evidentlyai/evidently
+"""
+
+import numpy as np
+import pandas as pd
+from typing import Any, Dict, Optional, List
+from apeiron.drift_detection.detectors.base import (
+    BaseDriftDetector,
+    DriftSignal,
+    LearningRegime,
+)
+
+
+class ModelEvalDetector(BaseDriftDetector):
+    # Stateless: every verdict comes from a fresh harness eval compared against
+    # reference metrics passed in by the caller, so there is nothing to restore.
+    _STATE_ATTRS: tuple[str, ...] = ()
+
+    def __init__(
+        self,
+        name: str = "ModelEval",
+    ):
+        super().__init__(name=name)
+
+    def update(
+        self,
+        value: float,
+        **kwargs,
+    ) -> DriftSignal:
+        modelHarness = kwargs.get("modelHarness")
+        reference_validation_metrics = kwargs.get("reference_validation_metrics", [])
+        higher_is_better_list = kwargs.get("higher_is_better", {})
+
+        if modelHarness is None:
+            raise ValueError("modelHarness must be provided in kwargs")
+
+        validation_metrics = (
+            modelHarness.eval()
+        )  # need to find away to explicitly match the metrics to reference values
+
+        assert (
+            len(reference_validation_metrics)
+            == len(validation_metrics)
+            == len(higher_is_better_list)
+        )
+
+        for metric, ref_metric, is_higher_better in zip(
+            validation_metrics,
+            reference_validation_metrics,
+            higher_is_better_list.values(),
+        ):
+            print(
+                "metric:",
+                metric,
+                "ref_metric:",
+                ref_metric,
+                "higher_is_better:",
+                is_higher_better,
+            )
+            if is_higher_better:
+                if metric < ref_metric:
+                    return DriftSignal(
+                        regime=LearningRegime.CONTINUAL_LEARNING,
+                        drift_detected=True,
+                        drift_score=1,  # dummy
+                        confidence=0.95,  # dummy
+                        metadata=None,
+                    )
+            else:
+                if metric > ref_metric:
+                    return DriftSignal(
+                        regime=LearningRegime.CONTINUAL_LEARNING,
+                        drift_detected=True,
+                        drift_score=1,  # dummy
+                        confidence=0.95,  # dummy
+                        metadata=None,
+                    )
+
+        return DriftSignal(
+            regime=LearningRegime.STABLE,
+            drift_detected=False,
+            drift_score=1,  # dummy
+            confidence=0.95,  # dummy
+            metadata=None,
+        )
+
+    def reset(self):
+        pass
+
+
+class ModelPerformanceDetector(BaseDriftDetector):
+    """
+    Drift detector based on model predictions and performance.
+
+    Uses evidently to detect drift in:
+    - Prediction distributions
+    - Feature distributions (if features provided)
+    - Target distributions
+
+    This is more comprehensive than statistical detectors but requires
+    reference data and batched updates.
+    """
+
+    # Only the rolling drift-share history evolves with the stream. Reference
+    # data is setup input, not accumulated state: a resumed run re-supplies it
+    # through the constructor or set_reference(), which also keeps large
+    # reference frames out of every checkpoint.
+    _STATE_ATTRS = ("_drift_history",)
+
+    def __init__(
+        self,
+        reference_data: Optional[pd.DataFrame] = None,
+        reference_predictions: Optional[np.ndarray] = None,
+        reference_targets: Optional[np.ndarray] = None,
+        drift_share_threshold: float = 0.5,
+        minor_threshold: float = 0.3,
+        moderate_threshold: float = 0.6,
+        name: str = "ModelPerformance",
+    ):
+        """
+        Initialize model performance detector.
+
+        Args:
+            reference_data: Reference dataset (features as DataFrame)
+            reference_predictions: Reference model predictions
+            reference_targets: Reference ground truth labels
+            drift_share_threshold: Share of drifted features to trigger detection
+            minor_threshold: Drift share for continual learning regime
+            moderate_threshold: Drift share for fine-tuning regime
+            name: Detector name
+        """
+        super().__init__(name)
+        self.reference_data = reference_data
+        self.reference_predictions = reference_predictions
+        self.reference_targets = reference_targets
+        self.drift_share_threshold = drift_share_threshold
+        self.minor_threshold = minor_threshold
+        self.moderate_threshold = moderate_threshold
+
+        self._drift_history: list[float] = []
+        self._is_initialized = reference_data is not None
+
+    def set_reference(
+        self,
+        data: pd.DataFrame,
+        predictions: Optional[np.ndarray] = None,
+        targets: Optional[np.ndarray] = None,
+    ) -> None:
+        """
+        Set or update reference data.
+
+        Args:
+            data: Reference features
+            predictions: Reference predictions
+            targets: Reference targets
+        """
+        self.reference_data = data.copy()
+        self.reference_predictions = predictions
+        self.reference_targets = targets
+        self._is_initialized = True
+
+    def update(
+        self,
+        value: Optional[float] = None,
+        data: Optional[pd.DataFrame] = None,
+        predictions: Optional[np.ndarray] = None,
+        targets: Optional[np.ndarray] = None,
+        **kwargs,
+    ) -> DriftSignal:
+        """
+        Update detector with new batch of data.
+
+        This detector requires batch updates (not single values like statistical detectors).
+
+        Args:
+            value: Optional single metric value (e.g., average loss)
+            data: Current data batch (features)
+            predictions: Current predictions
+            targets: Current targets
+            **kwargs: Additional parameters
+
+        Returns:
+            DriftSignal with regime recommendation
+        """
+        if not self._is_initialized:
+            raise ValueError(
+                "Detector not initialized. Call set_reference() first or provide "
+                "reference data in constructor."
+            )
+
+        # If no data provided, fall back to simple value-based detection
+        if data is None and value is not None:
+            return self._simple_value_detection(value)
+
+        if data is None:
+            raise ValueError(
+                "Either 'data' DataFrame or 'value' must be provided for update()"
+            )
+
+        # Prepare current data
+        current_data = data.copy()
+        if predictions is not None:
+            current_data["prediction"] = predictions
+        if targets is not None:
+            current_data["target"] = targets
+
+        # Prepare reference data
+        if self.reference_data is not None:
+            reference_data = self.reference_data.copy()
+        if self.reference_predictions is not None:
+            reference_data["prediction"] = self.reference_predictions
+        if self.reference_targets is not None:
+            reference_data["target"] = self.reference_targets
+
+        # Imported at the call site: this is the only place in the package that
+        # needs evidently, and at module scope `import apeiron` fails wherever it
+        # is absent, taking the statistical detectors down with it.
+        from evidently import Report
+        from evidently.presets import DataDriftPreset
+
+        report = Report(metrics=[DataDriftPreset()])
+        snapshot = report.run(reference_data=reference_data, current_data=current_data)
+        result_dict = snapshot.dict()
+
+        if "metrics" not in result_dict or len(result_dict["metrics"]) == 0:
+            raise KeyError("No metrics found in snapshot results")
+
+        drift_count_metric = None
+        for metric in result_dict["metrics"]:
+            metric_name = metric.get("metric_name", "")
+            if "DriftedColumnsCount" in metric_name:
+                drift_count_metric = metric
+                break
+
+        if drift_count_metric is None:
+            raise KeyError("DriftedColumnsCount metric not found in results")
+
+        # Extract drift info from the value field
+        value = drift_count_metric.get("value", {})
+        if not isinstance(value, dict):
+            raise ValueError(
+                f"Expected dict for DriftedColumnsCount value, got {type(value)}"
+            )
+
+        # Extract metrics
+        n_drifted_columns = int(value.get("count", 0))
+        drift_share = float(value.get("share", 0.0))
+
+        # Determine if dataset has drift (if any columns drifted)
+        dataset_drift = drift_share > self.drift_share_threshold
+
+        # Get total number of columns from current data
+        n_columns = len(current_data.columns)
+
+        self._drift_history.append(drift_share)
+
+        # Compute average drift score
+        recent_window = min(10, len(self._drift_history))
+        drift_score = np.mean(self._drift_history[-recent_window:])
+
+        # Determine regime
+        if not dataset_drift and drift_score < self.minor_threshold:
+            regime = LearningRegime.STABLE
+        elif drift_score < self.minor_threshold:
+            regime = LearningRegime.CONTINUAL_LEARNING
+        elif drift_score < self.moderate_threshold:
+            regime = LearningRegime.FINE_TUNING
+        else:
+            regime = LearningRegime.RETRAIN
+
+        metadata = {
+            "dataset_drift": dataset_drift,
+            "drift_share": drift_share,
+            "n_drifted_columns": n_drifted_columns,
+            "n_columns": n_columns,
+        }
+
+        return DriftSignal(
+            regime=regime,
+            drift_detected=dataset_drift,
+            drift_score=float(drift_score),
+            confidence=0.95,  # Evidently uses statistical tests with high confidence
+            metadata=metadata,
+        )
+
+    def _simple_value_detection(self, value: float) -> DriftSignal:
+        """Fallback simple value-based detection."""
+        self._drift_history.append(value)
+        recent_window = min(10, len(self._drift_history))
+        drift_score = np.mean(self._drift_history[-recent_window:])
+
+        if drift_score < self.minor_threshold:
+            regime = LearningRegime.STABLE
+        elif drift_score < self.moderate_threshold:
+            regime = LearningRegime.CONTINUAL_LEARNING
+        elif drift_score < 0.8:
+            regime = LearningRegime.FINE_TUNING
+        else:
+            regime = LearningRegime.RETRAIN
+
+        return DriftSignal(
+            regime=regime,
+            drift_detected=bool(drift_score > self.drift_share_threshold),
+            drift_score=float(drift_score),
+        )
+
+    def reset(self) -> None:
+        """Reset detector (keeps reference data, clears history)."""
+        self._drift_history = []
+
+
+class EnsembleDetector(BaseDriftDetector):
+    """
+    Ensemble of multiple drift detectors with voting mechanism.
+
+    Combines signals from multiple detectors to make more robust decisions.
+    """
+
+    # The ensemble keeps no stream state of its own; see state_dict().
+    _STATE_ATTRS: tuple[str, ...] = ()
+
+    VOTING_STRATEGIES = {
+        "majority": "majority",  # more than half of the detectors fire
+        "any": "any",  # at least one detector fires
+        "or": "any",
+        "unanimous": "unanimous",  # every detector fires
+        "all": "unanimous",
+        "and": "unanimous",
+    }
+
+    def __init__(
+        self,
+        detectors: List[BaseDriftDetector],
+        voting: str = "majority",
+        name: str = "Ensemble",
+    ):
+        """
+        Initialize ensemble detector.
+
+        Args:
+            detectors: List of individual detectors
+            voting: Voting strategy. One of 'majority', 'any' (alias 'or'),
+                or 'unanimous' (aliases 'all', 'and').
+            name: Detector name
+        """
+        super().__init__(name)
+        if not detectors:
+            raise ValueError("EnsembleDetector requires at least one sub-detector")
+
+        key = voting.strip().lower()
+        if key not in self.VOTING_STRATEGIES:
+            raise ValueError(
+                f"Unknown ensemble voting strategy: {voting!r}. "
+                f"Expected one of {sorted(self.VOTING_STRATEGIES)}."
+            )
+
+        self.detectors = detectors
+        self.voting = self.VOTING_STRATEGIES[key]
+        self._is_initialized = all(d._is_initialized for d in detectors)
+
+    def update(self, value: float, **kwargs) -> DriftSignal:
+        """
+        Update all detectors and combine signals.
+
+        Args:
+            value: Metric value
+            **kwargs: Additional parameters passed to individual detectors
+
+        Returns:
+            Combined DriftSignal
+        """
+        # Update all detectors
+        signals = []
+        detector_names = []
+        for detector in self.detectors:
+            signal = detector.update(value, **kwargs)
+            signals.append(signal)
+            detector_names.append(detector.name)
+
+        # Average drift scores
+        avg_drift_score = np.mean([s.drift_score for s in signals])
+
+        # Combine signals based on voting strategy
+        n_votes = sum(s.drift_detected for s in signals)
+        if self.voting == "majority":
+            drift_detected = n_votes > len(signals) / 2
+        elif self.voting == "unanimous":
+            drift_detected = n_votes == len(signals)
+        elif self.voting == "any":
+            drift_detected = n_votes > 0
+        else:
+            raise ValueError(f"unknown voting strategy: {self.voting!r}")
+
+        # Determine regime by majority vote
+        regime_votes = [s.regime for s in signals]
+        regime = max(set(regime_votes), key=regime_votes.count)
+
+        # Combine metadata
+        metadata = {
+            "n_detectors": len(signals),
+            "voting": self.voting,
+            "n_votes": int(n_votes),
+            "individual_signals": [
+                {"detector": name, "detected": signal.drift_detected}
+                for name, signal in zip(detector_names, signals)
+            ],
+        }
+
+        confidences = [s.confidence for s in signals if s.confidence is not None]
+
+        return DriftSignal(
+            regime=regime,
+            drift_detected=bool(drift_detected),
+            drift_score=float(avg_drift_score),
+            confidence=float(np.mean(confidences)) if confidences else None,
+            metadata=metadata,
+        )
+
+    def reset(self) -> None:
+        """Reset all detectors."""
+        for detector in self.detectors:
+            detector.reset()
+
+    def state_dict(self) -> Dict[str, Any]:
+        """Snapshot every sub-detector, in order.
+
+        The ensemble holds no state of its own -- its verdict is a vote over the
+        sub-detectors -- so the checkpoint is just their states, positionally
+        aligned with ``self.detectors``.
+        """
+        state = super().state_dict()
+        state["sub_detectors"] = [d.state_dict() for d in self.detectors]
+        return state
+
+    def load_state_dict(self, state: Dict[str, Any]) -> None:
+        """Restore every sub-detector from :meth:`state_dict`.
+
+        Each sub-detector validates its own class tag, so an ensemble rebuilt
+        with reordered or substituted detectors is rejected rather than
+        silently restored into the wrong slot.
+        """
+        super().load_state_dict(state)
+
+        sub_states = state.get("sub_detectors")
+        if sub_states is None:
+            raise KeyError("Ensemble checkpoint is missing 'sub_detectors'")
+        if len(sub_states) != len(self.detectors):
+            raise ValueError(
+                f"Ensemble checkpoint holds {len(sub_states)} sub-detectors but "
+                f"this ensemble has {len(self.detectors)}. Check that "
+                f"[drift_detection] ensemble_detectors matches the run that "
+                f"produced this checkpoint."
+            )
+
+        for detector, sub_state in zip(self.detectors, sub_states):
+            detector.load_state_dict(sub_state)

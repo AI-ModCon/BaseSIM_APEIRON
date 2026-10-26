@@ -1,0 +1,181 @@
+{
+  "components": [
+    {
+      "component": "apeiron-config",
+      "input": "apeiron/config/__init__.py",
+      "output": "apeiron/config/__init__.py",
+      "root": "8cfb4c6c3ec8271793474817dc365bca23b325ab5d16503febe8c2e40903637a"
+    },
+    {
+      "component": "apeiron-config",
+      "input": "apeiron/config/configuration.py",
+      "output": "apeiron/config/configuration.py",
+      "root": "8cfb4c6c3ec8271793474817dc365bca23b325ab5d16503febe8c2e40903637a"
+    },
+    {
+      "component": "apeiron-evaluation",
+      "input": "apeiron/evaluation/__init__.py",
+      "output": "apeiron/evaluation/__init__.py",
+      "root": "da4cc107e9a88eb3b787bf8bc80920d8205a9036d0ad8a0d3a7114dad380e5ae"
+    },
+    {
+      "component": "apeiron-evaluation",
+      "input": "apeiron/evaluation/metrics.py",
+      "output": "apeiron/evaluation/metrics.py",
+      "root": "da4cc107e9a88eb3b787bf8bc80920d8205a9036d0ad8a0d3a7114dad380e5ae"
+    },
+    {
+      "component": "apeiron-evaluation",
+      "input": "apeiron/evaluation/evaluation.py",
+      "output": "apeiron/evaluation/evaluation.py",
+      "root": "da4cc107e9a88eb3b787bf8bc80920d8205a9036d0ad8a0d3a7114dad380e5ae"
+    },
+    {
+      "component": "apeiron-model-harness",
+      "input": "apeiron/model/__init__.py",
+      "output": "apeiron/model/__init__.py",
+      "root": "4adee990728c4bd60559b241bdf7d2c13e3bfa6e9ab7af492d5c8289d92e6278"
+    },
+    {
+      "component": "apeiron-model-harness",
+      "input": "apeiron/model/torch_model_harness.py",
+      "output": "apeiron/model/torch_model_harness.py",
+      "root": "4adee990728c4bd60559b241bdf7d2c13e3bfa6e9ab7af492d5c8289d92e6278"
+    },
+    {
+      "component": "apeiron-updaters",
+      "input": "apeiron/training/updater/__init__.py",
+      "output": "apeiron/training/updater/__init__.py",
+      "root": "01494aa9c12e7e659fee20300a70447a1eb8b85cda86d970ec08b3a3e562dc34"
+    },
+    {
+      "component": "apeiron-updaters",
+      "input": "apeiron/training/updater/base.py",
+      "output": "apeiron/training/updater/base.py",
+      "root": "01494aa9c12e7e659fee20300a70447a1eb8b85cda86d970ec08b3a3e562dc34"
+    },
+    {
+      "component": "apeiron-updaters",
+      "input": "apeiron/training/updater/no_updater.py",
+      "output": "apeiron/training/updater/no_updater.py",
+      "root": "01494aa9c12e7e659fee20300a70447a1eb8b85cda86d970ec08b3a3e562dc34"
+    },
+    {
+      "component": "apeiron-updaters",
+      "input": "apeiron/training/updater/ewc.py",
+      "output": "apeiron/training/updater/ewc.py",
+      "root": "01494aa9c12e7e659fee20300a70447a1eb8b85cda86d970ec08b3a3e562dc34"
+    },
+    {
+      "component": "apeiron-updaters",
+      "input": "apeiron/training/updater/kfac.py",
+      "output": "apeiron/training/updater/kfac.py",
+      "root": "01494aa9c12e7e659fee20300a70447a1eb8b85cda86d970ec08b3a3e562dc34"
+    },
+    {
+      "component": "apeiron-updaters",
+      "input": "apeiron/training/updater/jvp_reg.py",
+      "output": "apeiron/training/updater/jvp_reg.py",
+      "root": "01494aa9c12e7e659fee20300a70447a1eb8b85cda86d970ec08b3a3e562dc34"
+    },
+    {
+      "component": "apeiron-updaters",
+      "input": "apeiron/training/updater/create_updater.py",
+      "output": "apeiron/training/updater/create_updater.py",
+      "root": "01494aa9c12e7e659fee20300a70447a1eb8b85cda86d970ec08b3a3e562dc34"
+    },
+    {
+      "component": "apeiron-logger",
+      "input": "apeiron/logger/__init__.py",
+      "output": "apeiron/logger/__init__.py",
+      "root": "1f461066564ed601f0bde3c0118beb966318515a31a1c2e11f36c6ae470dfc81"
+    },
+    {
+      "component": "apeiron-logger",
+      "input": "apeiron/logger/console_logger.py",
+      "output": "apeiron/logger/console_logger.py",
+      "root": "1f461066564ed601f0bde3c0118beb966318515a31a1c2e11f36c6ae470dfc81"
+    },
+    {
+      "component": "apeiron-logger",
+      "input": "apeiron/logger/wandb_logger.py",
+      "output": "apeiron/logger/wandb_logger.py",
+      "root": "1f461066564ed601f0bde3c0118beb966318515a31a1c2e11f36c6ae470dfc81"
+    },
+    {
+      "component": "apeiron-logger",
+      "input": "apeiron/logger/mlflow_logger.py",
+      "output": "apeiron/logger/mlflow_logger.py",
+      "root": "1f461066564ed601f0bde3c0118beb966318515a31a1c2e11f36c6ae470dfc81"
+    },
+    {
+      "component": "apeiron-logger",
+      "input": "apeiron/logger/logger.py",
+      "output": "apeiron/logger/logger.py",
+      "root": "1f461066564ed601f0bde3c0118beb966318515a31a1c2e11f36c6ae470dfc81"
+    },
+    {
+      "component": "apeiron-profilers",
+      "input": "apeiron/profilers/__init__.py",
+      "output": "apeiron/profilers/__init__.py",
+      "root": "54a5267fd4a0b976b257610c393624d9eac5641f2fb428459a234c3adb4b1b51"
+    },
+    {
+      "component": "apeiron-profilers",
+      "input": "apeiron/profilers/count_flops.py",
+      "output": "apeiron/profilers/count_flops.py",
+      "root": "54a5267fd4a0b976b257610c393624d9eac5641f2fb428459a234c3adb4b1b51"
+    },
+    {
+      "component": "apeiron-drift-detection",
+      "input": "apeiron/drift_detection/__init__.py",
+      "output": "apeiron/drift_detection/__init__.py",
+      "root": "713bdfd1bf0e332d3d2b9ad2ca3898001e7305e686b317b7ad77dabec1bf2749"
+    },
+    {
+      "component": "apeiron-drift-detection",
+      "input": "apeiron/drift_detection/detectors/base.py",
+      "output": "apeiron/drift_detection/detectors/base.py",
+      "root": "713bdfd1bf0e332d3d2b9ad2ca3898001e7305e686b317b7ad77dabec1bf2749"
+    },
+    {
+      "component": "apeiron-drift-detection",
+      "input": "apeiron/drift_detection/detectors/statistical_detectors.py",
+      "output": "apeiron/drift_detection/detectors/statistical_detectors.py",
+      "root": "713bdfd1bf0e332d3d2b9ad2ca3898001e7305e686b317b7ad77dabec1bf2749"
+    },
+    {
+      "component": "apeiron-drift-detection",
+      "input": "apeiron/drift_detection/detectors/model_performance_detector.py",
+      "output": "apeiron/drift_detection/detectors/model_performance_detector.py",
+      "root": "713bdfd1bf0e332d3d2b9ad2ca3898001e7305e686b317b7ad77dabec1bf2749"
+    },
+    {
+      "component": "apeiron-drift-detection",
+      "input": "apeiron/drift_detection/load_drift_detector.py",
+      "output": "apeiron/drift_detection/load_drift_detector.py",
+      "root": "713bdfd1bf0e332d3d2b9ad2ca3898001e7305e686b317b7ad77dabec1bf2749"
+    },
+    {
+      "component": "apeiron-trainer",
+      "input": "apeiron/training/__init__.py",
+      "output": "apeiron/training/__init__.py",
+      "root": "1b7fe90310cc369915b996322e1694d5d4971af89c402948fb1a294b3cfa0e71"
+    },
+    {
+      "component": "apeiron-trainer",
+      "input": "apeiron/training/continuous_trainer.py",
+      "output": "apeiron/training/continuous_trainer.py",
+      "root": "1b7fe90310cc369915b996322e1694d5d4971af89c402948fb1a294b3cfa0e71"
+    }
+  ],
+  "digest": "sha256",
+  "name": "apeiron-monitor",
+  "proof": {
+    "kind": "crosscheck",
+    "m2": "4a77a22d426d85ee45416be6e02154fc28bd4f0dfacb815d4be2ecd1ba27a468",
+    "m3": "4a77a22d426d85ee45416be6e02154fc28bd4f0dfacb815d4be2ecd1ba27a468"
+  },
+  "root": "f3515468f90c961bddc5275c110a6dd303b33ff1c81571ec7e5ae74805923f2b",
+  "sealed": "2026-10-22T17:04:25Z"
+}
