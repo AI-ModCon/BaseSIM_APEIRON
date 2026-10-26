@@ -65,6 +65,7 @@ pinned claim files, where a renumber would move claim roots.
 | A38 | measurement | open | behaviour, not lines: four reconstructions match the source on 441 probe cases off the pinned set |
 | A39 | defect | open | APEIRON: `EnsembleDetector` reports a nondeterministic regime on a tied vote |
 | A40 | measurement | open | the methodology across all ten layers: 1,049 probe cases, zero divergences |
+| A41 | defect | fixed here | APEIRON: a run does not reproduce itself -- `seed` never reaches the loaders' RNG |
 | R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
 | R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
 | R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
@@ -1688,6 +1689,71 @@ papercut and nothing is corrupted. Promote it if the team disagrees.
 Kind: measurement
 Status: open -- all ten layers probed at 1,049 cases with no divergence; the
 one piece deliberately undriven is named.
+
+### A41 — APEIRON: a run does not reproduce itself
+`examples/mnist/mnist.toml` sets `seed = 1337`. Nothing under `src/` ever
+calls `torch.manual_seed`, and the MNIST harness builds three of its loaders
+with `shuffle=True` and no `generator=`:
+
+    ds_train_tf,   bs,        shuffle=True, ...   # train
+    ds_val_tf,     stream_bs, shuffle=True, ...   # the monitored stream
+    ds_hist_train, bs,        shuffle=True, ...   # historical replay
+
+`DataLoader(shuffle=True)` with no generator draws its permutation from the
+global torch RNG. Unseeded, that permutation differs in every process, so the
+batch order differs, the gradient sequence differs, the weights differ, and
+every metric downstream differs. The `seed` field is an assurance the code
+does not keep.
+
+Measured, two runs of one config at seed 1337, device cpu, num_workers 0,
+over a two-window run, comparing (step, metric) pairs with wall-clock fields
+excluded:
+
+| | pairs | identical | worst eval/accuracy gap |
+|---|---|---|---|
+| as shipped | 2,307 | ~46% | tens of points (37.5 and 31.25 on two measurements) |
+| with `torch.manual_seed(cfg.seed)` | 2,311 | **100%** | **0.000** |
+
+A handful of pairs are recorded by one run and not the other, so even the set
+of keys is unstable. The magnitude is given as a range deliberately: the
+defect is nondeterministic and so is its size. The stable facts are that
+agreement sits near half, and that the accuracy gap is far larger than any
+tolerance a published result would be quoted to.
+
+Two things ARE reproducible, which is what makes this a small fix rather than
+a redesign. `examples/mnist/mnist.pth` exists, so initial weights are loaded
+rather than sampled. And the affine drift transform is properly seeded off
+`cfg.seed + task_counter` -- the augmentation angles match to the last digit
+across runs -- so the drift *schedule* is already deterministic. Only the
+shuffling is loose.
+
+Seeding the global RNG before the harness is built is sufficient: every
+non-wall-clock metric becomes identical. The residue is `*_time` and the
+`*_flops` throughputs derived from it, which no fix can make equal. A
+belt-and-braces version would also pass an explicit `generator=` to the three
+shuffled loaders, which is what makes it hold with `num_workers > 0` as well
+-- the shipped config uses `num_workers = 4`, so that part is not optional
+for the real run.
+
+Why this ranks above A39 despite being easier to fix: A39 perturbs the
+ensemble's regime on a tied vote. This perturbs every metric of every run.
+The framework exists to produce continual-learning results, and right now a
+reported BWT, forgetting curve or accuracy trace cannot be checked by
+anyone -- including its author -- because rerunning the same config yields
+different numbers.
+
+Found while establishing a baseline for the next stage of the campaign: the
+plan is to pin a full MNIST training run as a claim and then ask whether a
+reconstruction of APEIRON reproduces that result. That question has no
+referent until the run reproduces itself, so this was step zero and it
+failed. It is a prerequisite for the reconstruction work, not a by-product
+of it.
+Kind: defect
+Status: fixed here -- `claims/scripts/falsify_run_reproducibility.py`
+reproduces it (exit 0) and verifies the fix (`--seeded`, exit 1). Wants an
+upstream PR; the fix is `torch.manual_seed(cfg.seed)` in `main.py` before
+`get_example`, plus seeded generators on the three shuffled loaders for the
+`num_workers > 0` case.
 
 ### R13 — reticuli: no codex rebuild has ever recorded a cost
 Every usage drop this campaign produced reads exactly
