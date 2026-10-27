@@ -2,10 +2,21 @@
   "digest": "sha256",
   "name": "apeiron-evaluation",
   "proof": {
+    "independence": "declared: codex/gpt-6-astra, blind workspace (a declaration on the redo's ledger, not proven)",
     "kind": "crosscheck",
-    "m2": "da4cc107e9a88eb3b787bf8bc80920d8205a9036d0ad8a0d3a7114dad380e5ae",
-    "m3": "da4cc107e9a88eb3b787bf8bc80920d8205a9036d0ad8a0d3a7114dad380e5ae"
+    "layers": [],
+    "m2": "48eba4910780207b2ddd0ffa906fb4095cfdbfbaa81ec91d64821076fecef317",
+    "m3": "663fcd0f5ceed1e48bf3b8a2dc5fc36e247a0d07ddb97a63b8f5bdfc11ba5848",
+    "producer": {
+      "blind": true,
+      "declared": true,
+      "model": "gpt-6-astra",
+      "model_source": "observed",
+      "vendor": "codex"
+    },
+    "recorded": "2026-10-27T16:06:38Z",
+    "root": "da4cc107e9a88eb3b787bf8bc80920d8205a9036d0ad8a0d3a7114dad380e5ae"
   },
   "root": "da4cc107e9a88eb3b787bf8bc80920d8205a9036d0ad8a0d3a7114dad380e5ae",
-  "sealed": "2026-10-22T17:04:01Z"
+  "sealed": "2026-10-27T16:06:38Z"
 }

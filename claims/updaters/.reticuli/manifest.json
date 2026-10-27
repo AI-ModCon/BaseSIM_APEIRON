@@ -46,10 +46,25 @@
   "digest": "sha256",
   "name": "apeiron-updaters",
   "proof": {
+    "independence": "declared: codex/gpt-6-astra, workspace not blind (a declaration on the redo's ledger, not proven)",
     "kind": "crosscheck",
-    "m2": "01494aa9c12e7e659fee20300a70447a1eb8b85cda86d970ec08b3a3e562dc34",
-    "m3": "01494aa9c12e7e659fee20300a70447a1eb8b85cda86d970ec08b3a3e562dc34"
+    "layers": [
+      "apeiron-config",
+      "apeiron-evaluation",
+      "apeiron-model-harness"
+    ],
+    "m2": "90616b3d04e3f23492b392f9b799b428c1259c22764d83f1b05d2a7704202182",
+    "m3": "d3e27e3b72edd76d62af2ba7bad61d9f1d7374d3f3ebd49521c60679273f1af3",
+    "producer": {
+      "blind": false,
+      "declared": true,
+      "model": "gpt-6-astra",
+      "model_source": "observed",
+      "vendor": "codex"
+    },
+    "recorded": "2026-10-27T16:12:49Z",
+    "root": "01494aa9c12e7e659fee20300a70447a1eb8b85cda86d970ec08b3a3e562dc34"
   },
   "root": "01494aa9c12e7e659fee20300a70447a1eb8b85cda86d970ec08b3a3e562dc34",
-  "sealed": "2026-10-22T17:04:07Z"
+  "sealed": "2026-10-27T16:12:49Z"
 }

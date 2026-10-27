@@ -16,10 +16,23 @@
   "digest": "sha256",
   "name": "apeiron-drift-detection",
   "proof": {
+    "independence": "declared: codex/gpt-6-astra, workspace not blind (a declaration on the redo's ledger, not proven)",
     "kind": "crosscheck",
-    "m2": "713bdfd1bf0e332d3d2b9ad2ca3898001e7305e686b317b7ad77dabec1bf2749",
-    "m3": "713bdfd1bf0e332d3d2b9ad2ca3898001e7305e686b317b7ad77dabec1bf2749"
+    "layers": [
+      "apeiron-config"
+    ],
+    "m2": "cdcd8393730a593031265573ec59c9ce3b64d7f0f2b64de92e8f905637f6a44b",
+    "m3": "906734bc4e5eb034d4bedc157f0a102d4b5e010dc093878da3503fe7121e3407",
+    "producer": {
+      "blind": false,
+      "declared": true,
+      "model": "gpt-6-astra",
+      "model_source": "observed",
+      "vendor": "codex"
+    },
+    "recorded": "2026-10-27T16:21:09Z",
+    "root": "713bdfd1bf0e332d3d2b9ad2ca3898001e7305e686b317b7ad77dabec1bf2749"
   },
   "root": "713bdfd1bf0e332d3d2b9ad2ca3898001e7305e686b317b7ad77dabec1bf2749",
-  "sealed": "2026-10-22T17:04:15Z"
+  "sealed": "2026-10-27T16:21:09Z"
 }

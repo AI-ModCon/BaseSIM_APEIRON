@@ -2,10 +2,21 @@
   "digest": "sha256",
   "name": "apeiron-profilers",
   "proof": {
+    "independence": "declared: codex/gpt-6-astra, blind workspace (a declaration on the redo's ledger, not proven)",
     "kind": "crosscheck",
-    "m2": "54a5267fd4a0b976b257610c393624d9eac5641f2fb428459a234c3adb4b1b51",
-    "m3": "54a5267fd4a0b976b257610c393624d9eac5641f2fb428459a234c3adb4b1b51"
+    "layers": [],
+    "m2": "7b992bb22f0cedd770a9c520aa80316b36072687267396ad7fb3bcc9a9c6c6aa",
+    "m3": "d8ed620ccb1c45d7f7c3e02683c7746c19e719a9d70489acb245598f0cd920ce",
+    "producer": {
+      "blind": true,
+      "declared": true,
+      "model": "gpt-6-astra",
+      "model_source": "observed",
+      "vendor": "codex"
+    },
+    "recorded": "2026-10-27T16:08:51Z",
+    "root": "54a5267fd4a0b976b257610c393624d9eac5641f2fb428459a234c3adb4b1b51"
   },
   "root": "54a5267fd4a0b976b257610c393624d9eac5641f2fb428459a234c3adb4b1b51",
-  "sealed": "2026-10-22T17:04:04Z"
+  "sealed": "2026-10-27T16:08:51Z"
 }

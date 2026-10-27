@@ -190,10 +190,31 @@
   "digest": "sha256",
   "name": "apeiron-entrypoints",
   "proof": {
+    "independence": "declared: codex/gpt-6-astra, workspace not blind (a declaration on the redo's ledger, not proven)",
     "kind": "crosscheck",
-    "m2": "1d80a9874cb4698d3ab4e64acf93b8be36b2b711fcf9b16b46632280d43386f1",
-    "m3": "1d80a9874cb4698d3ab4e64acf93b8be36b2b711fcf9b16b46632280d43386f1"
+    "layers": [
+      "apeiron-config",
+      "apeiron-drift-detection",
+      "apeiron-evaluation",
+      "apeiron-logger",
+      "apeiron-model-harness",
+      "apeiron-monitor",
+      "apeiron-profilers",
+      "apeiron-trainer",
+      "apeiron-updaters"
+    ],
+    "m2": "678a9f2737dab3b5a235877f8926aadcb15a60e01c1cd63450174a0b228c4173",
+    "m3": "aa0779c46fa85780fdf3e0a33dcf46318b8f3cdd1cd586bfc502476b083b449b",
+    "producer": {
+      "blind": false,
+      "declared": true,
+      "model": "gpt-6-astra",
+      "model_source": "observed",
+      "vendor": "codex"
+    },
+    "recorded": "2026-10-27T16:40:49Z",
+    "root": "9778517046151e6c8e7ea3957d44479593792b6889a2ce5587352b3476482666"
   },
   "root": "9778517046151e6c8e7ea3957d44479593792b6889a2ce5587352b3476482666",
-  "sealed": "2026-10-22T17:04:30Z"
+  "sealed": "2026-10-27T16:40:49Z"
 }

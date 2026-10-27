@@ -69,6 +69,7 @@ pinned claim files, where a renumber would move claim roots.
 | A42 | measurement | open | a training RESULT pinned as a claim: reduced MNIST run, 1,665 metrics exact, 9/9 layers earned |
 | A43 | methodology | closed | pinning a result: six unconstrained degrees of freedom, found by adversarial search, then reproduced exactly |
 | A44 | measurement | closed | cross-family: Claude Opus reproduces the same training result first try, from a different implementation |
+| A45 | measurement | closed | the ten proofs re-earned: twenty blind rebuilds, two families, thirty roots agree |
 | R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
 | R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
 | R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
@@ -86,6 +87,7 @@ pinned claim files, where a renumber would move claim roots.
 | R15 | bug | closed | reticuli: `--producer codex` reached no adapter, and the adapter could not have run |
 | R16 | bug | fixed here | reticuli: the producer contract tells a model to read pinned DATA in full |
 | R17 | bug | fixed here | reticuli: the claude producer records no oracle, so its proofs name none |
+| R18 | enhancement | open | reticuli: a proof holds one producer, and which one is positional |
 
 ## Findings
 
@@ -2185,6 +2187,98 @@ matching what codex now does.
 Kind: bug
 Status: fixed here on the reticuli branch `fix/producer-data-inputs`
 alongside R16. Wants tests and a gate run; no PR opened.
+
+### A45 — the ten proofs, re-earned across two producer families
+The ten layer proofs recorded during the first campaign said this, and only
+this:
+
+    {"kind": "crosscheck", "m2": "8cfb4c6c3ec8...", "m3": "8cfb4c6c3ec8..."}
+
+Both digest fields carry the same value and it is the claim's ROOT, not a
+digest. So the record could not distinguish "verified today, against the
+current criteria, by a named model" from "verified at some point, against
+something". That is R13 and R14 as they stood before PR #7, left in place on
+ten claims.
+
+Re-earned. Every layer was rebuilt blind twice -- once by `codex`
+(gpt-6-astra) and once by `claude:claude-opus-5` -- into its own untouched
+room, a byte copy was materialised by export/import, and the four
+realizations were crosschecked together.
+
+**Twenty blind rebuilds, two independent families, thirty roots in
+agreement:**
+
+| layer | root | codex | claude |
+|---|---|---|---|
+| config | 8cfb4c6c3ec8 | reached | reached |
+| evaluation | da4cc107e9a8 | reached | reached |
+| profilers | 54a5267fd4a0 | reached | reached |
+| model_harness | 4adee990728c | reached | reached |
+| updaters | 01494aa9c12e | reached | reached |
+| logger | 1f461066564e | reached | reached |
+| drift_detection | 713bdfd1bf0e | reached | reached |
+| trainer | 1b7fe90310cc | reached | reached |
+| monitor | f3515468f90c | reached | reached |
+| entrypoints | 977851704615 | reached | reached |
+
+Every four-way crosscheck accepted: reuse, equivalence, audited and the
+mutation floor all held. Each proof now carries the root it was earned
+against, two genuinely distinct digests, a timestamp, an independence line
+and a named oracle.
+
+This closes the single-oracle caveat for the whole framework, not just for
+the MNIST claim (A44). It is a stronger result than A33 would suggest:
+those layers regrow at around 53% of their original lines, so what comes
+back differs substantially while the behaviour does not -- measured here by
+root agreement and, independently, by the 1,049-case behaviour probe (A40).
+
+**What the record still cannot say, which is R18.** A proof holds a single
+`producer` object, so a claim reconstructed by two independent families can
+only name one of them -- and a cross-family rebuild exists precisely to be
+the control for producer dependence. Worse, WHICH one it names is
+positional: the four-way crosscheck keeps the last realization's producer.
+Listing codex second records `gpt-6-astra` with `model_source: "observed"`,
+read back from codex's own session log; listing claude second records
+`claude-opus-5` with `"requested"`, echoed from the flag we passed. Same
+verification, materially different record, decided by argument order that
+nothing documents and no output warns about.
+
+The first pass through these ten was in the order the rooms were built --
+codex then claude -- and so recorded the weaker provenance throughout. They
+were re-recorded with codex last once that was noticed. The two-family fact
+lives in this entry because the proof format cannot hold it.
+Kind: measurement
+Status: closed -- ten proofs re-earned at current roots with named oracles;
+the format limitation is R18.
+
+### R18 — reticuli: a proof holds one producer, and which one is positional
+`ret crosscheck` accepts any number of realizations and tests each one, but
+the proof it records keeps a single `producer` object taken from the last.
+Two consequences, both of which bit during A45.
+
+A claim reconstructed independently by two producer families can only say so
+about one of them. That is the exact claim a cross-family rebuild is run to
+establish -- it is the control for whether an agreement comes from the
+boundary or from a shared prior -- and it is the one thing the proof cannot
+express. The verdict knows; the record does not.
+
+And which producer survives into the record depends on the order the
+directories are listed, which nothing documents and no output mentions. The
+provenance strength differs between them: codex's model is `observed`, read
+back from its session log, while the claude adapter's is `requested`,
+echoed from the flag (R17). So listing the same four realizations in the
+natural order -- the order the rooms were built in -- silently produces a
+weaker record than the reverse, and a reader of either proof has no way to
+tell the other was available.
+
+Candidate fix: make `producer` a list and record one entry per realization,
+each with its own `model_source`. The independence line would then read as
+what it is -- a statement about every adversary that failed, not the last
+one alphabetically or chronologically.
+Kind: enhancement
+Status: open -- no patch. Found by re-earning the ten layer proofs (A45);
+worked around there by ordering the arguments so the `observed` provenance
+is the one retained.
 
 ### R13 — reticuli: no codex rebuild has ever recorded a cost
 Every usage drop this campaign produced reads exactly
