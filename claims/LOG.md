@@ -2596,19 +2596,29 @@ the class's surface.
 claim resealed to `ceaa840b12fc`, and a blind rebuild run against the
 stronger criteria with nothing of the source supplied:
 
-| | before the pin | after |
-|---|---|---|
-| cases | 269 | 269 |
-| diverging | 124 | **2** |
-| distinct causes | 4 | **1** |
-| unstable | 0 | 0 |
+| | before the pin | codex, after | claude-opus-5, after |
+|---|---|---|---|
+| cases | 269 | 269 | 269 |
+| diverging | 124 / 107 | **2** | **2** |
+| distinct causes | 4 | **1** | **1** |
+| unstable | 0 | 0 | 0 |
+| lines of monitor | -- | 109 | 261 |
 
-Both residual cases are the same thing: the room raises
-`RuntimeError("Drift checking requires evaluation metrics")` where the
-source raises `RuntimeError("Model Harness requires evaluation metrics")`.
-Same type, same place, different prose -- the latitude that should exist,
-and not worth pinning (driving a boundary to zero divergence buys a worse
-suite, not a better one).
+Both producer families were run, independently, against the resealed
+claim, and both reached `ceaa840b12fc`. The result is not specific to one
+oracle: three implementations of this loop now exist -- the source at 405
+lines, codex's at 109, claude-opus-5's at 261, each byte-different from
+the other two -- and the two regrown ones agree with the source on 267 of
+269 cases with the identical single residual.
+
+Both residual cases are the same thing, in both families: the same
+`RuntimeError` raised in the same place with different prose. The source
+says "Model Harness requires evaluation metrics"; codex's says "Drift
+checking requires evaluation metrics"; claude's says "Drift check requires
+evaluation metrics, but the metric buffer ...". Same type, same place,
+three wordings -- the latitude that should exist, and not worth pinning
+(driving a boundary to zero divergence buys a worse suite, not a better
+one).
 
 The regrown file is 109 lines against the source's 405, and byte-different
 throughout, so this is not the A40 trap: a quarter-sized independent
