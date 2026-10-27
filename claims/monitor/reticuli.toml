@@ -4,6 +4,8 @@
 # Pinned: test_continuous_monitor.py, test_adaptation_cycle.py and
 # test_contracts_and_branches.py, the repository's shared conftest.py (all
 # copied from tests/ at 63a877a), pytest.ini, and the full-stack lock.
+# test_subclass_seams.py is ours: the surface drift_only.py and cl_only.py
+# read off this class, which no file copied from tests/ asserts.
 # Generated: the monitor and its package export; everything else arrives
 # from the eight component claims.
 
@@ -21,6 +23,7 @@ inputs = [
     "test_public_api.py",
     "conftest.py",
     "test_logged_schema.py",
+    "test_subclass_seams.py",
     "pytest.ini",
 ]
 
@@ -225,4 +228,4 @@ guidance = "regenerate ContinuousMonitor(cfg, modelHarness): the drift-monitorin
 kind = "gate"
 output = "MONITOR_OK"
 class = "validated"
-run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_continuous_monitor.py test_adaptation_cycle.py test_contracts_and_branches.py test_public_api.py test_logged_schema.py && printf ok > MONITOR_OK"
+run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_continuous_monitor.py test_adaptation_cycle.py test_contracts_and_branches.py test_public_api.py test_logged_schema.py test_subclass_seams.py && printf ok > MONITOR_OK"

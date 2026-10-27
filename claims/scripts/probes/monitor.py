@@ -46,20 +46,24 @@ def built(extra: str = "", overrides=(), n: int = 16, batch: int = 4):
     return ContinuousMonitor(cfg, make_harness(cfg, n=n, batch=batch))
 
 
+#: Every name a subclass reads off the monitor. Each is read through
+#: `getattr` with a sentinel, and that is the whole point: the first version
+#: of this helper guarded `label` and `last_agg_metric` but read the other
+#: eight directly, so an implementation missing any ONE of them raised
+#: inside the dict comprehension and took every case that calls `state()`
+#: down with it -- including the twelve `run[*]` cases, which are the only
+#: ones that exercise the loop end to end. Twelve cases reported a
+#: divergence about the monitor's loop while measuring nothing about the
+#: loop at all. A missing name must cost exactly one case.
+SEAMS = ("label", "last_agg_metric", "stream_update_count", "batch_count",
+         "check_count", "drift_event_count", "metric_idx",
+         "detection_interval", "max_stream_updates", "aggregation")
+
+
 def state(monitor) -> str:
-    """The counters and seams a subclass reads."""
-    return show({
-        "label": show(getattr(monitor, "label", "<missing>")),
-        "last_agg_metric": show(getattr(monitor, "last_agg_metric", "<missing>")),
-        "stream_update_count": show(monitor.stream_update_count),
-        "batch_count": show(monitor.batch_count),
-        "check_count": show(monitor.check_count),
-        "drift_event_count": show(monitor.drift_event_count),
-        "metric_idx": show(monitor.metric_idx),
-        "detection_interval": show(monitor.detection_interval),
-        "max_stream_updates": show(monitor.max_stream_updates),
-        "aggregation": show(monitor.aggregation),
-    })
+    """The counters and seams a subclass reads, each independently reported."""
+    return show({name: show(getattr(monitor, name, "<missing>"))
+                 for name in SEAMS})
 
 
 def main() -> int:
@@ -121,9 +125,22 @@ def main() -> int:
 
     # --- 3. the seams a subclass reads ------------------------------------
     out["state[fresh]"] = attempt(lambda: state(built()))
-    out["state[label-default]"] = attempt(lambda: show(built().label))
-    out["state[last_agg_metric-initial]"] = attempt(
-        lambda: show(built().last_agg_metric))
+
+    # One case per seam, so a name the implementation does not have costs
+    # exactly one divergence and names itself in the report. `src/cl_only.py`
+    # and `src/drift_only.py` subclass this monitor and read `label`,
+    # `metric_idx`, `last_agg_metric` and `_aggregate_buffer` off it, so all
+    # four are contract whatever the leading underscore suggests -- and none
+    # of them is required by any test file this layer's claim pins. Both
+    # producer families dropped the same four.
+    fresh_monitor = built()
+    for name in SEAMS:
+        out[f"seam[{name}]"] = attempt(
+            lambda n=name: show(getattr(fresh_monitor, n, "<missing>")))
+    for name in ("_aggregate_buffer", "_evaluate_batch", "_check_drift",
+                 "_should_stop", "_adapt", "run"):
+        out[f"seam[{name},callable]"] = attempt(
+            lambda n=name: show(callable(getattr(fresh_monitor, n, None))))
     out["detector[cached-property-same-object]"] = attempt(
         lambda: (lambda m: show(m.detector is m.detector))(built()))
     out["detector[type]"] = attempt(lambda: type(built().detector).__name__)
@@ -149,32 +166,75 @@ def main() -> int:
         lambda: show(len(one.metric_buffer)))
 
     # --- 5. the whole loop, reduced to counters and weights ---------------
-    def run_once(overrides=(), n: int = 16, batch: int = 4) -> str:
-        monitor = built(overrides=overrides, n=n, batch=batch)
-        monitor.run()
-        return show({"state": state(monitor),
-                     "weights": params(monitor.modelHarness.model)})
+    # One case per observable rather than one per run. Bundling the whole
+    # state dict and the weights into a single compared value meant that an
+    # implementation missing any one seam name diverged on every run
+    # configuration, and the counters and trained weights -- the loop's
+    # actual result, and the only reason to run the loop at all -- were
+    # never compared. Measured: the counters agreed on both producer
+    # families throughout while all twelve run cases reported a divergence.
+    def run_cases(label: str, overrides=(), n: int = 16, batch: int = 4):
+        try:
+            monitor = built(overrides=overrides, n=n, batch=batch)
+            monitor.run()
+        except BaseException as exc:                  # noqa: BLE001 — probed
+            out[f"run[{label}].raised"] = show(exc)
+            return
+        for name in SEAMS:
+            out[f"run[{label}].{name}"] = attempt(
+                lambda m=monitor, k=name: show(getattr(m, k, "<missing>")))
+        out[f"run[{label}].weights"] = attempt(
+            lambda m=monitor: params(m.modelHarness.model))
 
-    out["run[default]"] = attempt(lambda: run_once())
+    run_cases("default")
     for cap in ("0", "1", "2"):
-        out[f"run[max_stream_updates={cap}]"] = attempt(
-            lambda c=cap: run_once(
-                overrides=["--set", f"drift_detection.max_stream_updates={c}"]))
+        run_cases(f"max_stream_updates={cap}",
+                  overrides=["--set",
+                             f"drift_detection.max_stream_updates={cap}"])
     for interval in ("1", "2", "100"):
-        out[f"run[detection_interval={interval}]"] = attempt(
-            lambda i=interval: run_once(
-                overrides=["--set", f"drift_detection.detection_interval={i}"]))
+        run_cases(f"detection_interval={interval}",
+                  overrides=["--set",
+                             f"drift_detection.detection_interval={interval}"])
     for detector in ("ADWINDetector", "PageHinkleyDetector", "KSWINDetector"):
-        out[f"run[detector={detector}]"] = attempt(
-            lambda d=detector: run_once(
-                overrides=["--set", f"drift_detection.detector_name={d}",
-                           "--set", "drift_detection.kswin_seed=7",
-                           "--set", "drift_detection.max_stream_updates=2"]))
-    out["run[empty-stream]"] = attempt(lambda: run_once(n=0))
-    out["run[single-batch-stream]"] = attempt(lambda: run_once(n=1, batch=1))
-    out["run[unknown-detector]"] = attempt(
-        lambda: run_once(overrides=["--set",
-                                    "drift_detection.detector_name=NopeDetector"]))
+        run_cases(f"detector={detector}",
+                  overrides=["--set", f"drift_detection.detector_name={detector}",
+                             "--set", "drift_detection.kswin_seed=7",
+                             "--set", "drift_detection.max_stream_updates=2"])
+    run_cases("empty-stream", n=0)
+    run_cases("single-batch-stream", n=1, batch=1)
+    run_cases("unknown-detector",
+              overrides=["--set", "drift_detection.detector_name=NopeDetector"])
+
+    # --- 6. the adaptation path, which nothing above reaches --------------
+    # Every configuration above finishes with `drift_event_count == 0`, so
+    # `_adapt` never runs, the trainer is never dispatched, and the weights
+    # compared are the fixed initialisation on both sides. That comparison
+    # looked like twelve agreements about the loop and was worth nothing:
+    # an off-by-one planted in `_should_stop` was caught by the counters in
+    # 11 of 12 configurations and by `.weights` in NONE of them. Drift has
+    # to be forced before the weights mean anything.
+    #
+    # Page-Hinkley with a near-zero threshold and `min_instances=1` fires on
+    # essentially every check, which takes the loop through drift -> adapt
+    # -> outer CL training -> checkpoint. Measured against the source: 5
+    # drift events, and `fc.bias` moves from the pinned initialisation.
+    FIRES = ["--set", "drift_detection.detector_name=PageHinkleyDetector",
+             "--set", "drift_detection.ph_threshold=0.0001",
+             "--set", "drift_detection.ph_min_instances=1",
+             "--set", "drift_detection.ph_delta=0.0",
+             "--set", "drift_detection.detection_interval=1",
+             "--set", "drift_detection.max_stream_updates=3"]
+    run_cases("adapts", overrides=FIRES)
+    # The same stream with training switched off. Drift still fires, so the
+    # counters must match the case above while the weights must NOT -- which
+    # is what makes the pair evidence that `.weights` is driven by the
+    # adaptation path rather than by the stream alone.
+    run_cases("adapts,update_mode=none",
+              overrides=[*FIRES, "--set", "continual_learning.update_mode=none"])
+    for mode in ("base", "ewc_online"):
+        run_cases(f"adapts,update_mode={mode}",
+                  overrides=[*FIRES, "--set",
+                             f"continual_learning.update_mode={mode}"])
 
     emit(out)
     return 0

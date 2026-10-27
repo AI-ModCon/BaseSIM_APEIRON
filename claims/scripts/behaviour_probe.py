@@ -68,6 +68,7 @@ import argparse
 import json
 import os
 import pathlib
+import re
 import shutil
 import subprocess
 import sys
@@ -234,15 +235,49 @@ def probe(layer: str, python: str, subject_dir: str | None = None) -> dict:
         want, got = oracle.get(case, "<absent>"), subject.get(case, "<absent>")
         (agree if want == got else diverge).append((case, want, got))
     return {"layer": layer, "cases": len(cases), "agree": len(agree),
-            "diverge": diverge, "absent_from_source": absent,
-            "unstable": unstable}
+            "diverge": diverge, "causes": causes(diverge),
+            "absent_from_source": absent, "unstable": unstable}
+
+
+def _cause(got: str) -> str:
+    """The shared root of a divergence, when one is legible from the value.
+
+    A single absent name produces as many divergences as there are cases
+    that touch it, and counting those as independent evidence badly
+    overstates how far apart two implementations are: `monitor` reported 68
+    divergences over 91 cases in both producer families, and 67 of them
+    were four names the class did not have. Ranking work by raw case count
+    therefore sends you to the widest probe rather than the widest
+    behavioural gap. Cluster first, then rank by cause.
+    """
+    missing = re.search(r"has no attribute '([^']+)'", got)
+    if missing:
+        return f"no attribute {missing.group(1)!r}"
+    exc = re.match(r"([A-Za-z_][A-Za-z0-9_]*(?:Error|Exception|Warning)): ",
+                   got)
+    if exc:
+        return f"raises {exc.group(1)}"
+    return "value differs"
+
+
+def causes(diverge: list) -> dict:
+    """Divergences grouped by shared root cause, widest group first."""
+    grouped: dict = {}
+    for case, _want, got in diverge:
+        grouped.setdefault(_cause(str(got)), []).append(case)
+    return dict(sorted(grouped.items(), key=lambda kv: -len(kv[1])))
 
 
 def report(result: dict) -> None:
     layer, n = result["layer"], result["cases"]
     bad = result["diverge"]
+    grouped = causes(bad)
     print(f"\n=== {layer}: {n} probe cases, "
-          f"{result['agree']} agree, {len(bad)} diverge ===")
+          f"{result['agree']} agree, {len(bad)} diverge "
+          f"from {len(grouped)} distinct cause(s) ===")
+    for cause, cases_ in grouped.items():
+        print(f"  CAUSE  {cause}  ({len(cases_)} case(s), "
+              f"e.g. {cases_[0]})")
     if result.get("unstable"):
         print(f"  {len(result['unstable'])} case(s) are NOT STABLE across "
               f"PYTHONHASHSEED and so cannot be compared:")
@@ -291,8 +326,10 @@ def main(argv: list[str]) -> int:
         total = sum(len(r["diverge"]) for r in results)
         shaky = sum(len(r.get("unstable", {})) for r in results)
         cases = sum(r["cases"] for r in results)
-        print(f"\n{total} divergence(s) and {shaky} unstable case(s) over "
-              f"{cases} probe cases in {len(results)} layer(s)")
+        distinct = sum(len(r.get("causes", {})) for r in results)
+        print(f"\n{total} divergence(s) from {distinct} distinct cause(s), "
+              f"and {shaky} unstable case(s), over {cases} probe cases "
+              f"in {len(results)} layer(s)")
     return 1 if any(r["diverge"] for r in results) else 0
 
 

@@ -71,6 +71,9 @@ pinned claim files, where a renumber would move claim roots.
 | A44 | measurement | closed | cross-family: Claude Opus reproduces the same training result first try, from a different implementation |
 | A45 | measurement | closed | the ten proofs re-earned: twenty blind rebuilds, two families, thirty roots agree |
 | A46 | measurement | open | CORRECTS A40 and A45: the regrown implementations are NOT behaviourally equivalent -- 20 rooms probed, 2 identical |
+| A47 | measurement | closed | QUALIFIES A46 for `monitor`: loop equivalent; pinning the contract took 124 divergences to 2, both error prose |
+| A48 | APEIRON | open | the monitor's subclass seams are unpinned by the module's own tests, and both side runners read them |
+| R19 | methodology | fixed here | a probe that dies on the first absent name, and a weights comparison that never ran the trainer |
 | R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
 | R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
 | R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
@@ -2494,3 +2497,172 @@ kernel's enumeration for the claim and its exported components, with a
 red-then-green round-trip test for both cases.
 Kind: bug (fixed)
 Status: fixed, reticuli commit 6fe0f82.
+
+### R19 — methodology: a probe that dies on the first absent name
+Two defects in the behaviour probe, both of which inflated A46 and one of
+which made its most important comparison vacuous.
+
+**The probe died on the first absent name.** `probes/monitor.py::state()`
+guarded `label` and `last_agg_metric` with `getattr` defaults and read the
+other eight names directly, so an implementation missing any ONE of them
+raised inside the dict and took down every case that calls `state()` --
+including all twelve `run[*]` cases, the only ones that drive the loop end
+to end. Twelve cases reported a divergence about the monitoring loop while
+measuring nothing about the loop. Each `run[*]` case also bundled ten seam
+names and the trained weights into a single compared value, so one missing
+attribute diverged every run configuration at once.
+
+Fixed: every seam read through a sentinel, one case per seam, one case per
+observable. A missing name now costs exactly one case and names itself.
+
+**The weights comparison had never run the trainer.** With the loop cases
+unblocked, `.weights` agreed in all twelve configurations and the counters
+agreed too -- which looked like the loop was equivalent. It was not
+evidence. Planting an off-by-one in `_should_stop` (`>=` -> `>`) showed
+why: the counters caught the mutant in 11 of 12 configurations and
+`.weights` caught it in NONE. Reason: `drift_event_count` is `0` in every
+configuration the probe ran, so `_adapt` never fired, the trainer was never
+dispatched, and the compared weights were the fixed initialisation on both
+sides. The layer's whole purpose -- drift, adapt, train, checkpoint -- was
+unprobed, in A46 and in the first fix alike.
+
+Fixed by forcing drift: Page-Hinkley at `ph_threshold=0.0001`,
+`ph_min_instances=1`, `detection_interval=1` fires on essentially every
+check (5 events against the source) and takes the loop through outer CL
+training. Four such configurations were added, including one at
+`update_mode=none` where drift still fires but no training runs, so the
+pair demonstrates that `.weights` moves with the adaptation path rather
+than with the stream. Re-validated against the same mutant: `.weights` now
+catches it in 3 of the 4 adapting configurations and correctly not in the
+`update_mode=none` one. Zero cases unstable across six hash seeds, so the
+600 CL updates are deterministic.
+
+**Also added: divergences are now clustered by root cause.** A single
+absent name produces as many divergences as there are cases touching it,
+and counting them as independent evidence overstates the distance between
+two implementations while mis-ranking the worklist -- it sends you to the
+widest probe rather than the widest behavioural gap. `behaviour_probe.py`
+now groups by cause and reports "N divergence(s) from M distinct cause(s)".
+Monitor's 68 were five.
+
+The general lesson, and the third time this class of error has cost a day:
+a probe reports evidence only where it has been shown able to fail, and
+"shown" means against a wrong implementation, per comparison, not once for
+the probe as a whole. A40 compared bytes against themselves; this compared
+an initialisation against itself. Both returned clean and both meant
+nothing.
+Kind: methodology (fixed here)
+Status: fixed here -- probes/monitor.py, behaviour_probe.py.
+
+### A47 — the monitor's loop IS equivalent; A46's number was mostly probe
+A46 put `monitor` at 68 divergences over 91 cases in both producer
+families and called it the worst-regrowing layer. Under the probe repaired
+in R19 -- 269 cases, with four configurations that actually reach the
+trainer, and every comparison validated against a planted off-by-one --
+the picture is nearly the opposite.
+
+| observable | codex room | claude room |
+|---|---|---|
+| trained weights, 4 adapting configs | identical | identical |
+| drift_event_count, 16 configs | identical | identical |
+| batch_count / stream_update_count / check_count | identical | identical |
+| cases diverging | 124 | 107 |
+| distinct causes | 4 | 4 |
+| unstable cases | 0 | 0 |
+
+Both blind rebuilds run the full loop -- stream extension, per-batch
+evaluation, buffered metrics, detection at interval, drift, adaptation,
+outer CL training, checkpointing -- and arrive at **bit-identical trained
+weights and identical counters** across every configuration probed, on
+comparisons demonstrated able to catch a one-character change to the stop
+condition.
+
+Every divergence that remains is one narrow gap, and it is the same gap in
+both families (see A48): four names the class does not expose, two methods
+it does not have, and one error message worded differently.
+
+So `monitor` was not the widest behavioural gap; it was the widest probe
+with the most fragile driver. The ranking A46 implied -- by raw case count
+-- is not usable: `profilers` 117 of 269 is dominated by a formatter sweep
+across decades, where one unit-threshold decision moves dozens of cases.
+Rank by distinct cause.
+
+What this does NOT say: the rooms are not replacements. The subclass
+contract is real and they fail it. The honest statement is
+replacement-grade **over the loop surface this probe covers**, which is
+counters and trained weights under sixteen configurations, and not over
+the class's surface.
+**The pin closes it.** A48's criteria were added to the claim's gate, the
+claim resealed to `ceaa840b12fc`, and a blind rebuild run against the
+stronger criteria with nothing of the source supplied:
+
+| | before the pin | after |
+|---|---|---|
+| cases | 269 | 269 |
+| diverging | 124 | **2** |
+| distinct causes | 4 | **1** |
+| unstable | 0 | 0 |
+
+Both residual cases are the same thing: the room raises
+`RuntimeError("Drift checking requires evaluation metrics")` where the
+source raises `RuntimeError("Model Harness requires evaluation metrics")`.
+Same type, same place, different prose -- the latitude that should exist,
+and not worth pinning (driving a boundary to zero divergence buys a worse
+suite, not a better one).
+
+The regrown file is 109 lines against the source's 405, and byte-different
+throughout, so this is not the A40 trap: a quarter-sized independent
+implementation now matches the original on the counters across sixteen
+configurations and on bit-identical trained weights across the four that
+run outer CL training.
+
+So `monitor` is **replacement-grade over the surface this probe covers** --
+counters, drift events, and trained weights under sixteen configurations,
+with every comparison validated against a planted mutant. Not over the
+whole class: the probe does not reach device selection, multi-GPU, logging
+payloads beyond the pinned schema, or `_extend_stream`'s edges.
+Kind: measurement
+Status: closed -- 124 divergences to 2, and the 2 are error prose.
+
+### A48 — APEIRON: the monitor's subclass seams are pinned by no test of its own
+`src/drift_only.py` and `src/cl_only.py` both subclass `ContinuousMonitor`
+and read six things off it that no test file in the monitor module's own
+suite asserts:
+
+| seam | read at | what it does |
+|---|---|---|
+| `label` | drift_only.py:56, cl_only.py:257 | names the run |
+| `metric_idx` | drift_only.py:112,168, cl_only.py:384 | `f"metric_{self.metric_idx}"`, a CSV column name |
+| `last_agg_metric` | drift_only.py:112 | the value the detector saw |
+| `aggregation` | the reduction applied | |
+| `_aggregate_buffer` | **called** at cl_only.py:326 | reduces the buffer |
+| `_adapt` | documented as the scheduled-adaptation seam | dispatches training |
+
+Two independent producer families, given the module's tests and not its
+source, dropped all six -- the same six, separately. That is the signature
+of a specification gap rather than of producer noise: nothing asked.
+
+The leading underscore on `_aggregate_buffer` is the interesting part. It
+reads as private to the class and is in fact private to the class
+*hierarchy*; a subclass in another module is a caller like any other, and
+the name is contract. A refactor that inlines the aggregation satisfies
+every test in `tests/test_continuous_monitor.py` and breaks both side
+runners.
+
+The tests that DO exercise some of this surface -- `tests/test_run_records.py`
+(which even enumerates `_aggregate_buffer` in a shared-API set) and
+`tests/test_entry_points.py` -- live with the entry points, one layer above
+the class that provides the seam. The repository's suite as a whole
+therefore covers it while the module's own suite does not, which is
+invisible until something regenerates the module from its own tests alone.
+
+Pinned here as `claims/monitor/test_subclass_seams.py`, 20 cases, added to
+the claim's gate; the claim resealed from its prior root to
+`ceaa840b12fc`. Validated both ways before being believed: 20 of 20 pass
+against `src/`, and against the two regrown rooms they fail 19 and 18 --
+so the criterion is reachable and it bites.
+
+Kind: APEIRON (missing tests)
+Status: open -- candidate for upstream. It needs no change to behaviour,
+only tests, and it is justified entirely from two files in `src/` that
+call the names.
