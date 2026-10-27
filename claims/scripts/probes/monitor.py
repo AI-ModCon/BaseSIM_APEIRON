@@ -71,7 +71,8 @@ def main() -> int:
                  "mien", "avg", "average", "first", "max", "", "none"):
         monitor = built(overrides=["--set", f"drift_detection.aggregation={name}"])
         monitor.metric_buffer = [list(row) for row in buffer]
-        out[f"_aggregate_buffer[{name!r}]"] = attempt(monitor._aggregate_buffer)
+        out[f"_aggregate_buffer[{name!r}]"] = attempt(
+            lambda m=monitor: m._aggregate_buffer())
         # and the buffer must be cleared whatever the method
         out[f"_aggregate_buffer[{name!r},cleared]"] = show(monitor.metric_buffer)
 
@@ -88,23 +89,26 @@ def main() -> int:
                                        f"drift_detection.aggregation={method}"])
             monitor.metric_buffer = [list(r) for r in rows]
             out[f"_aggregate_buffer[{method},{label}]"] = attempt(
-                monitor._aggregate_buffer)
+                lambda m=monitor: m._aggregate_buffer())
 
     # the documented empty-buffer behaviour
-    out["_aggregate_buffer[empty]"] = attempt(built()._aggregate_buffer)
+    out["_aggregate_buffer[empty]"] = attempt(
+        lambda: built()._aggregate_buffer())
     # a metric index past the end of each row
     wide = built(overrides=["--set", "drift_detection.metric_index=5"])
     wide.metric_buffer = [list(row) for row in buffer]
     out["_aggregate_buffer[metric-index-out-of-range]"] = attempt(
-        wide._aggregate_buffer)
+        lambda: wide._aggregate_buffer())
     # a negative index, which Python will happily accept as from-the-end
     neg = built(overrides=["--set", "drift_detection.metric_index=-1"])
     neg.metric_buffer = [list(row) for row in buffer]
-    out["_aggregate_buffer[metric-index=-1]"] = attempt(neg._aggregate_buffer)
+    out["_aggregate_buffer[metric-index=-1]"] = attempt(
+        lambda: neg._aggregate_buffer())
     # ragged rows
     ragged = built()
     ragged.metric_buffer = [[1.0, 2.0], [3.0]]
-    out["_aggregate_buffer[ragged-rows]"] = attempt(ragged._aggregate_buffer)
+    out["_aggregate_buffer[ragged-rows]"] = attempt(
+        lambda: ragged._aggregate_buffer())
 
     # --- 2. the stop condition's boundary ---------------------------------
     for cap in (0, 1, 3):
@@ -113,7 +117,7 @@ def main() -> int:
                                        f"drift_detection.max_stream_updates={cap}"])
             monitor.stream_update_count = count
             out[f"_should_stop[cap={cap},count={count}]"] = attempt(
-                monitor._should_stop)
+                lambda m=monitor: m._should_stop())
 
     # --- 3. the seams a subclass reads ------------------------------------
     out["state[fresh]"] = attempt(lambda: state(built()))
@@ -134,7 +138,8 @@ def main() -> int:
         lambda: show(checked._check_drift().drift_detected))
     out["_check_drift[sets-last-agg]"] = attempt(
         lambda: show(checked.last_agg_metric))
-    out["_check_drift[empty-buffer]"] = attempt(built()._check_drift)
+    out["_check_drift[empty-buffer]"] = attempt(
+        lambda: built()._check_drift())
 
     harness = make_harness(n=8, batch=4)
     one = ContinuousMonitor(harness.cfg, harness)

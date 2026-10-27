@@ -70,6 +70,7 @@ pinned claim files, where a renumber would move claim roots.
 | A43 | methodology | closed | pinning a result: six unconstrained degrees of freedom, found by adversarial search, then reproduced exactly |
 | A44 | measurement | closed | cross-family: Claude Opus reproduces the same training result first try, from a different implementation |
 | A45 | measurement | closed | the ten proofs re-earned: twenty blind rebuilds, two families, thirty roots agree |
+| A46 | measurement | open | CORRECTS A40 and A45: the regrown implementations are NOT behaviourally equivalent -- 20 rooms probed, 2 identical |
 | R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
 | R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
 | R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
@@ -1514,8 +1515,15 @@ needs its backends; a probe for those is a larger instrument than this one,
 and reporting them as covered would be the same error as the weak streams in
 A37.
 Kind: measurement
-Status: open -- four layers probed at 441 cases with no divergence; six
-layers unprobed and named as such.
+Status: **WITHDRAWN IN PART by A46.** The headline of this entry is vacuous.
+`ret pack` seals a project's OWN files, so `claims/<layer>/apeiron/**` is
+byte-identical to `src/apeiron/**` -- the probe compared the source against
+itself, and "zero divergences" could not have come out any other way. What
+the entry does establish stands: the probes detect real differences, proven
+by the mutant validations, and the ten instrument corrections are real
+lessons. What it does NOT establish, and was written as though it did, is
+that any REGROWN implementation behaves like the original. A46 measures
+that against the twenty rebuilt rooms and finds it false.
 
 SUPERSEDED IN PART by A40, which probes all ten. The four layers this entry
 declined to claim are now covered: the fixtures they needed -- a fixed-weight
@@ -2227,10 +2235,18 @@ against, two genuinely distinct digests, a timestamp, an independence line
 and a named oracle.
 
 This closes the single-oracle caveat for the whole framework, not just for
-the MNIST claim (A44). It is a stronger result than A33 would suggest:
-those layers regrow at around 53% of their original lines, so what comes
-back differs substantially while the behaviour does not -- measured here by
-root agreement and, independently, by the 1,049-case behaviour probe (A40).
+the MNIST claim (A44): twenty independent rebuilds across two priors all
+satisfy the same criteria.
+
+**Correction.** This entry originally continued: "what comes back differs
+substantially while the behaviour does not -- measured here by root
+agreement and, independently, by the 1,049-case behaviour probe (A40)." The
+first clause is right and the second is false. A root is a function of the
+criteria and the recipe; the generated implementation is deliberately
+OUTSIDE identity, so root agreement means twenty implementations passed the
+same gates and never meant they were equivalent. And A40's probe compared
+the source against itself (see its withdrawal note). A46 measures the real
+thing.
 
 **What the record still cannot say, which is R18.** A proof holds a single
 `producer` object, so a claim reconstructed by two independent families can
@@ -2279,6 +2295,79 @@ Kind: enhancement
 Status: open -- no patch. Found by re-earning the ten layer proofs (A45);
 worked around there by ordering the arguments so the `observed` provenance
 is the one retained.
+
+### A46 — the regrown implementations are not behaviourally equivalent
+A40 reported 1,049 probe cases with zero divergences and read as though the
+reconstructions behaved identically to the original. It could not have
+reported anything else: `ret pack` seals a project's own files, so
+`claims/<layer>/apeiron/**` is byte-identical to `src/apeiron/**` and the
+probe was comparing the source against itself. Checked directly --
+`cmp` reports IDENTICAL for configuration.py, statistical_detectors.py and
+torch_model_harness.py.
+
+A45 then produced the thing that was actually missing: twenty rebuilt rooms,
+ten layers by two producer families, each containing genuinely regrown code
+(config regrew to 200 lines under codex and 397 under claude, against the
+source's 403). Probing those rooms against the source is the measurement
+A40 should have been.
+
+| layer | cases | codex diverge | claude diverge |
+|---|---|---|---|
+| config | 82 | 7 | 15 |
+| evaluation | 39 | 4 | **0** |
+| profilers | 269 | 117 | 111 |
+| logger | 103 | 23 | 19 |
+| model_harness | 72 | 7 | 13 |
+| updaters | 143 | **0** | 24 |
+| drift_detection | 70 | 23 | 37 |
+| trainer | 58 | 20 | 20 |
+| monitor | 91 | 68 | 68 |
+| entrypoints | 122 | 54 | 51 |
+| **total** | **949** | **323** | **358** |
+
+Every one of these passed its claim's gate and reached its claim's root.
+Two cells are behaviourally identical -- codex's `updaters` and claude's
+`evaluation` -- and the other eighteen are not. `profilers` diverges on 117
+of 269 cases; `monitor` on 68 of 91.
+
+**So the regrown code is not a replacement for `src/`.** It is code that
+satisfies the criteria and diverges off them. The two families diverge
+DIFFERENTLY from each other, which is the cleanest available demonstration
+that root agreement is agreement about the criteria and nothing more: the
+implementation is outside identity by design, so twenty rebuilds landing on
+one root says twenty implementations passed the same gates.
+
+Concrete examples of what differs, from the config rooms:
+`get_available_device` returns something else; `deep_update` mutates its
+input differently; an unrecognised config section is handled differently;
+`env_overrides` treats a bare `APP_` prefix differently. None of it is
+exotic, and none of it is pinned.
+
+What survives this correction untouched. The detector claims (A37) were
+verified by a real differential probe against river on eighteen held-out
+streams -- a third-party oracle, not a copy of themselves. The MNIST run
+claim (A43, A44) pins a RESULT, so its reconstructions had to produce
+bit-identical trained weights and metric traces, and two families did. Those
+were measurements against behaviour the claim did not already contain.
+
+The reading that holds across all of it: pinning TESTS buys an equivalence
+class whose width is the width of the tests, and that width is measurable --
+these numbers are it. Pinning a RESULT buys bit-identity and is unreachable
+until the behaviour the result depends on is pinned too (A43). The ten layer
+claims are the first kind. Treating them as the second was the error in A40
+and in A45's second clause.
+
+Two probe defects found on the way, both the same shape: `attempt(obj.method)`
+resolves the attribute EAGERLY, so a reconstruction that simply lacks
+`_add_profile` or `_aggregate_buffer` raised before the guard could catch it
+and took the whole probe down rather than recording the absence. A missing
+method is a difference. All thirteen private-surface calls across the probes
+now wrap the lookup inside the guard.
+Kind: measurement
+Status: open -- 949 comparable cases across twenty rooms; 2 of 20 rooms
+behaviourally identical. The per-layer divergences are a concrete worklist
+of criteria gaps, and they are gaps in APEIRON's own suite regardless of
+reconstruction.
 
 ### R13 — reticuli: no codex rebuild has ever recorded a cost
 Every usage drop this campaign produced reads exactly

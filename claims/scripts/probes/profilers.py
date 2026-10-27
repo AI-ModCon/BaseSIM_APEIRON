@@ -78,6 +78,14 @@ def show(value) -> str:
     return repr(value)
 
 
+
+#: `attempt(obj.method)` looks the attribute up EAGERLY, so a reconstruction
+#: that simply does not have that method raises before `attempt` can catch
+#: anything and takes the whole probe down. A missing method is a difference
+#: to record, not a crash: every private-surface call here is wrapped in a
+#: lambda so the lookup happens inside the guard. Two probes died this way on
+#: the regrown rooms before this was fixed (A40 correction).
+
 def attempt(fn, *args, **kwargs) -> str:
     try:
         return show(fn(*args, **kwargs))
@@ -125,10 +133,12 @@ def main() -> int:
         magnitudes += [decade, decade * 1.5, decade * 9.99]
     magnitudes += [999, 1001, 1023, 1024, 999_999, 1_500_000, 999_999_999]
     for value in magnitudes:
-        out[f"_format_flops[{value!r}]"] = attempt(profiler._format_flops, value)
-        out[f"_format_time[{value!r}]"] = attempt(profiler._format_time, value)
+        out[f"_format_flops[{value!r}]"] = attempt(
+            lambda v=value: profiler._format_flops(v))
+        out[f"_format_time[{value!r}]"] = attempt(
+            lambda v=value: profiler._format_time(v))
         out[f"_format_throughput[{value!r}]"] = attempt(
-            profiler._format_throughput, value)
+            lambda v=value: profiler._format_throughput(v))
 
     # --- 3. structure the caller depends on -------------------------------
     fresh = FLOPSProfiler()
@@ -138,11 +148,20 @@ def main() -> int:
     sized = FLOPSProfiler(warmup_iters=5)
     out["init[warmup set]"] = show(sized.warmup_iters)
 
-    shaped = FLOPSProfiler()
-    shaped._add_profile("t")
-    out["_add_profile[keys]"] = json.dumps(sorted(shaped.profiles["t"]))
-    shaped._add_profile("t")
-    out["_add_profile[idempotent]"] = show(shaped.profiles["t"])
+    # Private surface, so routed through attempt(): a reconstruction that
+    # organises its bookkeeping differently has no `_add_profile` at all, and
+    # a MISSING method is a difference to record, not a crash to die on. The
+    # first version called it directly and took the whole profilers probe
+    # down on the codex room (A40 correction).
+    def added(times: int):
+        shaped = FLOPSProfiler()
+        for _ in range(times):
+            shaped._add_profile("t")
+        return shaped.profiles["t"]
+
+    out["_add_profile[keys]"] = attempt(
+        lambda: json.dumps(sorted(added(1))))
+    out["_add_profile[idempotent]"] = attempt(lambda: added(2))
 
     # --- 4. an exact FLOP count -------------------------------------------
     model, x = Tiny(), torch.ones(2, 8)
@@ -200,7 +219,8 @@ def main() -> int:
              if not timed(k)})
     except BaseException as exc:                     # noqa: BLE001 — probed
         out["get_performance[error]"] = show(exc)
-    out["get_performance[empty]"] = attempt(FLOPSProfiler().get_performance)
+    out["get_performance[empty]"] = attempt(
+        lambda: FLOPSProfiler().get_performance())
 
     json.dump(out, sys.stdout, sort_keys=True)
     return 0

@@ -66,8 +66,9 @@ def main() -> int:
                 "TRACE", "", ":", ":3", "debug:2", "CRITICAL:5",
                 "WARN", "NOTSET"):
         out[f"_parse_verbosity[{raw!r}]"] = attempt(
-            console._parse_verbosity, raw)
-        out[f"_get_log_level[{raw!r}]"] = attempt(console._get_log_level, raw)
+            lambda r=raw: console._parse_verbosity(r))
+        out[f"_get_log_level[{raw!r}]"] = attempt(
+            lambda r=raw: console._get_log_level(r))
 
     out["ConsoleLogger[verbosity-roundtrip]"] = attempt(
         lambda: ConsoleLogger(verbosity="info:2").verbosity)

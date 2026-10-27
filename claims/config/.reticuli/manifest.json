@@ -14,9 +14,49 @@
       "model_source": "observed",
       "vendor": "codex"
     },
-    "recorded": "2026-10-27T16:05:12Z",
+    "producers": [
+      {
+        "blind": true,
+        "declared": true,
+        "model": "gpt-6-astra",
+        "model_source": "observed",
+        "vendor": "codex"
+      },
+      {
+        "blind": true,
+        "declared": true,
+        "model": "claude-opus-5",
+        "model_source": "requested",
+        "vendor": "claude-code"
+      }
+    ],
+    "rebuilds": [
+      {
+        "digest": "609f296088c1d3caf31a7a80ea0cd55942f2d086f7e2c00b6016872f3f55f586",
+        "independence": "declared: codex/gpt-6-astra, blind workspace (a declaration on the redo's ledger, not proven)",
+        "producer": {
+          "blind": true,
+          "declared": true,
+          "model": "gpt-6-astra",
+          "model_source": "observed",
+          "vendor": "codex"
+        }
+      },
+      {
+        "digest": "61a6b9c707f99748647dd2a0ea9c6d907dd134ca72712cecc66d85467e469672",
+        "independence": "declared: claude-code/claude-opus-5, blind workspace (a declaration on the redo's ledger, not proven)",
+        "producer": {
+          "blind": true,
+          "declared": true,
+          "model": "claude-opus-5",
+          "model_source": "requested",
+          "vendor": "claude-code"
+        }
+      }
+    ],
+    "recorded": "2026-10-27T16:48:33Z",
     "root": "8cfb4c6c3ec8271793474817dc365bca23b325ab5d16503febe8c2e40903637a"
   },
   "root": "8cfb4c6c3ec8271793474817dc365bca23b325ab5d16503febe8c2e40903637a",
-  "sealed": "2026-10-27T16:05:12Z"
+  "sealed": "2026-10-27T16:48:33Z"
 }
