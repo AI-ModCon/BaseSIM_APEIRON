@@ -154,6 +154,66 @@ def _oracle_tree(layer: str, into: pathlib.Path) -> list[str]:
     return missing
 
 
+def _ensure_importable(root: pathlib.Path) -> bool:
+    """Make `apeiron` a REGULAR package at `root`, and say whether we had to.
+
+    A directory without `__init__.py` is only a namespace *portion*: Python
+    records it and keeps scanning `sys.path`, and the first regular package
+    it finds afterwards wins outright. This repository installs itself into
+    the venv -- `site-packages/apeiron.pth` adds `src/` permanently -- so a
+    room whose tree is `apeiron/profilers/` and nothing else loses to
+    `src/apeiron/__init__.py` no matter what PYTHONPATH says.
+
+    That is not a hypothetical either. It silently turned a profilers
+    comparison into source-against-source and reported 269 of 269 cases
+    agreeing, which is A40's error for the third time: the probe ran, every
+    case passed, and nothing was compared. The monitor rooms were unaffected
+    only because their claim happens to generate `apeiron/__init__.py`, so
+    they arrive as regular packages.
+
+    An empty `__init__.py` is written into BOTH trees when absent from
+    both, which is faithful: the claim's own gate runs `PYTHONPATH=.` inside
+    a fresh environment where nothing else provides `apeiron`, so a
+    namespace portion is all it ever needs there.
+    """
+    pkg = root / "apeiron"
+    init = pkg / "__init__.py"
+    if not pkg.is_dir() or init.exists():
+        return False
+    init.write_text("")
+    return True
+
+
+def _assert_resolves(root: pathlib.Path, python: str) -> None:
+    """Refuse to compare a tree the interpreter will not actually import.
+
+    The guard the profilers false green needed. A clean result is evidence
+    only if the thing under test was the thing loaded.
+    """
+    snippet = ("import json, apeiron; "
+               "print(json.dumps({'file': getattr(apeiron, '__file__', None), "
+               "'path': [str(p) for p in list(apeiron.__path__)]}))")
+    env = dict(os.environ, PYTHONPATH=str(root))
+    proc = subprocess.run([python, "-c", snippet], capture_output=True,
+                          text=True, env=env, check=False)
+    if proc.returncode != 0:
+        sys.exit(f"the tree at {root} does not import `apeiron` at all:\n"
+                 f"{proc.stderr.strip()[-1500:]}")
+    info = json.loads(proc.stdout)
+    where = info["file"] or (info["path"][0] if info["path"] else None)
+    if not where:
+        sys.exit(f"`apeiron` imported from {root} reports no location")
+    resolved = pathlib.Path(where).resolve()
+    if not str(resolved).startswith(str(root.resolve())):
+        sys.exit(
+            f"REFUSING to compare: with PYTHONPATH={root}, `apeiron` "
+            f"resolves to {resolved}, which is outside that tree. Any "
+            f"result would describe whatever was actually imported -- the "
+            f"same vacuity as comparing a thing against itself. Usually an "
+            f"editable install (site-packages/apeiron.pth) winning with a "
+            f"regular package against a namespace portion.")
+
+
 #: Each side is run once per seed. Varying PYTHONHASHSEED varies the
 #: iteration order of sets and dicts keyed by anything string-hashed --
 #: including Enum members, whose `__hash__` hashes the member NAME. Code that
@@ -213,10 +273,31 @@ def probe(layer: str, python: str, subject_dir: str | None = None) -> dict:
     subject_root = pathlib.Path(subject_dir) if subject_dir else _claim_dir(layer)
 
     with tempfile.TemporaryDirectory() as tmp:
-        oracle_root = pathlib.Path(tmp)
+        oracle_root = pathlib.Path(tmp) / "oracle"
+        oracle_root.mkdir()
         absent = _oracle_tree(layer, oracle_root)
+
+        # The subject is copied rather than imported in place: the guard
+        # below may need to add a package marker, and a room is evidence --
+        # it does not get written to.
+        staged = pathlib.Path(tmp) / "subject"
+        shutil.copytree(subject_root, staged,
+                        ignore=shutil.ignore_patterns("__pycache__"))
+
+        # Scaffolding only when BOTH sides need it, so the two trees stay
+        # comparable. One side needing it and the other not is a real
+        # difference in what the claim produces, and is left to surface.
+        scaffolded = False
+        if not (oracle_root / "apeiron" / "__init__.py").exists() \
+                and not (staged / "apeiron" / "__init__.py").exists():
+            scaffolded = _ensure_importable(oracle_root)
+            scaffolded = _ensure_importable(staged) or scaffolded
+
+        _assert_resolves(oracle_root, python)
+        _assert_resolves(staged, python)
+
         oracle, oracle_unstable = _run(driver, oracle_root, python)
-        subject, subject_unstable = _run(driver, subject_root, python)
+        subject, subject_unstable = _run(driver, staged, python)
 
     # A case that is not stable within a side cannot be compared across
     # sides; it is reported as nondeterminism in that implementation, which
@@ -234,9 +315,43 @@ def probe(layer: str, python: str, subject_dir: str | None = None) -> dict:
             continue
         want, got = oracle.get(case, "<absent>"), subject.get(case, "<absent>")
         (agree if want == got else diverge).append((case, want, got))
+    granted = LATITUDE.get(layer, ())
+    latitude = [d for d in diverge if d[0].startswith(granted)] if granted else []
+    contract = [d for d in diverge if d not in latitude]
     return {"layer": layer, "cases": len(cases), "agree": len(agree),
-            "diverge": diverge, "causes": causes(diverge),
-            "absent_from_source": absent, "unstable": unstable}
+            "diverge": diverge, "causes": causes(contract),
+            "contract_diverge": len(contract),
+            "latitude_diverge": len(latitude),
+            "latitude_surface": list(granted),
+            "absent_from_source": absent, "unstable": unstable,
+            "scaffolded_package_marker": scaffolded}
+
+
+#: Case prefixes whose divergences are GRANTED LATITUDE, per layer: surface
+#: where two implementations are both correct and the specification does not
+#: care. Reported separately rather than dropped -- a harness that silently
+#: excluded them would read as "covered everything" when it did not.
+#:
+#: `profilers` is the whole reason this exists. Its probe reports 117
+#: divergences for one rebuild and 111 for another, and about 95% of both
+#: are the three formatters turning a float into a display string:
+#: `'1 FLOPs'` against `'1.00 FLOPs'`, `'1.0000 s'` against `'1.00 s'`,
+#: across a sweep of every decade. Nothing in `src/` parses that output, so
+#: those are two defensible spellings of the same number and pinning them
+#: would buy criteria mass and no protection. Left in the probe because the
+#: divergence is worth seeing; kept out of the contract count because
+#: ranking work by it sends you to fix prose.
+#: `_add_profile` is here on a different ground, and the distinction is the
+#: one that mattered for `monitor`: a leading underscore is not by itself
+#: evidence either way. `grep` across `src/`, `examples/` and `tests/` finds
+#: no caller of `_add_profile` outside `count_flops.py`, so it is private in
+#: fact and a reconstruction that keeps its bookkeeping elsewhere is free to.
+#: `_aggregate_buffer` looked identical and was NOT free -- `cl_only.py:326`
+#: calls it -- so each private name has to be checked rather than assumed.
+LATITUDE = {
+    "profilers": ("_format_flops", "_format_time", "_format_throughput",
+                  "_add_profile"),
+}
 
 
 def _cause(got: str) -> str:
@@ -271,10 +386,16 @@ def causes(diverge: list) -> dict:
 def report(result: dict) -> None:
     layer, n = result["layer"], result["cases"]
     bad = result["diverge"]
-    grouped = causes(bad)
+    grouped = result.get("causes") or causes(bad)
+    free = result.get("latitude_diverge", 0)
+    held = result.get("contract_diverge", len(bad))
     print(f"\n=== {layer}: {n} probe cases, "
-          f"{result['agree']} agree, {len(bad)} diverge "
+          f"{result['agree']} agree, {held} diverge on contract "
           f"from {len(grouped)} distinct cause(s) ===")
+    if free:
+        print(f"  plus {free} divergence(s) in granted-latitude surface "
+              f"({', '.join(result.get('latitude_surface', []))}), "
+              f"reported and not counted as contract")
     for cause, cases_ in grouped.items():
         print(f"  CAUSE  {cause}  ({len(cases_)} case(s), "
               f"e.g. {cases_[0]})")

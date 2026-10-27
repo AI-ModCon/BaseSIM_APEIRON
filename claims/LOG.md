@@ -74,6 +74,10 @@ pinned claim files, where a renumber would move claim roots.
 | A47 | measurement | closed | QUALIFIES A46 for `monitor`: loop equivalent; pinning the contract took 124 divergences to 2, both error prose |
 | A48 | APEIRON | open | the monitor's subclass seams are unpinned by the module's own tests, and both side runners read them |
 | R19 | methodology | fixed here | a probe that dies on the first absent name, and a weights comparison that never ran the trainer |
+| R20 | methodology | fixed here | the probe silently compared the source with itself again -- a namespace portion losing to the editable install |
+| R21 | methodology | fixed here | divergence counts conflated granted latitude with contract, mis-ranking the worklist |
+| A49 | measurement | closed | `profilers` 117/111 is 4/3 contract divergences; pinning the CSV contract took codex to 1 |
+| A50 | APEIRON | open | a measured block that RAISES is still reported as a completed zero-FLOP measurement, into the CSV |
 | R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
 | R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
 | R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
@@ -2676,3 +2680,142 @@ Kind: APEIRON (missing tests)
 Status: open -- candidate for upstream. It needs no change to behaviour,
 only tests, and it is justified entirely from two files in `src/` that
 call the names.
+
+### R20 — methodology: the probe compared the source with itself, again
+Running the profilers probe against both regrown rooms reported **269 of
+269 cases agreeing**. It was A40's error for the third time, by a new
+mechanism, and it would have been filed as "profilers is replacement-grade"
+if the number had not been obviously too good.
+
+A directory without `__init__.py` is only a namespace *portion*: Python
+records it and keeps scanning `sys.path`, and the first REGULAR package it
+finds afterwards wins outright, whatever the order. This workspace installs
+itself into its venv -- `site-packages/apeiron.pth` adds `src/`
+permanently -- and the profilers claim generates only
+`apeiron/profilers/*`, with no `apeiron/__init__.py`. So with
+`PYTHONPATH=<room>`, `import apeiron.profilers.count_flops` resolved to
+`src/apeiron/profilers/count_flops.py`. Confirmed directly rather than
+reasoned:
+
+    PYTHONPATH=<profilers room>  ->  .../src/apeiron/profilers/count_flops.py
+    PYTHONPATH=<monitor room>    ->  .../<monitor room>/apeiron/driver/continuous_monitor.py
+
+The monitor rooms were unaffected only by luck: their claim happens to
+generate `apeiron/__init__.py`, so they arrive as regular packages and win.
+A47's result was checked this way before being kept, not assumed.
+
+Two fixes. The subject is now COPIED into a temp tree before being probed --
+a room is evidence and does not get written to -- and an empty
+`apeiron/__init__.py` is added to both trees when both lack it, which is
+faithful because the claim's own gate runs `PYTHONPATH=.` in an environment
+where nothing else provides `apeiron`. Then a guard: `_assert_resolves`
+imports `apeiron` under each root and REFUSES to compare unless the module
+resolves inside that root. With the guard in place the probe reproduces
+A46's numbers exactly -- 117 and 111 -- so A46 itself was measured under an
+interpreter where PYTHONPATH won, and only this session's run was vacuous.
+
+The pattern across all three instances is identical: the probe ran, every
+case passed, and nothing was compared. A clean result is evidence only if
+the thing under test was the thing loaded, and that has to be checked by
+the harness rather than trusted.
+Kind: methodology (fixed here)
+Status: fixed here -- behaviour_probe.py.
+
+### R21 — methodology: a divergence count that cannot be ranked
+A46 ranked the worklist by raw diverging cases, which put `profilers`
+second worst at 117 and 111. Decomposed, those are 4 and 3 divergences on
+contract; the other 113 and 108 are the three formatters turning a float
+into a display string -- `'1 FLOPs'` against `'1.00 FLOPs'`, `'1.0000 s'`
+against `'1.00 s'` -- across a sweep of every decade. Nothing in `src/`
+parses that output and the only existing assertions are substring checks on
+the unit name, so those are two defensible spellings of the same number.
+
+Ranking by the raw count sends you to fix prose. The probe now declares a
+per-layer latitude surface and reports it SEPARATELY rather than dropping
+it: "N diverge on contract ... plus M divergence(s) in granted-latitude
+surface". Dropping them silently would read as "covered everything".
+
+One entry on that list was checked rather than assumed. `_add_profile` has
+no caller outside `count_flops.py` anywhere in `src/`, `examples/` or
+`tests/`, so it is private in fact and a reconstruction may keep its
+bookkeeping elsewhere. `_aggregate_buffer` looked exactly the same -- a
+single leading underscore on a profiler-adjacent helper -- and was NOT
+free, because `cl_only.py:326` calls it (A48). A leading underscore is not
+evidence either way; each name needs the grep.
+Kind: methodology (fixed here)
+Status: fixed here -- behaviour_probe.py `LATITUDE`.
+
+### A49 — `profilers`: 4 contract divergences, not 117
+Under R20's guard and R21's split, the profilers rooms measure:
+
+| | codex | claude |
+|---|---|---|
+| contract divergences, before the pin | 4 | 3 |
+| granted latitude (formatters, `_add_profile`) | 113 | 108 |
+| contract divergences, after the pin | **1** | -- |
+
+The four were: `_add_profile` absent (2, since reclassified as latitude),
+`get_performance()` reporting `fwd_flop` as `768` where the source reports
+`768.0`, and `measure_flops` leaving different state behind after a block
+raises.
+
+The type one is contract and not cosmetic. `get_performance()` returns a
+flat dict and four call sites splat it straight into a logged metric row
+(`continuous_trainer.py:255`, `continuous_monitor.py:376`,
+`drift_only.py:151`, `cl_only.py:369`), so every key becomes a CSV column
+and every value a cell in the artifact external analysis reads.
+`test_profiler.py` asserts the keys exist and never what the values are, so
+`768` passes the suite and changes the file.
+
+Pinned as `claims/profilers/test_reported_performance.py`, 14 cases, in the
+gate; claim resealed to `c98098d7f167`. The FLOP figures are pinned as
+exact integers that must scale with the batch -- 384 / 768 / 1536 / 3072 --
+so the assertion is about the computation and not the type alone; a
+plausible constant fails it. Validated both ways: 14 of 14 against `src/`,
+and against the rooms it catches codex (1 failure) while claude passes all
+14, because claude's divergences were entirely in the latitude surface.
+That asymmetry is the honest result rather than a problem with the
+criterion.
+
+A blind rebuild against the resealed claim -- 129 lines against the
+source's 392, byte-different -- leaves **1 contract divergence**, and it is
+the one deliberately left unpinned (A50).
+
+(Two rebuilds were run. The first reached `e225bbe9dbb4` and was discarded:
+a lint fix to the criteria file afterwards moved the root, so the room had
+been built against a superseded one. A measurement against a root that no
+longer exists is not a measurement of the current claim -- the same rule
+that retires a zeta trial when the repository reseals.)
+
+The reading: more pinning would not make this layer replacement-grade,
+because what remains is display. `profilers` was never the second-widest
+behavioural gap; it had the widest probe.
+Kind: measurement
+Status: closed.
+
+### A50 — APEIRON: a measurement that CRASHED is reported as a real zero
+`FLOPSProfiler.measure_flops(tag)` is a context manager. When the block
+inside it raises, the exception propagates and `tag` is released -- but the
+tag stays in `profiles` with its count recorded as zero:
+
+    profiles["boom"]        == {"flop": [0], "time": [2.0e-06]}
+    get_performance()       == {"boom_flop": 0.0, "boom_time": 2.0e-06,
+                                "boom_flops": 0.0}
+
+`get_performance()` is splatted into a logged metric row, so a forward pass
+that threw contributes `cperf_boom_flop = 0.0` to the metrics CSV,
+indistinguishable from a block that genuinely executed zero FLOPs. Any
+averaging over that column is then pulled toward zero by failures, and the
+failure itself leaves no trace in the data saying so.
+
+Both reconstructions, independently, drop the tag instead.
+
+This is deliberately NOT pinned. Which behaviour is correct is a question
+for whoever owns the metrics -- recording nothing, or recording something
+marked as failed -- and pinning the current behaviour into a gate would
+settle it by default. The claim asserts only what is not in question: the
+exception propagates, `tag` is released, and a later measurement is
+recorded under its own name. The divergence is therefore still reported by
+the probe, as the single remaining contract divergence on the layer.
+Kind: APEIRON (behaviour question)
+Status: open -- needs a decision, not a test.
