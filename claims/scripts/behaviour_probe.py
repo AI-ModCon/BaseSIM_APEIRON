@@ -394,10 +394,26 @@ def probe(layer: str, python: str, subject_dir: str | None = None) -> dict:
 #: CALLABLE (`logger.py:48`), and how the console logger then stores and
 #: reads it is its own business -- the regrown one keeps no method by that
 #: name and reads the callable directly.
+#: drift_detection, both checked the same way:
+#:
+#: `DriftSignal[fields]` asks for `__dataclass_fields__`. The source's
+#: `DriftSignal` is a plain class with an `__init__` (`base.py:29`), not a
+#: dataclass, so the case reads the ABSENCE of dataclass machinery as the
+#: expected answer. Nothing in `src/` or `examples/` calls `asdict`,
+#: `fields` or `replace` on it, so whether a reconstruction reaches the
+#: same five attributes via `@dataclass` is its own business.
+#:
+#: `ensemble[VOTING_STRATEGIES]` asks for a class attribute used only
+#: inside `model_performance_detector.py` itself -- for validation at
+#: :357 and lookup at :364, with no reader anywhere else. The SET of valid
+#: strategy names is contract and is asserted by the behaviour cases; the
+#: table's existence as a class attribute is not.
 LATITUDE = {
     "profilers": ("_format_flops", "_format_time", "_format_throughput",
                   "_add_profile"),
     "logger": ("ConsoleLogger[step-callback-default]",),
+    "drift_detection": ("DriftSignal[fields]",
+                        "ensemble[VOTING_STRATEGIES]"),
 }
 
 

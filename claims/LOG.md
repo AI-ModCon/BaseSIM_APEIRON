@@ -83,7 +83,8 @@ pinned claim files, where a renumber would move claim roots.
 | A52 | APEIRON | open | an unrecognised verbosity silently becomes INFO, so `verbosity = "WARN"` logs MORE than asked |
 | A53 | measurement | open | all twenty rooms re-measured under the guard: 681 raw divergences are 335 on contract, and three layers now sit at 0 |
 | R23 | methodology | fixed here | the probe measured a room whose gate never passed, and called it a result |
-| A54 | APEIRON | open | nothing pins WHEN a detector fires; one rebuild replaced river with its own algorithms and passed |
+| A54 | APEIRON | closed | nothing pinned WHEN a detector fires; one rebuild replaced river with its own algorithms and passed. 23 contract divergences to 2 |
+| A55 | APEIRON | open | a non-string `ensemble_voting` leaks `AttributeError: 'int' object has no attribute 'strip'` |
 | R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
 | R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
 | R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
@@ -3096,10 +3097,68 @@ oscillation stops it firing at all. The first version of this entry
 asserted the escalation ladder could never climb; measurement refuted it
 and the claim was dropped.
 
-Claim resealed to `da9de183e3f6`. The blind rebuild against it FAILED its
-gate on the first attempt, which is the strongest evidence available that
-the criterion bites: a from-scratch reimplementation can no longer pass.
-Retrying (regrowth is a sampling instrument).
+Claim resealed to `da9de183e3f6`. The blind rebuild against it failed its
+gate on attempts 1 and 2 and passed on attempt 3 -- a success rate of one
+in three where the layer previously regrew readily, which is itself a
+measurement: the criteria now demand something the producer does not get
+for free.
+
+**And the room that passed still does not import river.** 183 lines
+against the source's 316, no river, and it reproduces the firing table on
+all six streams exactly. That is the outcome the method is supposed to
+produce: the pin forced behavioural equivalence without dictating the
+implementation. An independent ADWIN that fires where river's fires is a
+legitimate answer; one that fires seventeen steps early is not, and now
+cannot pass.
+
+| | before the pin | after |
+|---|---|---|
+| contract divergences | 23 | **2** |
+| of those, worth pinning | -- | **0** |
+| prose (R22) | -- | 4 |
+| unstable in the SOURCE (A39) | 10 | 10 |
+
+Two of the four remaining were reclassified as latitude after checking for
+callers, the same check as `_aggregate_buffer` and `_add_profile`:
+`DriftSignal` is a plain class rather than a dataclass (`base.py:29`) and
+nothing calls `asdict`, `fields` or `replace` on it, so the probe case was
+asking about dataclass internals; and `VOTING_STRATEGIES` is read only
+inside `model_performance_detector.py`, at :357 and :364, with the SET of
+valid names asserted by behaviour cases instead. The other two are A55,
+deliberately unpinned.
 Kind: APEIRON (missing tests)
-Status: open -- the rebuild against the stronger criteria is still being
-earned.
+Status: closed -- 23 contract divergences to 2, and neither of the 2 should
+be pinned.
+
+### A55 — APEIRON: a non-string `ensemble_voting` leaks an internal error
+`EnsembleDetector` validates its voting strategy by normalising the name
+first, so a value that is not a string fails inside the normalisation
+rather than in the validation:
+
+    voting=1        -> AttributeError: 'int' object has no attribute 'strip'
+    voting=None     -> AttributeError: 'NoneType' object has no attribute 'strip'
+    voting=['any']  -> AttributeError: 'list' object has no attribute 'strip'
+    voting=2.5      -> AttributeError: 'float' object has no attribute 'strip'
+
+`ensemble_voting` is a config key, and `None` is what an absent or
+mistyped TOML value becomes, so the reachable failure for a user is an
+`AttributeError` about `strip` with no mention of voting, strategies, or
+which names are valid. The class already has the good message for an
+unknown STRING (`model_performance_detector.py:360` lists
+`sorted(self.VOTING_STRATEGIES)`); it is only the non-string path that
+escapes it.
+
+Both reconstructions raise `ValueError: unknown voting strategy: ...` here
+instead, one of them listing the valid names. **The reconstructions are
+right and the source is wrong** -- the A17/A25 category, and the most
+useful kind of divergence this exercise produces.
+
+Deliberately NOT pinned, for the reason that applies to A50 and A52:
+writing the current `AttributeError` into a gate would freeze the defect
+in place, and choosing the replacement -- `ValueError`, a `TypeError`, or
+coercion -- belongs to whoever owns the configuration surface. The
+divergence stays visible as one of the layer's two remaining contract
+divergences rather than being silenced.
+Kind: APEIRON (defect, reconstruction is right)
+Status: open -- a one-line fix in the validation order, if the team wants
+it.
