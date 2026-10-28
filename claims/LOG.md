@@ -92,6 +92,7 @@ pinned claim files, where a renumber would move claim roots.
 | A59 | APEIRON | open | `grad_accumulation_steps = 0` divides the loss by zero: `inf` loss, NaN weights, no error |
 | A60 | APEIRON | closed | the logged forgetting loss was unpinned; a rebuild reported the full loss as the penalty with bit-identical weights |
 | A61 | APEIRON | open | the regime ladder's evaluation ORDER is unpinned: inverted thresholds give the least adaptation, a rebuild gave the most |
+| A62 | APEIRON | open | third edge of A58: cross-layer method SIGNATURES unpinned; the assembled framework imported and died mid-training |
 | R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
 | R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
 | R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
@@ -3495,3 +3496,47 @@ did not. Second finding in a row that one oracle would have missed
 entirely (see A60).
 Kind: APEIRON (missing tests)
 Status: open -- claim resealed to `300f5458a8cd`, rebuild in flight.
+
+### A62 — the assembled framework imported, then died mid-training
+With A58's two composition holes closed, the nine blind rebuilds assembled
+into a framework that imports, and `check_mnist_harness.py` -- the pinned
+harness gate, 2,000 MNIST images, affine drift schedule, stochastic
+forward -- **passes against it**. Then the run gate started training and
+stopped on this:
+
+    File "apeiron/training/continuous_trainer.py", line 371
+      self.profiler.print_performance(logger=self.logger, level=1)
+    TypeError: FLOPSProfiler.print_performance() got an unexpected keyword
+               argument 'logger'
+
+The third edge of the same problem. A58 pinned which NAMES a package
+exports; it said nothing about the signatures of those names. The trainer's
+gate ran it against the SOURCE profiler, whose
+`print_performance(logger=None, level=0)` accepts both keywords. The
+profilers' own gate had no caller that passed either, so its reconstruction
+dropped them and passed. Two layers, both correct by their own criteria,
+and the pair breaks at the first drift event.
+
+Pinned as `test_call_signatures.py` across five layers -- 21 methods that
+are called from another layer -- asserting PARAMETER NAMES and which ones
+keep defaults, rather than the signature string, because annotations are
+free to change and a keyword is what a caller depends on.
+
+**It found two more that had not surfaced yet.** Validated against the
+rebuilt rooms: profilers fails 2 (the crash), logger fails 8, and
+model_harness fails 1. The logger and harness divergences were latent --
+they sit on call paths the run had not reached when the profiler killed it,
+so fixing only the visible one would have bought one more crash, further
+in. That is the argument for pinning a surface rather than chasing a
+traceback.
+
+The pattern across all three edges is identical and worth stating plainly:
+**a layer's criteria are checked against real neighbours, so anything the
+neighbours happen to provide is untested.** Borrowed module names, missing
+re-exports, and dropped keyword parameters are three faces of it. Each was
+invisible to every per-layer measurement -- twenty rooms, agreeing roots,
+nine layers probed to zero or deliberate residuals -- and each was found
+only by assembling the thing and running it.
+Kind: APEIRON (missing tests)
+Status: open -- five claims resealed, rebuilds in flight; the run gate is
+the next measurement.

@@ -19,6 +19,7 @@ gate_timeout = 900.0
 environment = "requirements.lock"
 inputs = [
     "test_drift_detection.py",
+    "test_call_signatures.py",
     "test_regime_ladder.py",
     "test_export_surface.py",
     "test_detector_firing.py",
@@ -79,4 +80,4 @@ guidance = "regenerate the factory load_drift_detector(cfg) -> BaseDriftDetector
 kind = "gate"
 output = "DRIFT_OK"
 class = "validated"
-run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_drift_detection.py test_drift_severity.py test_model_performance_detector.py test_ensemble_nesting.py test_detector_firing.py test_export_surface.py test_regime_ladder.py && printf ok > DRIFT_OK"
+run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_drift_detection.py test_drift_severity.py test_model_performance_detector.py test_ensemble_nesting.py test_detector_firing.py test_export_surface.py test_regime_ladder.py test_call_signatures.py && printf ok > DRIFT_OK"
