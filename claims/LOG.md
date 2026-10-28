@@ -93,6 +93,7 @@ pinned claim files, where a renumber would move claim roots.
 | A60 | APEIRON | closed | the logged forgetting loss was unpinned; a rebuild reported the full loss as the penalty with bit-identical weights |
 | A61 | APEIRON | open | the regime ladder's evaluation ORDER is unpinned: inverted thresholds give the least adaptation, a rebuild gave the most |
 | A62 | APEIRON | open | third edge of A58: cross-layer method SIGNATURES unpinned; the assembled framework imported and died mid-training |
+| A63 | APEIRON | open | fourth edge: WHICH method of an injected collaborator a layer calls. `print_performance` documents `logger.info()`; a rebuild duck-typed to `log` |
 | R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
 | R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
 | R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
@@ -3540,3 +3541,53 @@ only by assembling the thing and running it.
 Kind: APEIRON (missing tests)
 Status: open -- five claims resealed, rebuilds in flight; the run gate is
 the next measurement.
+
+### A63 — the fourth composition edge: which collaborator method gets called
+With the signatures pinned, the assembled framework imports, passes the
+pinned MNIST harness gate, and gets further into training before stopping:
+
+    File "apeiron/profilers/count_flops.py", line 260, in _emit
+      candidate(message)
+    File "apeiron/logger/logger.py", line 158, in log
+      self._metrics.log(metrics, ...)
+    File "apeiron/logger/wandb_logger.py", line 163, in log
+      for key, value in metrics.items():
+    AttributeError: 'str' object has no attribute 'items'
+
+`print_performance` **documents its own contract** and the source honours
+it exactly:
+
+    logger: Optional logger instance. If provided, uses logger.info().
+    output_fn = (lambda msg: logger.info(msg, level=level)) if logger else print
+
+The reconstruction duck-typed instead -- `for method in ("log", "info",
+"print")`, falling back on `TypeError`. Against the real `Logger` that
+fails in a way no type check catches. `Logger.log(metrics, step=...,
+commit=..., prefix=..., increment=...)` accepts a string POSITIONALLY as
+`metrics`, so the call succeeds; it fails two frames deeper inside the
+backend, with an `AttributeError`, which is not what the fallback chain
+catches -- so `info` is never tried either.
+
+A documented behaviour, unasserted, and invisible to every gate on both
+sides of the boundary: the profiler's own tests pass a double or no logger,
+and the logger's tests never see the profiler.
+
+Pinned with a recording double rather than by reading the source, because
+what matters is the call that actually happens. The double's `log` is
+deliberately as strict as the real one about its first argument being a
+mapping, so a profiler reaching for `log` fails in the test the same way
+it fails in a run instead of being tolerated by a permissive stub.
+Validated: 10 of 10 against `src/`, 8 failures against the duck-typing
+room.
+
+**Four edges now, all the same shape.** A module borrowed through a
+sibling's namespace; a package that re-exported too little; a method whose
+keyword parameters were dropped; and a collaborator method chosen by
+guesswork. Every one passed both layers' gates, and every one was found
+only by assembling the framework and running it. The generalisation is
+worth stating as the campaign's main result: **criteria that test a layer
+against its real neighbours cannot specify the boundary between them.**
+What the neighbour happens to offer is free, and a reconstruction will
+spend that freedom.
+Kind: APEIRON (missing tests)
+Status: open -- profilers resealed and rebuilding; the run gate continues.
