@@ -94,6 +94,8 @@ pinned claim files, where a renumber would move claim roots.
 | A61 | APEIRON | open | the regime ladder's evaluation ORDER is unpinned: inverted thresholds give the least adaptation, a rebuild gave the most |
 | A62 | APEIRON | open | third edge of A58: cross-layer method SIGNATURES unpinned; the assembled framework imported and died mid-training |
 | A63 | APEIRON | open | fourth edge: WHICH method of an injected collaborator a layer calls. `print_performance` documents `logger.info()`; a rebuild duck-typed to `log` |
+| A64 | APEIRON | open | the metrics file's SCHEMA is unpinned: the run trains, completes, and writes a file no analysis can read |
+| R25 | methodology | fixed here | my own validation was vacuous: `pytest --rootdir=claims/<layer>` puts the claim's sealed `apeiron/` first on sys.path |
 | R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
 | R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
 | R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
@@ -3591,3 +3593,82 @@ What the neighbour happens to offer is free, and a reconstruction will
 spend that freedom.
 Kind: APEIRON (missing tests)
 Status: open -- profilers resealed and rebuilding; the run gate continues.
+
+### R25 — methodology: my validation harness hit the resolution trap
+Validating the new monitor criterion, I ran it as
+
+    PYTHONPATH=<room> pytest --rootdir=claims/monitor claims/monitor/test_*.py
+
+and it passed against `src/` AND against the room. I read that as "the
+criterion does not catch the divergence" and started looking for another
+layer to blame.
+
+It was the resolution trap, in my own check. `pytest` puts the rootdir on
+`sys.path` ahead of everything, and `claims/monitor/` contains the claim's
+own sealed `apeiron/` tree -- so both runs loaded the SOURCE and the room
+was never imported. The earlier layers were validated by copying the test
+file to a neutral directory, which is why they were sound; I shortened the
+loop for brevity and reintroduced the bug R20 exists to prevent.
+
+Re-run from a neutral cwd with only the room on PYTHONPATH: `src/` passes
+6 of 6, the room fails 5 of 6. The criterion was right the whole time.
+
+The lesson is narrower than R20's and worth separating: the probe harness
+has `_assert_resolves` and refuses a vacuous comparison, and **my ad-hoc
+validation commands do not**. Any check run outside the harness needs the
+same guard applied by hand -- confirm what the interpreter actually
+imported before believing either outcome. Validate from a neutral
+directory, with one tree on the path.
+Kind: methodology (fixed here)
+Status: fixed here -- validations re-run from a neutral cwd.
+
+### A64 — the metrics file's schema is unpinned, and a run can write gibberish
+The assembled framework -- nine blind rebuilds, every layer at zero or
+deliberate residual contract divergences -- imports, passes the pinned
+MNIST harness gate, and **trains the entire run without error**. The run
+claim then fails:
+
+    AssertionError: drift fires at [], expected [350]
+
+Drift had fired. The check selects `drift/score` from the produced CSV,
+exactly as an analysis would, and found nothing. Measured as a unit, one
+monitor loop under each implementation:
+
+| | names a run logs |
+|---|---|
+| original | `eval/accuracy`, `eval/mean_logit`, `drift/score`, `drift/detected`, `drift/regime`, `drift/confidence`, `drift/metric_0`, six `drift/cperf_*` |
+| rebuild | `drift/metric_0`, `drift/drift_score`, `drift/drift_detected`, `drift/batch_count`, `drift/stream_update_count`, `drift/drift_event_count` |
+
+Twelve names against six, overlapping in one. The rebuild logs none of the
+per-batch evaluation metrics, none of the profiler measurements, and no
+regime or confidence; it writes monitor counters the original never
+records; and it re-prefixes the two columns it shares, so the stage
+namespace is applied twice (`drift/drift_score`).
+
+`test_logged_schema.py` pins the `cperf_` prefix and nothing else -- and
+with no profiler fields logged at all, that test had nothing to check.
+
+**This is the quietest failure the campaign has produced.** Every layer
+passed its gate. The composition imported. Training completed. The weights
+were computed. And the artefact the whole framework exists to produce is
+unreadable by the tooling that consumes it -- a file in which no analysis
+can find the accuracy or the drift events. It is also the sharpest argument
+for grading a rebuild by the surface a probe covers: the behaviour probe
+drove this layer to **zero** contract divergences on counters and trained
+weights, and never looked at what the run writes down.
+
+Pinned as the stage-qualified name set a loop logs, with the eval names
+DERIVED from the harness's own `eval_metrics` rather than listed -- the
+first version hard-coded two names measured from a different fixture and
+failed against `src/`, which is the third time this session that a
+criterion had to be measured with the fixture it would run under.
+Validated from a neutral directory (see R25): 6 of 6 against `src/`, 5 of
+6 failing against the room.
+
+NOT pinned, filed: `detected` is also emitted on a 10% sample of
+non-events via the unseeded global numpy RNG, so whether that column
+appears on a given row varies between runs of identical code. The schema
+is nondeterministic by design -- A41's class, and a decision for whoever
+owns the metrics.
+Kind: APEIRON (missing tests)
+Status: open -- monitor resealed and rebuilding.
