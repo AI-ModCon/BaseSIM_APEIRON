@@ -17,6 +17,7 @@ environment = "requirements.lock"
 inputs = [
     "test_logger.py",
     "test_verbosity_contract.py",
+    "test_log_call_surface.py",
     "test_logger_facade.py",
     "test_mlflow_logger.py",
     "test_wandb_run_paths.py",
@@ -72,4 +73,4 @@ guidance = "regenerate the Logger facade: selects the metrics backend from a 'wa
 kind = "gate"
 output = "LOGGER_OK"
 class = "validated"
-run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_logger.py test_logger_facade.py test_mlflow_logger.py test_wandb_run_paths.py test_verbosity_contract.py && printf ok > LOGGER_OK"
+run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_logger.py test_logger_facade.py test_mlflow_logger.py test_wandb_run_paths.py test_verbosity_contract.py test_log_call_surface.py && printf ok > LOGGER_OK"

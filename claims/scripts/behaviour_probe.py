@@ -352,9 +352,16 @@ def probe(layer: str, python: str, subject_dir: str | None = None) -> dict:
 #: fact and a reconstruction that keeps its bookkeeping elsewhere is free to.
 #: `_aggregate_buffer` looked identical and was NOT free -- `cl_only.py:326`
 #: calls it -- so each private name has to be checked rather than assumed.
+#: `ConsoleLogger._get_step` is the same case as `_add_profile`, checked the
+#: same way: no caller outside `console_logger.py` anywhere in `src/` or
+#: `examples/`. `Logger.__init__` hands the console logger a `get_step`
+#: CALLABLE (`logger.py:48`), and how the console logger then stores and
+#: reads it is its own business -- the regrown one keeps no method by that
+#: name and reads the callable directly.
 LATITUDE = {
     "profilers": ("_format_flops", "_format_time", "_format_throughput",
                   "_add_profile"),
+    "logger": ("ConsoleLogger[step-callback-default]",),
 }
 
 
@@ -417,7 +424,11 @@ def causes(diverge: list) -> dict:
 def report(result: dict) -> None:
     layer, n = result["layer"], result["cases"]
     bad = result["diverge"]
-    grouped = result.get("causes") or causes(bad)
+    # `or` would be wrong here: an empty dict is falsy, so a room with
+    # ZERO contract divergences fell back to grouping every divergence
+    # and printed "0 diverge on contract from 1 distinct cause(s)",
+    # listing a cause it had just excluded.
+    grouped = result["causes"] if "causes" in result else causes(bad)
     free = result.get("latitude_diverge", 0)
     held = result.get("contract_diverge", len(bad))
     print(f"\n=== {layer}: {n} probe cases, "

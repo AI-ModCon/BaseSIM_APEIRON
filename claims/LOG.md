@@ -79,8 +79,9 @@ pinned claim files, where a renumber would move claim roots.
 | A49 | measurement | closed | `profilers` 117/111 is 4/3 contract divergences; pinning the CSV contract took codex to 1 |
 | A50 | APEIRON | open | a measured block that RAISES is still reported as a completed zero-FLOP measurement, into the CSV |
 | R22 | methodology | fixed here | an exception's TYPE is contract and its wording is prose; classified automatically rather than listed |
-| A51 | APEIRON | open | nothing pins how a `verbosity` string becomes a level; one rebuild CRASHES on `"info"` |
+| A51 | APEIRON | closed | nothing pinned how a `verbosity` string becomes a level; one rebuild CRASHED on `"info"`. 14/10 contract divergences to 0 |
 | A52 | APEIRON | open | an unrecognised verbosity silently becomes INFO, so `verbosity = "WARN"` logs MORE than asked |
+| A53 | measurement | open | all twenty rooms re-measured under the guard: 681 raw divergences are 335 on contract, and three layers now sit at 0 |
 | R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
 | R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
 | R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
@@ -2894,9 +2895,32 @@ both rebuilds normalised one way or the other.
 Pinned as `claims/logger/test_verbosity_contract.py`, 46 cases, in the
 gate; claim resealed to `c3f078770b7c`. Validated both ways: 46 of 46
 against `src/`, and against the two rooms it fails 19 and 11.
+A second gap on the same layer, found by the same probe and pinned
+alongside it as `test_log_call_surface.py` (27 cases). `Logger.log` takes
+five parameters and forwards all five to the backend in one call
+(`logger.py:94`); the suite passes `metrics` and `step` and never the
+other three. The rebuild forwarded a different arity and
+`Logger(backend="none").log({...}, prefix=False)` raised
+
+    TypeError: WandBLogger.log() got an unexpected keyword argument 'prefix'
+
+One version of that criterion asserted that a none-backend logger holds no
+`WandBLogger` at all, and it FAILED against `src/` -- correctly, because
+`logger.py:44` builds `WandBLogger(enabled=False)` deliberately, using the
+disabled backend as the null object so the facade needs no second code
+path and `to_csv` keeps working. The promise is not "no wandb class is
+instantiated", it is "no run is opened", which `url` reports. Running a
+criterion against the implementation before believing it caught an invented
+property for the fourth time this campaign.
+
+Claim resealed to `be5d0af2d5da`. A blind rebuild against it leaves **0
+contract divergences** over 103 cases: 1 in latitude
+(`ConsoleLogger._get_step`, no caller outside `console_logger.py`) and 8
+that are the same `ValueError` worded differently (R22).
 Kind: APEIRON (missing tests)
-Status: open -- candidate for upstream. Tests only, no behaviour change,
-and justified from `console_logger.py` alone.
+Status: closed here -- 14 and 10 contract divergences to 0. Candidate for
+upstream: tests only, no behaviour change, justified from
+`console_logger.py` and `logger.py` alone.
 
 ### A52 — APEIRON: `verbosity = "WARN"` logs MORE than you asked for
 A consequence of A51's fallback worth separating, because it is a
@@ -2928,3 +2952,65 @@ RAISE -- a config typo taking down a training run is no one's intent --
 and leaves which level it picks free.
 Kind: APEIRON (behaviour question)
 Status: open -- needs a decision, not a test.
+
+### A53 — all twenty rooms, re-measured under the guard and the split
+A46 ranked the worklist by raw diverging cases. Under R20's resolution
+guard, R21's declared latitude and R22's prose rule, every one of the
+twenty rooms was re-measured. Each cell satisfied the guard, so none of
+these is the source compared with itself.
+
+| layer | codex contract | claude contract | free | cases |
+|---|---|---|---|---|
+| config | 7 | 15 | 0 | 82 |
+| evaluation | 4 | **0** | 0 | 39 |
+| profilers | 2 | 1 | 113 / 110 | 269 |
+| logger | 14 | 10 | 9 | 103 |
+| model_harness | 7 | 13 | 0 | 72 |
+| updaters | **0** | 24 | 0 | 143 |
+| drift_detection | 23 | 37 | 0 | 70 |
+| trainer | 20 | 20 | 0 | 58 |
+| monitor | 124 | 106 | 0 | 269 |
+| entrypoints | 54 | 51 | 0 | 122 |
+
+Monitor's figures are higher than A46's 68 and 68 because its probe was
+repaired (R19) and now carries 269 cases rather than 91, with four
+configurations that reach the trainer. Everything else reproduces A46
+exactly, which is the evidence that A46 was measured on a path where
+PYTHONPATH won and only this session's first profilers run was vacuous.
+
+**The two zeros are real, and were checked rather than trusted.** A zero
+is exactly what a vacuous comparison produces, so each was validated
+against a planted bug in the layer it covers. The updaters probe catches
+an inverted replay gate (`mix_historic_data` negated) in 22 of 143 cases.
+The evaluation probe catches a top-k slice off by one in 1 of 39 -- it
+fails, so the zero is not vacuous, but one case is thin sensitivity and
+`claude evaluation` should not be called replacement-grade on that
+strength alone.
+
+Both validations were themselves wrong the first time, and the guard said
+so: the mutants were built as full `src/` copies, which carry
+`apeiron/__init__.py` where a layer-shaped oracle tree does not, so the
+harness refused the asymmetric comparison instead of reporting a number.
+Rebuilt layer-shaped from each claim's own recipe.
+
+**Where the pinning rounds landed:**
+
+| layer | before | after a blind rebuild |
+|---|---|---|
+| monitor | 124 / 106 | **0** (both families) |
+| logger | 14 / 10 | **0** |
+| profilers | 4 / 3 | **1**, deliberately unpinned (A50) |
+
+Three layers at zero contract divergences, each on a probe shown able to
+fail, each against an implementation a fraction of the original's size:
+109 and 261 lines against 405 for the monitor, 58 against 165 for the
+console logger, 129 against 392 for the profiler.
+
+The remaining worklist, in the only order that is meaningful -- and still
+an upper bound, because only profilers and logger have had their latitude
+triaged: drift_detection (23/37, with 10 cases where the SOURCE disagrees
+with itself across hash seeds, which is A39 and a defect rather than a
+gap), entrypoints (54/51), trainer (20/20), config (7/15), model_harness
+(7/13), evaluation (4/0).
+Kind: measurement
+Status: open -- six layers untriaged.
