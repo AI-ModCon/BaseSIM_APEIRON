@@ -82,6 +82,8 @@ pinned claim files, where a renumber would move claim roots.
 | A51 | APEIRON | closed | nothing pinned how a `verbosity` string becomes a level; one rebuild CRASHED on `"info"`. 14/10 contract divergences to 0 |
 | A52 | APEIRON | open | an unrecognised verbosity silently becomes INFO, so `verbosity = "WARN"` logs MORE than asked |
 | A53 | measurement | open | all twenty rooms re-measured under the guard: 681 raw divergences are 335 on contract, and three layers now sit at 0 |
+| R23 | methodology | fixed here | the probe measured a room whose gate never passed, and called it a result |
+| A54 | APEIRON | open | nothing pins WHEN a detector fires; one rebuild replaced river with its own algorithms and passed |
 | R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
 | R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
 | R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
@@ -3014,3 +3016,90 @@ gap), entrypoints (54/51), trainer (20/20), config (7/15), model_harness
 (7/13), evaluation (4/0).
 Kind: measurement
 Status: open -- six layers untriaged.
+
+### R23 — methodology: a room that failed its gate is not a rebuild
+Strengthening the drift_detection criteria made the producer fail outright:
+
+    ret: rebuild: the producer failed (rc=1)
+    producer_codex: codex finished but the gate never produced DRIFT_OK
+
+`ret rebuild` leaves the workspace on disk either way, and the probe,
+pointed at it with `--subject`, went on to report "4 diverge on contract"
+for a workspace the producer had abandoned. That number is meaningless. The
+entire premise of a grade-2 measurement is "an implementation that PASSES
+the gate still behaves differently"; this one does not pass, so there is
+nothing to say about the criteria from it.
+
+`behaviour_probe.py` now reads the claim's gate steps and refuses unless
+every sentinel they write is present in the room. The check is conditional
+on the subject carrying a `reticuli.toml`, because mutant trees built from
+`_oracle_tree` have no recipe and no gate and are legitimate subjects --
+verified both ways after the guard went in: the abandoned room is refused
+and the evaluation mutant still measures.
+
+Same family as R20: the probe will measure whatever it is pointed at, and
+every premise it relies on has to be checked by the harness rather than
+remembered by the operator. That is now three such guards -- the subject
+resolves inside its own tree, the subject passed its gate, and a clean
+result is backed by a planted failure.
+Kind: methodology (fixed here)
+Status: fixed here -- behaviour_probe.py `_assert_gate_passed`.
+
+### A54 — APEIRON: nothing pins WHEN a drift detector fires
+The drift_detection suite covers what a `DriftSignal` carries, how
+`drift_score` averages, and which regime a score maps to. It does not
+cover the question the detectors exist to answer: given this sequence of
+values, at which step does drift fire? That decides when
+`ContinuousMonitor` dispatches continual learning, hence which batches the
+model trains on, hence the weights the run ends with.
+
+**One rebuild does not import river at all.** It reimplemented ADWIN,
+KSWIN and Page-Hinkley from scratch in 115 lines against the source's 316,
+and passed every test in the layer. On a step stream it fires at 206 where
+the original fires at 223 -- seventeen steps of stream consumed before
+adaptation, with the same regime label and the same drift score, and
+nothing in the suite notices. A37 found this for Page-Hinkley; it
+generalises to the whole layer.
+
+**The other rebuild does import river, fires at exactly the right steps,
+and still diverges.** Its `drift_score` drops to 0.0 the step after a
+detection instead of carrying it for the window: 99 of 400 steps differ,
+every firing step and regime label identical. That reaches an artefact --
+`_log_metrics` writes `drift_signal.drift_score` as the drift stage's
+`score` column on every check -- so the difference is 99 wrong cells in
+the metrics CSV. A probe that only looked at firings would have called
+that room clean.
+
+Pinned as `claims/drift_detection/test_detector_firing.py`, 29 cases: an
+exact firing table over six closed-form streams (no RNG, so the table is
+re-derivable rather than recorded), the trailing-window persistence, and
+the per-detector window asymmetry -- ADWIN averages over 100 samples,
+KSWIN and Page-Hinkley over 50 (`statistical_detectors.py:80`, `:183`,
+`:287`), so one detection scores 0.01 on ADWIN and 0.02 on the others.
+
+Two of the six streams are negative controls (`flat`, `spike`) where
+nothing fires, and three further cases assert the table discriminates at
+all: every detector fires somewhere, every detector is silent somewhere,
+and no two detectors fire identically. A firing table without those is
+satisfied by something that fires constantly.
+
+Validated: 29 of 29 against `src/`; 8 failures against the
+reimplemented-from-scratch room and 3 against the river-delegating one, so
+it catches both failure modes and for the right reasons.
+
+One claim NOT made. The score-decay difference is pinned as a difference
+in logged output, which it demonstrably is, and not as a difference in
+adaptation decisions, which was not shown: changing a regime needs two
+detections inside one window, and no stream tried produces them -- ADWIN's
+firings on an oscillating stream sit 160 steps apart, and tightening the
+oscillation stops it firing at all. The first version of this entry
+asserted the escalation ladder could never climb; measurement refuted it
+and the claim was dropped.
+
+Claim resealed to `da9de183e3f6`. The blind rebuild against it FAILED its
+gate on the first attempt, which is the strongest evidence available that
+the criterion bites: a from-scratch reimplementation can no longer pass.
+Retrying (regrowth is a sampling instrument).
+Kind: APEIRON (missing tests)
+Status: open -- the rebuild against the stronger criteria is still being
+earned.

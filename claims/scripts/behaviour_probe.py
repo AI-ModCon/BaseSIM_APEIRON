@@ -184,6 +184,40 @@ def _ensure_importable(root: pathlib.Path) -> bool:
     return True
 
 
+def _assert_gate_passed(layer: str, subject: pathlib.Path) -> None:
+    """A room that failed its gate is not a rebuild, and must not be probed.
+
+    `ret rebuild` leaves the workspace on disk even when the producer never
+    satisfies the criteria, so `--subject <room>` will happily measure code
+    that does not reach the claim's root. That measurement means nothing:
+    the whole premise is "an implementation that passes the gate still
+    behaves differently", and this one does not pass.
+
+    It is not hypothetical. Strengthening the drift_detection criteria made
+    the producer fail outright -- `codex finished but the gate never
+    produced DRIFT_OK` -- and the probe went on to report 4 contract
+    divergences for the abandoned workspace as though it were a result.
+
+    Only applied when the subject actually looks like a claim room (it
+    carries a `reticuli.toml`). Mutant trees built from `_oracle_tree` have
+    no recipe and no gate, and are legitimate subjects.
+    """
+    if not (subject / "reticuli.toml").is_file():
+        return
+    recipe = tomllib.loads((_claim_dir(layer) / "reticuli.toml").read_text())
+    sentinels = [step["output"] for step in recipe.get("step", [])
+                 if step.get("kind") == "gate"]
+    missing = [s for s in sentinels if not (subject / s).exists()]
+    if missing:
+        sys.exit(
+            f"REFUSING to probe {subject}: it is a claim room whose gate "
+            f"never passed -- {', '.join(missing)} absent. A room that does "
+            f"not reach the claim's root is not a rebuild, and comparing it "
+            f"would describe a workspace the producer abandoned. Re-run the "
+            f"rebuild (regrowth is a sampling instrument; retry before "
+            f"concluding) or probe a room that passed.")
+
+
 def _assert_resolves(root: pathlib.Path, python: str) -> None:
     """Refuse to compare a tree the interpreter will not actually import.
 
@@ -271,6 +305,8 @@ def probe(layer: str, python: str, subject_dir: str | None = None) -> dict:
     if not driver.is_file():
         sys.exit(f"no probe driver at {driver}")
     subject_root = pathlib.Path(subject_dir) if subject_dir else _claim_dir(layer)
+    if subject_dir:
+        _assert_gate_passed(layer, subject_root)
 
     with tempfile.TemporaryDirectory() as tmp:
         oracle_root = pathlib.Path(tmp) / "oracle"
