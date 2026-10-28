@@ -3369,6 +3369,20 @@ import-surface check asserted that every module imports torch directly, and
 on actual use. Third time this session that running a criterion against the
 implementation before believing it caught something I had reasoned my way
 into.
+**A note on how the rebuild batch read, because it nearly misled me.**
+Seven layers were resealed and rebuilt; three passed and four "FAILED after
+3 attempts". Twelve failed attempts in a row looks exactly like an
+unreachable criterion -- the trap of pinning something no reconstruction
+can satisfy, which is as useless as pinning nothing. It was not. The
+producer had hit its account quota:
+
+    'You've hit your usage limit ... try again at 3:57 PM.'
+    producer_codex: codex exited 1 and the gate has not passed
+
+A producer refusal says nothing about the criteria and belongs in its own
+bucket, not in the failure count. The four were re-run on the other
+producer family, which has a separate quota. The criteria's reachability is
+established by the three that passed and by the seven that pass against
+`src/`, not by the absence of refusals.
 Kind: APEIRON (missing tests)
-Status: open -- seven layers resealed and rebuilding against the new
-criteria; the assembled run is the next measurement.
+Status: open -- the assembled run is the next measurement.
