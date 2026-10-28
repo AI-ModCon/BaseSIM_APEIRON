@@ -316,12 +316,16 @@ def probe(layer: str, python: str, subject_dir: str | None = None) -> dict:
         want, got = oracle.get(case, "<absent>"), subject.get(case, "<absent>")
         (agree if want == got else diverge).append((case, want, got))
     granted = LATITUDE.get(layer, ())
-    latitude = [d for d in diverge if d[0].startswith(granted)] if granted else []
-    contract = [d for d in diverge if d not in latitude]
+    declared = [d for d in diverge if granted and d[0].startswith(granted)]
+    prose = [d for d in diverge if d not in declared
+             and prose_only(d[1], d[2])]
+    free = declared + prose
+    contract = [d for d in diverge if d not in free]
     return {"layer": layer, "cases": len(cases), "agree": len(agree),
             "diverge": diverge, "causes": causes(contract),
             "contract_diverge": len(contract),
-            "latitude_diverge": len(latitude),
+            "latitude_diverge": len(declared),
+            "prose_diverge": len(prose),
             "latitude_surface": list(granted),
             "absent_from_source": absent, "unstable": unstable,
             "scaffolded_package_marker": scaffolded}
@@ -352,6 +356,33 @@ LATITUDE = {
     "profilers": ("_format_flops", "_format_time", "_format_throughput",
                   "_add_profile"),
 }
+
+
+#: An exception's TYPE is contract; its wording is prose.
+_EXC = re.compile(r"([A-Za-z_][A-Za-z0-9_]*(?:Error|Exception|Warning)): ")
+
+
+def prose_only(want: str, got: str) -> bool:
+    """True when both sides raise the same exception and differ in wording.
+
+    This generalises what a per-layer prefix list was doing by hand. Both
+    implementations reject the same input with the same exception type, and
+    the strings differ: `ValueError: Invalid stage 'EVAL'. Must be one
+    of: ('eval', 'drift', 'cl')` against `ValueError: Invalid stage 'EVAL';
+    expected one of ['eval', 'drift', 'cl']`. The decision, the type and
+    the valid set all agree; only the sentence differs, and a suite that
+    pinned the sentence would be a worse suite.
+
+    Sixteen of the logger's divergences and both of the monitor's residual
+    two are this and nothing else. Detected rather than listed, so a new
+    layer gets the classification without anyone remembering to add it.
+
+    One side raising where the other does not is NOT prose -- that is a
+    behavioural difference and stays on the contract count.
+    """
+    mine, theirs = _EXC.match(str(want)), _EXC.match(str(got))
+    return bool(mine and theirs and mine.group(1) == theirs.group(1)
+                and str(want) != str(got))
 
 
 def _cause(got: str) -> str:
@@ -396,6 +427,10 @@ def report(result: dict) -> None:
         print(f"  plus {free} divergence(s) in granted-latitude surface "
               f"({', '.join(result.get('latitude_surface', []))}), "
               f"reported and not counted as contract")
+    if result.get("prose_diverge"):
+        print(f"  plus {result['prose_diverge']} divergence(s) where both "
+              f"sides raise the same exception and only the wording "
+              f"differs, likewise not counted as contract")
     for cause, cases_ in grouped.items():
         print(f"  CAUSE  {cause}  ({len(cases_)} case(s), "
               f"e.g. {cases_[0]})")

@@ -78,6 +78,9 @@ pinned claim files, where a renumber would move claim roots.
 | R21 | methodology | fixed here | divergence counts conflated granted latitude with contract, mis-ranking the worklist |
 | A49 | measurement | closed | `profilers` 117/111 is 4/3 contract divergences; pinning the CSV contract took codex to 1 |
 | A50 | APEIRON | open | a measured block that RAISES is still reported as a completed zero-FLOP measurement, into the CSV |
+| R22 | methodology | fixed here | an exception's TYPE is contract and its wording is prose; classified automatically rather than listed |
+| A51 | APEIRON | open | nothing pins how a `verbosity` string becomes a level; one rebuild CRASHES on `"info"` |
+| A52 | APEIRON | open | an unrecognised verbosity silently becomes INFO, so `verbosity = "WARN"` logs MORE than asked |
 | R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
 | R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
 | R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
@@ -2817,5 +2820,111 @@ settle it by default. The claim asserts only what is not in question: the
 exception propagates, `tag` is released, and a later measurement is
 recorded under its own name. The divergence is therefore still reported by
 the probe, as the single remaining contract divergence on the layer.
+Kind: APEIRON (behaviour question)
+Status: open -- needs a decision, not a test.
+
+### R22 — methodology: an exception's type is contract, its wording is prose
+Sixteen of the logger's divergences -- eight in each producer family --
+were one shape:
+
+    source  ValueError: Invalid stage 'EVAL'. Must be one of: ('eval', 'drift', 'cl')
+    room    ValueError: Invalid stage 'EVAL'; expected one of ['eval', 'drift', 'cl']
+
+Same exception type, same rejected input, same valid set, different
+sentence. The decision is identical and the contract holds; only the
+wording differs, and a suite that pinned the wording would be a worse
+suite. The monitor's two residual divergences after A48 were the same
+shape, and so was one of the profilers'.
+
+R21 handled this by hand with a per-layer list of case prefixes, which
+does not scale and quietly mis-ranks any layer nobody remembered to
+annotate. It is detectable instead: when both sides raise and the
+exception types match and the strings do not, the divergence is prose.
+`behaviour_probe.py` now classifies that automatically and reports it on
+its own line.
+
+Two boundaries matter, and both are asserted by how the rule is written.
+One side raising where the other returns a value is NOT prose -- that is
+behaviour, and it stays on the contract count. And a divergence in a
+returned VALUE is not prose even when it looks textual: the profilers'
+remaining case compares two dicts and is unaffected, which was checked
+rather than assumed after the rule went in.
+Kind: methodology (fixed here)
+Status: fixed here -- behaviour_probe.py `prose_only`.
+
+### A51 — APEIRON: nothing pins how a `verbosity` string becomes a level
+`[logging] verbosity` is a config value, so the string-to-level mapping is
+the surface a typo in a TOML file reaches. `ConsoleLogger._get_log_level`
+implements it in one expression:
+
+    return 20 - tier if base_level == "INFO" else LEVEL_MAP.get(base_level,
+                                                                logging.INFO)
+
+with `_parse_verbosity` upper-casing and stripping first. So the tier
+offset applies to INFO **only** -- `DEBUG:2` is DEBUG, not DEBUG minus
+two -- and `"info"` works because of the upper-casing.
+
+`test_logger.py` asserts three cases (`_get_log_level("INFO") == 20`,
+`("INFO:3") == 17`, `("DEBUG") == 10`) and leaves the rest open: case
+folding, the INFO-only rule, a negative tier, a non-numeric tier, and what
+an unknown name does. Measured against the source:
+
+| input | `_parse_verbosity` | level |
+|---|---|---|
+| `"info"`, `" info "` | `("INFO", 0)` | 20 |
+| `"INFO:9"` | `("INFO", 9)` | 11 |
+| `"INFO:-1"` | `("INFO", 0)` | 20 |
+| `"INFO:abc"`, `"INFO:"` | `("INFO", 0)` | 20 |
+| `"debug:2"` | `("DEBUG", 2)` | **10** |
+| `"CRITICAL:5"` | `("CRITICAL", 5)` | **50** |
+
+Two reconstructions, given the suite and not the source, each got this
+wrong and differently. One applied the tier to every level, so
+`CRITICAL:5` became 45 and `debug:2` became 8. The other **raised
+TypeError** on the lowercase `"info"`, never having upper-cased before the
+arithmetic -- a framework whose config accepts `verbosity = "info"` and
+then crashes on it is worse than one that mis-levels it, and nothing in
+the suite would have caught either.
+
+Also unpinned and also divergent: `.verbosity` stores the upper-cased
+string but does NOT strip it, so `" info "` is kept as `" INFO "` while
+`_parse_verbosity` strips. That asymmetry is the measured behaviour and
+both rebuilds normalised one way or the other.
+
+Pinned as `claims/logger/test_verbosity_contract.py`, 46 cases, in the
+gate; claim resealed to `c3f078770b7c`. Validated both ways: 46 of 46
+against `src/`, and against the two rooms it fails 19 and 11.
+Kind: APEIRON (missing tests)
+Status: open -- candidate for upstream. Tests only, no behaviour change,
+and justified from `console_logger.py` alone.
+
+### A52 — APEIRON: `verbosity = "WARN"` logs MORE than you asked for
+A consequence of A51's fallback worth separating, because it is a
+behaviour question rather than a missing test.
+
+`LEVEL_MAP` holds DEBUG, INFO, WARNING, ERROR and CRITICAL. Anything else
+resolves through `LEVEL_MAP.get(base_level, logging.INFO)` to INFO, with
+nothing logged about the setting not being understood. Measured:
+
+    verbosity="WARNING"   info tier 0 printed: no    warnings printed: yes
+    verbosity="WARN"      info tier 0 printed: YES   warnings printed: yes
+    verbosity="NOTSET"    info tier 0 printed: YES
+    verbosity="TRACE"     info tier 0 printed: YES
+    verbosity=""          info tier 0 printed: YES
+
+So a user who writes the ordinary abbreviation `WARN` to quieten a run
+gets the full info stream instead, and so does a user who mistypes the
+name at all. The failure direction is the unhelpful one: more output than
+requested, silently, on a long training run.
+
+Both reconstructions diverge here too, in the other direction -- one maps
+`WARN` to WARNING (30) and `NOTSET` to 0.
+
+Deliberately NOT pinned. Whether an unknown name should raise, warn once,
+or resolve through an alias table is a decision for whoever owns the
+configuration surface, and writing today's answer into a gate settles it
+by default. The claim asserts only that an unrecognised name does not
+RAISE -- a config typo taking down a training run is no one's intent --
+and leaves which level it picks free.
 Kind: APEIRON (behaviour question)
 Status: open -- needs a decision, not a test.
