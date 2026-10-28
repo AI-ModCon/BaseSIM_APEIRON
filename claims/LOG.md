@@ -96,6 +96,8 @@ pinned claim files, where a renumber would move claim roots.
 | A63 | APEIRON | open | fourth edge: WHICH method of an injected collaborator a layer calls. `print_performance` documents `logger.info()`; a rebuild duck-typed to `log` |
 | A64 | APEIRON | open | the metrics file's SCHEMA is unpinned: the run trains, completes, and writes a file no analysis can read |
 | R25 | methodology | fixed here | my own validation was vacuous: `pytest --rootdir=claims/<layer>` puts the claim's sealed `apeiron/` first on sys.path |
+| R26 | methodology | WITHDRAWN | a forced-drift count table, measured once against an UNSEEDED fixture; the source varies run to run |
+| A65 | measurement | open | the assembled run logs 378 evaluations against the original's 376, deterministically; cause not yet located |
 | R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
 | R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
 | R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
@@ -3672,3 +3674,68 @@ is nondeterministic by design -- A41's class, and a decision for whoever
 owns the metrics.
 Kind: APEIRON (missing tests)
 Status: open -- monitor resealed and rebuilding.
+
+### R26 — WITHDRAWN: a count table pinned against an unseeded fixture
+Chasing the MNIST run's two-step offset, I compared drift-event and
+evaluation counts between the source and a rebuilt monitor with drift
+forced, and reported a divergence:
+
+    cap=1   src 11 events / 52 evals     room  7 events / 44 evals
+    cap=2   src 12 / 86                  room 15 / 92
+    cap=3   src 28 / 150                 room 29 / 152
+    cap=5   src 40 / 238                 room 44 / 246
+
+and wrote a criterion pinning those numbers. **It failed against `src/`
+on three of four rows**, which is what sent me to check the obvious thing
+I should have checked first: running the source three times gives
+
+    cap=1   7, 7, 10        cap=2   19, 14, 18
+    cap=3   24, 18, 35      cap=5   36, 43, 52
+
+The fixture harness in `claims/monitor/conftest.py` builds its tensors with
+unseeded `torch.randn`, so every instantiation streams different data and
+the detector fires a different number of times. The "divergence" was two
+samples from that distribution, one per tree. There is no finding here, the
+criterion is deleted, and it was never wired into the claim.
+
+Two things went wrong and only one of them is about the fixture. The
+fixture is unseeded, which is a real hazard. But I also compared one run
+against one run and called the difference a divergence, with no check that
+either side repeats -- and the probe harness has done that check since
+A38, across six hash seeds, precisely because a single draw cannot tell a
+difference from noise. I stepped outside the harness and lost the
+guarantee it provides, the same way R25 lost the resolution guarantee.
+
+**The rule, stated so it is checkable: before comparing two
+implementations on any quantity, run ONE of them twice.** If it does not
+repeat, the comparison is measuring the fixture.
+Kind: methodology (withdrawn finding)
+Status: withdrawn -- criterion deleted, no claim resealed.
+
+### A65 — the assembled run performs two extra evaluations, deterministically
+What survives R26's retraction, because it is measured against a SEEDED
+harness and reproduces: the full-stack run of the assembled framework logs
+**378** `eval/accuracy` rows where the original logs **376**, and the
+original's accuracy sequence is the rebuild's **shifted by exactly two**:
+
+    original  46.875, 34.375, 50.0,  40.625, 50.0, 59.375
+    rebuild    50.0,  53.125, 46.875, 34.375, 50.0, 40.625
+
+`drift/metric_0` is identical in both -- 37 values, no shift -- so the
+aggregation the detector sees is unaffected, and the first two stream
+batches and the RNG state after them are byte-identical between the trees.
+The two extra evaluations are therefore additional, not different: the
+rebuild evaluates twice more than the original over the same stream, and
+every step label after that is offset by two. That is why the run claim
+reads `drift fires at [352]` where the pinned answer is `[350]`, and it
+would also fail `EXPECTED_EVAL_POINTS = 376`.
+
+Both implementations call `model.eval()` before evaluating and both honour
+`reset_after_learning` identically, so neither is the cause. Not located
+further: the conftest fixture cannot be used to chase it (R26), and a
+deterministic fixture for this layer -- a seeded stream harness -- is the
+prerequisite for the next attempt rather than something to work around.
+
+Kind: measurement
+Status: open -- reproducible, cause unlocated, and the instrument needed to
+locate it does not exist yet.
