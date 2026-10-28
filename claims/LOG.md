@@ -103,6 +103,8 @@ pinned claim files, where a renumber would move claim roots.
 | R27 | methodology | open | SIX claim fixtures cannot reach the paths where divergences live; validating outside the harness lost a guarantee three times |
 | A68 | APEIRON | open | the logger contributes `step` and `{stage}/step` to every row; a rebuild omitted both and three CSV series vanished |
 | A69 | APEIRON | improvement | the CL loss columns are hard-coded `jvp_reg_*` whatever the update mode, and the profiler tags differ from the names |
+| A70 | APEIRON | open | `detected` is written on real events and a 10% sample; a rebuild wrote it always, shifting 17 digests via the global step |
+| R28 | methodology | fixed here | FOURTH resolution failure, inside my own probe: importing a claim's conftest puts its sealed `apeiron/` first |
 | R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
 | R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
 | R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
@@ -3957,3 +3959,75 @@ match on, so the current ones are pinned by A62's signature work and this
 note records only that a rename was tempting.
 Kind: APEIRON (improvements)
 Status: open -- both are column renames, so both are the team's to decide.
+
+### A70 — `detected` is sampled, and writing it always breaks 17 digests
+`_log_metrics` decides whether the column appears at all:
+
+    log_detected = drift_signal.drift_detected or (np.random.random() <= 0.1)
+    **({"detected": int(drift_signal.drift_detected)} if log_detected else {})
+
+A real detection is always recorded; a non-event about one time in ten. In
+the pinned MNIST run that is 2 rows out of 37 checks. A rebuild wrote the
+column on **all 37**.
+
+By itself that reads as more information rather than less, and nothing
+counted the rows. What it broke took a while to see. The logger stamps a
+GLOBAL `step` on every row it records (A68), and the run claim digests each
+series over its `(step, value)` sequence. Thirty-five extra rows therefore
+shifted the step label of every row logged after them, and **17 of 31
+series failed their digest while their values were byte-identical** --
+`cl/step`, `eval/test_curr_acc` and the rest all matched on value and
+failed on label. The column actually at fault was not among the 17.
+
+That is the sharpest example in this log of why a digest over a sequence
+is worth more than a comparison of values: the values agreed everywhere,
+and the record was still wrong.
+
+Pinned as a count under a seeded RNG -- the sampling draws from the global
+numpy RNG and the run seeds it from the config (A41), so for a given seed
+the number of sampled rows is fixed. Asserted as a band (one in four or
+fewer, and more than none) rather than an exact count, so the case does not
+depend on numpy's stream staying byte-identical across versions while
+still refusing both "never" and "always". The firing half is asserted
+exactly: with a detector that fires on every check, every row must carry
+the column.
+
+The improvement, filed not pinned: the sampling makes the file's SCHEMA
+depend on the RNG. Whether a given non-event row carries the column varies
+between runs unless numpy is seeded, so a run that forgets to seed
+produces a differently-shaped file every time. A column always present,
+carrying the flag, would cost one value per row and remove that.
+Kind: APEIRON (missing tests)
+Status: open -- claim resealed, rebuild in flight.
+
+### R28 — the resolution trap a fourth time, inside my own probe
+A diagnostic script needed the monitor claim's `conftest.py`, so it did
+
+    sys.path.insert(0, ".../claims/monitor")
+
+to import it. That directory also contains the claim's sealed `apeiron/`
+tree, so `apeiron` resolved to the SOURCE in both runs. The probe
+dutifully reported that the source and the room logged `detected` the same
+number of times for three seeds -- 4, 7, 5 -- which was source against
+source. Reading the room's code settled it in one line: the column is
+written unconditionally there, with no sampling at all.
+
+Four instances now, each by a different mechanism:
+
+| # | how the wrong tree won |
+|---|---|
+| R20 | a room with no `apeiron/__init__.py` lost to the editable install |
+| R25 | `pytest --rootdir=claims/<layer>` put the claim's own tree first |
+| R28 | `sys.path.insert` of a claim directory, to import its conftest |
+| — | and A40 originally: probing the claim's sealed tree against `src/` |
+
+The common shape is that a claim directory is BOTH a convenient source of
+test fixtures and a complete copy of the implementation, so any path
+manipulation that reaches for the first silently gets the second. The
+probe harness refuses this (`_assert_resolves`); everything I write
+alongside it must do the same check explicitly. Concretely: copy the
+fixture out, never add a claim directory to `sys.path`, and print the
+resolved `__file__` before trusting any comparison.
+Kind: methodology (fixed here)
+Status: fixed here -- the criterion was validated from a neutral directory
+with both resolutions printed.
