@@ -16,6 +16,7 @@ gate_timeout = 600.0
 environment = "requirements.lock"
 inputs = [
     "test_model_harness.py",
+    "test_harness_seams.py",
     "test_transfer_metrics.py",
     "conftest.py",
     "test_checkpointing.py",
@@ -75,4 +76,4 @@ guidance = "regenerate the model-harness ABC BaseModelHarness(cfg, model): moves
 kind = "gate"
 output = "HARNESS_OK"
 class = "validated"
-run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_model_harness.py test_transfer_metrics.py test_checkpointing.py && printf ok > HARNESS_OK"
+run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_model_harness.py test_transfer_metrics.py test_checkpointing.py test_harness_seams.py && printf ok > HARNESS_OK"

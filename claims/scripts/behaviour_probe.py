@@ -414,6 +414,35 @@ LATITUDE = {
     "logger": ("ConsoleLogger[step-callback-default]",),
     "drift_detection": ("DriftSignal[fields]",
                         "ensemble[VOTING_STRATEGIES]"),
+    # evaluation: cases where BOTH sides refuse the input and only the
+    # exception TYPE differs. `prose_only` deliberately will not treat a
+    # type change as free -- a caller that catches one type and not another
+    # behaves differently -- so this is declared per-case rather than
+    # inferred, and only after checking: nothing in `src/` or `examples/`
+    # wraps a metric call in try/except, so no caller distinguishes them.
+    #
+    # The source's types here are accidents of not guarding at all:
+    # `ZeroDivisionError` from dividing by an empty batch, `RuntimeError`
+    # out of torch's own `t()`, `IndexError` from a 1-D output. The rebuilt
+    # room raises `ValueError` with a sentence naming the problem, which is
+    # better. Counting that as a contract divergence would report the
+    # improvement as a regression.
+    # trainer: which helper attributes the class keeps. Nothing outside
+    # `continuous_trainer.py` reads `trainer.criterion` -- the updater
+    # builds its own from `modelHarness.get_criterion()` (`updater/base.py:27`)
+    # -- and both rebuilds produce BIT-IDENTICAL weights on every
+    # configuration probed, which is the evidence that the computation does
+    # not depend on the naming.
+    "trainer": ("surface[attrs]", "surface[criterion-present]"),
+    # entrypoints: the runners' announcement labels. A48 pins that `label`
+    # EXISTS, because `drift_only.py` and `cl_only.py` set and read it; the
+    # wording is display and nothing parses it. The rebuilds wrote
+    # "Scheduled CL" and "Drift-only monitoring".
+    "entrypoints": ("DriftOnlyMonitor[label]", "ScheduledCLRunner[label]"),
+    "evaluation": ("accuracy[1d-output]", "accuracy[3d-output]",
+                   "accuracy[empty-batch]", "accuracy[k-exceeds-classes]",
+                   "accuracy[mismatched-batch]", "accuracy_topk[(-1,)]",
+                   "accuracy_topk[(4,)]"),
 }
 
 

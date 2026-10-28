@@ -25,6 +25,7 @@ gate_timeout = 600.0
 environment = "requirements.lock"
 inputs = [
     "test_config.py",
+    "test_resolution_contract.py",
     "test_device_selection.py",
     "pytest.ini",
 ]
@@ -45,4 +46,4 @@ guidance = "regenerate apeiron/config/configuration.py so test_config.py passes:
 kind = "gate"
 output = "CONFIG_OK"
 class = "validated"
-run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_config.py test_device_selection.py && printf ok > CONFIG_OK"
+run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_config.py test_device_selection.py test_resolution_contract.py && printf ok > CONFIG_OK"

@@ -85,6 +85,9 @@ pinned claim files, where a renumber would move claim roots.
 | R23 | methodology | fixed here | the probe measured a room whose gate never passed, and called it a result |
 | A54 | APEIRON | closed | nothing pinned WHEN a detector fires; one rebuild replaced river with its own algorithms and passed. 23 contract divergences to 2 |
 | A55 | APEIRON | open | a non-string `ensemble_voting` leaks `AttributeError: 'int' object has no attribute 'strip'` |
+| R24 | methodology | fixed here | a "must raise" criterion without matching "must accept" controls licensed a STRICTER implementation |
+| A56 | APEIRON | open | the last five layers pinned: device precedence, config merge, metric guards, harness seams, trainer loop, schedule controls |
+| A57 | APEIRON | open | seven divergences across four layers where the RECONSTRUCTION is right and the source is wrong |
 | R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
 | R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
 | R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
@@ -3162,3 +3165,139 @@ divergences rather than being silenced.
 Kind: APEIRON (defect, reconstruction is right)
 Status: open -- a one-line fix in the validation order, if the team wants
 it.
+
+### R24 — methodology: "must raise" needs "must accept" beside it
+The evaluation criteria pinned that three degenerate inputs raise rather
+than returning a number. The blind rebuild against them took the probe
+from 3 contract divergences to **8** -- worse than before the pin.
+
+The producer had generalised. It added a shape guard rejecting anything
+that is not a batch-by-class matrix, and a `topk` guard rejecting anything
+it judged invalid, including `topk=(0,)` -- which the source ACCEPTS,
+returning 0.0, because nothing can be in an empty set of predictions. My
+controls were one case wide (a 2x2 batch scores 100%), so nothing said
+where the guards had to stop.
+
+A criterion that says "refuse this" licenses any implementation at least
+that strict. Without a measured set saying "accept that", the stricter
+one is a legal answer. Fixed by widening the controls to the measured
+accept-table -- `topk` of 0, 1, 2, `(1,0)`, `(0,1,2)`, a single-class
+batch, a single-sample batch -- after which the same room fails exactly
+the `topk=0` cases and the next rebuild reached **0**.
+
+Second half of the same lesson: 7 of those 8 divergences were both sides
+refusing the input with DIFFERENT exception types, and the room's types
+were better (`ValueError: Cannot score an empty batch` against the
+source's `ZeroDivisionError`). `prose_only` deliberately treats a type
+change as contract, because a caller that catches one type and not
+another behaves differently -- so these were declared as latitude
+per-case, and only after checking that nothing in `src/` or `examples/`
+wraps a metric call in try/except. Counting them would have reported an
+improvement as a regression.
+Kind: methodology (fixed here)
+Status: fixed here -- evaluation criteria widened, LATITUDE extended.
+
+### A56 — the last five layers, pinned
+Completing the sweep. Each layer: triage by cause, grep every private name
+for cross-layer callers, pin what is contract, declare what is free,
+rebuild blind, re-probe.
+
+| layer | contract before | after a blind rebuild | what was pinned |
+|---|---|---|---|
+| config | 7 / 15 | **3** (all A57) | device precedence, `deep_update` semantics, `kv_to_nested`, `env_overrides` |
+| evaluation | 4 / 0 | **0** | degenerate inputs raise; the accept-table beside them (R24) |
+| model_harness | 7 / 11 | **4** (all A57) | `_unpack` arity, empty-loader refusal, registry cap and alignment |
+| trainer | 17 / 17 | **3** → latitude + 1 pinned | `-> int` signature, short-window guard, the shape guard |
+| entrypoints | 41 / 40 | pending | schedule firing tables, CLI defaults, budget matching |
+
+**config.** `get_available_device` falls through CUDA, then MPS, then CPU;
+one rebuild dropped the MPS branch and returned `cpu` on a host where MPS
+is available. That is not only slower -- MPS and CPU kernels are not
+bit-identical, so the same config runs a numerically different job. Pinned
+against what the installed torch reports rather than a hard-coded name, so
+the assertion holds on a CUDA box, an Apple laptop and a CPU-only runner
+and still catches a missing branch. Also pinned: `deep_update` mutates its
+first argument and returns it while REPLACING nested dicts rather than
+mutating them (both halves observable, and the rebuilds picked different
+halves); `kv_to_nested` does not strip keys, accepts an empty key, and
+raises when asked to index through a scalar; `env_overrides` nests on `.`
+and NOT on `__`, which is the convention a reader is likely to assume.
+
+**model_harness.** `_unpack` and `_to_scalar` are called from
+`continuous_monitor.py` and `register_task` from `continuous_trainer.py`,
+so all of it is cross-layer contract despite the underscores. The registry
+cap matters most: it defaults to 50, evicts the OLDEST, and keeps
+`task_diagonals` aligned with `eval_past_tasks()` -- the alignment is the
+point, per `register_task`'s own docstring, because the transfer metrics
+index both by position and a length mismatch silently scores task i
+against task j. Rebuilds defaulted the cap to 20 and to None.
+
+**trainer.** Both rebuilds produce BIT-IDENTICAL weights on every
+configuration probed, so the training computation was already equivalent
+and nearly all the divergence was internal naming -- left free, with the
+identical weights as the evidence. Two things were not: the declared
+`-> int` return (the project runs `mypy .`, so a `None` return under that
+signature fails its own type gate), and `_safe_next`'s refusal of a window
+smaller than one batch. The latter is reachable from configuration --
+`outer_cl_training_loop` passes `min_batch=cfg.train.batch_size` -- so a
+`batch_size` larger than the drift window hits it, and one rebuild trained
+on the short batch instead and reported losses. Silently training on a
+fraction of the intended batch after every drift event is exactly the
+difference that moves a published number and leaves no trace.
+
+**entrypoints.** The largest and the most consequential, because
+`cl_only.py`'s schedules ARE the experimental controls: `never` as the
+frozen lower bound, `periodic` and `random` as rate-matched nulls. Both
+rebuilds broke them. `RandomSchedule(prob=0.5)` fired on no window at all,
+so the rate-matched null silently became the frozen baseline and a
+"drift-triggered beats random" result would have been measured against
+nothing happening. The same schedule produced an identical pattern for
+every seed, so the control's variance would have read as zero. And
+`make_schedule` refused `--budget` without `--period`, which is the
+budget-matching path the module documents as preferred -- the period is
+derived as `max(1, round(horizon / budget))` -- and refused a
+non-positive `--horizon`, where the source falls back to
+`cfg.drift_detection.max_stream_updates` and the CLI default is 0, making
+the fallback the normal path.
+
+Pinned as exact firing tables over fixed seeds: `np.random.default_rng` is
+reproducible and the claim pins numpy in its lock, so the patterns are
+computations rather than recordings. The CLI defaults are pinned with them
+because the two interact -- `period`, `prob`, `budget` and `horizon`
+default to numeric zeros and every branch tests them with `>`, so a rebuild
+defaulting them to `None` turned each test into a TypeError.
+
+One correction during the work: the budget-derived period table was first
+written from arithmetic in my head (`round(24/4) = 5`) and failed against
+the source. Measured instead: budget 4 -> period 6, budget 3 -> 8,
+budget 6 -> 4, budget 24 -> 1.
+Kind: APEIRON (missing tests)
+Status: open -- entrypoints' rebuild still being earned.
+
+### A57 — seven places where the reconstruction is right and the source is not
+Collected because they share a disposition: all are left UNPINNED, because
+pinning the current behaviour would freeze a defect, and choosing the
+replacement belongs to the team.
+
+| layer | surface | source | reconstruction |
+|---|---|---|---|
+| model_harness | `_unpack({"x":…, "y":…})` | returns the dict's KEYS, two strings | raises |
+| model_harness | `_to_scalar(long/bool tensor)` | RuntimeError out of `mean()` | coerces |
+| model_harness | `register_task(1.0)` | `TypeError: 'float' object is not iterable` | accepts as `[1.0]` |
+| config | unknown TOML section | silently ignored | rejected |
+| config | unknown TOP-LEVEL key | `TypeError: TrainCfg.__init__() got an unexpected keyword 'x'` | names the right place |
+| drift_detection | non-string `ensemble_voting` | `AttributeError: 'NoneType' has no attribute 'strip'` | clean ValueError |
+| evaluation | degenerate input | leaks `ZeroDivisionError` / torch's `t()` | ValueError naming the problem |
+
+The `_unpack` one is the sharpest: `x, y = batch` on a dict unpacks its
+KEYS, so a harness whose loader yields a dict gets two strings where the
+monitor expects two tensors, and the failure surfaces later as
+`'str' object has no attribute 'to'` -- an error about strings, from a
+line about devices.
+
+The config pair is held back for a second reason as well: an earlier
+config-assertion PR was declined in favour of documenting the behaviour,
+so asserting either answer here would re-open a settled question rather
+than ask it.
+Kind: APEIRON (defects, reconstruction is right)
+Status: open -- seven one-line decisions, none of them ours to make.

@@ -16,7 +16,8 @@ format = 4
 requires = ["python3"]
 gate_timeout = 600.0
 environment = "requirements.lock"
-inputs = ["test_evaluation.py", "test_evaluation_module.py", "pytest.ini"]
+inputs = ["test_evaluation.py",
+    "test_degenerate_inputs.py", "test_evaluation_module.py", "pytest.ini"]
 
 [[step]]
 kind = "produce"
@@ -40,4 +41,4 @@ guidance = "regenerate test(model, loader, criterion, cfg): evaluates the model 
 kind = "gate"
 output = "EVAL_OK"
 class = "validated"
-run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_evaluation.py test_evaluation_module.py && printf ok > EVAL_OK"
+run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_evaluation.py test_evaluation_module.py test_degenerate_inputs.py && printf ok > EVAL_OK"
