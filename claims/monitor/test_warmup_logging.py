@@ -134,3 +134,66 @@ class TestTheWarmupWindowIsSilent:
         metrics = monitor._evaluate_batch(_one_batch(dummy_harness))
         assert metrics is not None
         assert len(metrics) == len(dummy_harness.eval_metrics)
+
+
+class TestBatchCountIsIncrementedAfterTheEvaluation:
+    """Which batch sits at `batch_count == 0`, and so how wide the window is.
+
+    The gate above is `batch_count > warmup_iters`, so the window's width
+    depends entirely on the counter's value during the FIRST evaluation.
+    The original evaluates and then increments (`_process_stream`:
+    `metrics = self._evaluate_batch(batch)` followed by
+    `self.batch_count += 1`), so the first batch is evaluated at
+    `batch_count == 0` and the default `warmup_iters = 1` makes two batches
+    silent.
+
+    A rebuild incremented first. Its window was therefore one batch wide,
+    it logged one extra row at the head of the file, and every row after
+    was off by one -- `drift fires at [351]` against the pinned `[350]`.
+    That was the residue left after the gate itself was pinned: the same
+    comparison, one step instead of two, which is why the counter's
+    ordering needs its own assertion rather than being implied.
+    """
+
+    def test_the_first_evaluation_sees_a_zero_counter(self, cfg, dummy_harness):
+        monitor = ContinuousMonitor(cfg=cfg, modelHarness=dummy_harness)
+        monitor.logger.log = lambda *a, **kw: None
+        seen: list[int] = []
+        real = type(monitor)._evaluate_batch
+
+        def spy(self, batch):
+            seen.append(self.batch_count)
+            return real(self, batch)
+
+        type(monitor)._evaluate_batch = spy
+        try:
+            monitor.run()
+        finally:
+            type(monitor)._evaluate_batch = real
+        assert seen, "the loop evaluated nothing"
+        assert seen[0] == 0, (
+            f"the first batch was evaluated at batch_count={seen[0]}; the "
+            f"counter must be incremented AFTER the evaluation, or the "
+            f"warmup window is the wrong width"
+        )
+
+    def test_the_counter_advances_by_one_per_batch(self, cfg, dummy_harness):
+        """No gaps and no repeats, so the window's width is exactly
+        `warmup_iters + 1` batches."""
+        monitor = ContinuousMonitor(cfg=cfg, modelHarness=dummy_harness)
+        monitor.logger.log = lambda *a, **kw: None
+        seen: list[int] = []
+        real = type(monitor)._evaluate_batch
+
+        def spy(self, batch):
+            seen.append(self.batch_count)
+            return real(self, batch)
+
+        type(monitor)._evaluate_batch = spy
+        try:
+            monitor.run()
+        finally:
+            type(monitor)._evaluate_batch = real
+        assert seen == list(range(len(seen))), (
+            f"batch_count went {seen[:8]}...; expected 0, 1, 2, ..."
+        )

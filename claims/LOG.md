@@ -99,6 +99,8 @@ pinned claim files, where a renumber would move claim roots.
 | R26 | methodology | WITHDRAWN | a forced-drift count table, measured once against an UNSEEDED fixture; the source varies run to run |
 | A65 | measurement | closed | LOCATED: the warmup window is evaluated but not logged; the rebuild logged it, shifting every row by two |
 | A66 | APEIRON | open | the metrics file's contents are coupled to the PROFILER's warmup: raising `warmup_iters` silently deletes rows |
+| A67 | APEIRON | open | the trainer never names its log stages, so every training row lands in the monitor's `drift/` namespace |
+| R27 | methodology | open | SIX claim fixtures cannot reach the paths where divergences live; validating outside the harness lost a guarantee three times |
 | R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
 | R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
 | R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
@@ -3816,3 +3818,79 @@ metrics rather than to a criterion, and A65 pins the current gate without
 assuming the fix.
 Kind: APEIRON (improvement)
 Status: open -- a two-line move, if the team wants it.
+
+### A67 — the trainer never names its log stages
+After A64 and A65, the assembled framework's MNIST run reproduces the
+pinned drift event (`[350]`) and the pinned final accuracy (100.0). It now
+fails on breadth: **27 metric series against the expected 31**.
+
+`Logger.stage(name)` sets the namespace every later `log()` writes under,
+and it is sticky -- whatever the last caller set stays in force. The
+trainer sets it four times (`continuous_trainer.py:96`, `:190`, `:233`,
+`:252`): `"cl"` around the continual-learning rows, `"eval"` around
+validation. The rebuilt trainer contains **zero** occurrences of `stage`.
+
+In isolation that is invisible: a trainer driven by its own tests has no
+other caller to inherit a namespace from, and those tests read the metrics
+passed to `log()` rather than the namespace they land in. In a run,
+`ContinuousMonitor` sets `"drift"` before checking and then dispatches the
+CL loop, so every row the rebuilt trainer wrote went into the drift
+namespace:
+
+    original  cl/jvp_reg_total_loss, cl/jvp_reg_forgetting_loss,
+              cl/jvp_reg_generation_loss, cl/drift_event_id, cl/step,
+              cl/cperf_*, eval/val_post_*, eval/test_*, eval/fwt
+    rebuild   drift/gen_loss, drift/reg_loss, drift/cl_iter,
+              drift/val_post_*, drift/test_*, drift/fwt
+
+The whole `cl/` namespace is absent, and the drift namespace is polluted
+with training rows. An analysis selecting `cl/` finds nothing. The run
+trained correctly and produced the right weights.
+
+Pinned by spying on `stage()` rather than on the rows: the trainer either
+names its namespaces or it does not, which makes the assertion independent
+of how far a fixture drives the loop. One wrinkle recorded in the file
+itself -- the stage calls do NOT go through the injected logger; the outer
+loop fetches its own with `get_logger(__name__)`, so a spy on the
+constructor's logger sees nothing. That is how the first version came to
+fail against `src/`.
+Kind: APEIRON (missing tests)
+Status: open -- claim resealed, rebuild in flight.
+
+### R27 — the claim fixtures cannot reach the paths where divergences live
+Six times now, a divergence found in a full run could not be reproduced
+with the fixtures its own layer's criteria use:
+
+| path | why the fixture is blind |
+|---|---|
+| the weights comparison (R19) | no configuration fires drift, so `_adapt` never runs |
+| the trailing-window score (A54) | same -- the score only persists after a detection |
+| the stream-advance protocol | `DummyHarness.update_data_stream` is `pass`, so window ordering is unobservable |
+| the warmup logging gate (A65) | a seeded `DummyHarness` loop agreed in both implementations; only the MNIST harness exposed it |
+| the trainer's log stages (A67) | a trainer driven alone has no caller whose stage it could inherit |
+| the adaptation accounting (R26) | the fixture's data is unseeded, so counts vary run to run |
+
+That is not six unrelated accidents. The fixtures model a harness that
+never drifts, never advances its stream, and has no caller -- so every
+contract that only exists BETWEEN components, or only after an adaptation,
+is outside what they can express. It is the same observation as A58's four
+composition edges, one level down: criteria are checked against a stand-in,
+and whatever the stand-in cannot do is unspecified.
+
+**The concrete improvement**, and the most useful thing this campaign could
+hand the maintainers: a fixture harness that (a) seeds its data, (b)
+actually advances its stream on `update_data_stream`, and (c) a
+configuration in the shared conftest that reliably fires drift. Three
+small additions that would have made six of these findings catchable by
+the existing suite.
+
+**And a rule for me.** Three times in this session I validated a criterion
+outside the probe harness and lost a guarantee it provides -- twice the
+resolution guard (R20, R25: once via pytest's rootdir, once via a room
+with no `apeiron/__init__.py`) and once the repeatability guard (R26). The
+harness refuses a vacuous comparison; an ad-hoc `pytest` command does not.
+Any validation run by hand needs both checks applied explicitly: confirm
+what was imported, and run one side twice.
+Kind: methodology
+Status: open -- the fixture improvements are an upstream proposal; the
+validation rule applies here immediately.
