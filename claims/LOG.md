@@ -88,6 +88,7 @@ pinned claim files, where a renumber would move claim roots.
 | R24 | methodology | fixed here | a "must raise" criterion without matching "must accept" controls licensed a STRICTER implementation |
 | A56 | APEIRON | open | the last five layers pinned: device precedence, config merge, metric guards, harness seams, trainer loop, schedule controls |
 | A57 | APEIRON | open | seven divergences across four layers where the RECONSTRUCTION is right and the source is wrong |
+| A58 | APEIRON | open | **per-layer equivalence does not imply COMPOSABILITY**: nine layers each passed, and the assembled framework would not import |
 | R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
 | R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
 | R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
@@ -3301,3 +3302,73 @@ so asserting either answer here would re-open a settled question rather
 than ask it.
 Kind: APEIRON (defects, reconstruction is right)
 Status: open -- seven one-line decisions, none of them ours to make.
+
+### A58 — nine layers passed, and the framework they compose does not import
+The point of the exercise is a replacement, so the test is a replacement:
+take the blind rebuild of every layer, assemble one `apeiron/` tree out of
+the files each layer generates ITSELF (`produce` steps with no `from`), and
+run the pinned MNIST training claim against it. 31 files, 1,787 lines, not
+one of them written by something that had seen the original.
+
+It would not import.
+
+    File "apeiron/model/torch_model_harness.py", line 8
+      from apeiron.config.configuration import Config, torch
+    ImportError: cannot import name 'torch' from 'apeiron.config.configuration'
+
+**Why every gate missed it.** A layer's suite runs it against the REAL
+implementations of the layers beneath. So a reconstruction may lean on any
+name those happen to expose and still pass. The regrown harness reached
+`torch` through the config module's namespace; `src/config/configuration.py`
+does `import torch` at its top for `get_available_device`, so the name was
+there and the harness's gate was satisfied. The regrown CONFIG has no need
+for torch at module scope and does not import it. Neither layer is wrong by
+its own criteria, and the pair does not compose. The source harness has no
+such dependency -- it does `import torch` directly.
+
+Fixing that exposed a second edge of the same problem:
+
+    File "apeiron/__init__.py", line 7
+      from apeiron.training.updater import BaseUpdater
+    ImportError: cannot import name 'BaseUpdater' from
+                 'apeiron.training.updater'
+
+A package `__init__` is a contract BETWEEN layers, and only the top-level
+one was ever pinned (`test_public_api.py` asserts `apeiron.__all__`).
+The sub-packages that top level imports FROM were not, so three of them
+came back short:
+
+| package | names the regrowth omitted |
+|---|---|
+| `apeiron.training.updater` | `BaseUpdater` |
+| `apeiron.logger` | `StageType`, `VALID_STAGES` |
+| `apeiron.drift_detection` | all six detector classes |
+
+Each omission is invisible to the layer that made it and fatal to the
+composition. This is the sharpest form of the campaign's central point:
+twenty rooms at agreeing roots, nine of them probed to zero or near-zero
+contract divergence, and the thing they add up to does not start.
+
+**Pinned, in two kinds.** `test_import_surface.py` (model_harness,
+updaters) forbids a cross-layer import from pulling a MODULE out of a
+sibling -- resolving each imported name and rejecting the ones that are
+modules, which needs no list of third-party packages and names the
+offending line. `test_export_surface.py` (seven layers) pins each
+package's re-export set exactly, in both directions: every expected name
+importable, and no unexpected ones, because a name exported here is one a
+sibling may come to depend on.
+
+Validated both ways throughout. Against `src/`: 11, 12, 3, 3, 3, 3, 3 pass.
+Against the rooms that were short: drift_detection 8 failures, logger 3,
+updaters 2, and profilers passes because it was never short -- which is the
+control.
+
+One of my own criteria was wrong first and the source said so: the
+import-surface check asserted that every module imports torch directly, and
+`create_updater.py` is a factory that never touches torch. Made conditional
+on actual use. Third time this session that running a criterion against the
+implementation before believing it caught something I had reasoned my way
+into.
+Kind: APEIRON (missing tests)
+Status: open -- seven layers resealed and rebuilding against the new
+criteria; the assembled run is the next measurement.

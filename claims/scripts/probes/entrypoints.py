@@ -170,7 +170,14 @@ def main() -> int:
         harness = make_harness(cfg, n=n, batch=batch)
         runner = drift_only.DriftOnlyMonitor(cfg, harness)
         result = runner.run()
-        return show({
+        # One key per observable rather than one bundled dict. Bundling put
+        # the `label` STRING -- display, and granted latitude -- in the same
+        # compared value as the weights and the counters, so a rebuild that
+        # worded the announcement differently diverged on every run case and
+        # the loop's own result was never compared on its own terms. R19
+        # fixed exactly this in the monitor driver; the same defect was
+        # still here, because it was fixed in one driver and not the others.
+        return {
             "result": show({k: show(v) for k, v in sorted(result.items())})
             if isinstance(result, dict) else show(result),
             # a METHOD, not a property: rendering it without calling it
@@ -181,20 +188,31 @@ def main() -> int:
             "label": show(runner.label),
             "events": show(runner.drift_event_count),
             "weights": params(harness.model),
-        })
+        }
 
     out["DriftOnlyMonitor[label]"] = attempt(
         lambda: show(drift_only.DriftOnlyMonitor(
             make_cfg(), make_harness()).label))
-    out["DriftOnlyMonitor[run]"] = attempt(lambda: drift_run())
+    def spread(label: str, fn):
+        """Write one case per observable, or one case naming the failure."""
+        try:
+            fields = fn()
+        except BaseException as exc:            # noqa: BLE001 — probed
+            out[f"DriftOnlyMonitor[{label}].raised"] = show(exc)
+            return
+        for key, value in sorted(fields.items()):
+            out[f"DriftOnlyMonitor[{label}].{key}"] = show(value)
+
+    spread("run", lambda: drift_run())
     for cap in ("1", "2"):
-        out[f"DriftOnlyMonitor[run,max_stream_updates={cap}]"] = attempt(
-            lambda c=cap: drift_run(
-                overrides=["--set", f"drift_detection.max_stream_updates={c}"]))
-    out["DriftOnlyMonitor[run,no-adaptation]"] = attempt(
-        lambda: drift_run(overrides=["--set",
-                                     "continual_learning.update_mode=none"]))
-    out["DriftOnlyMonitor[empty-stream]"] = attempt(lambda: drift_run(n=0))
+        spread(f"run,max_stream_updates={cap}",
+               lambda c=cap: drift_run(
+                   overrides=["--set",
+                              f"drift_detection.max_stream_updates={c}"]))
+    spread("run,no-adaptation",
+           lambda: drift_run(overrides=["--set",
+                                        "continual_learning.update_mode=none"]))
+    spread("empty-stream", lambda: drift_run(n=0))
 
     # --- 5. the scheduled CL runner ----------------------------------------
     def cl_run(schedule_args: dict, overrides=(), n: int = 16,
@@ -204,24 +222,32 @@ def main() -> int:
         schedule = cl_only.make_schedule(args_for(**schedule_args), cfg)
         runner = cl_only.ScheduledCLRunner(cfg, harness, schedule)
         result = runner.run()
-        return show({
+        return {
             "result": show({k: show(v) for k, v in sorted(result.items())})
             if isinstance(result, dict) else show(result),
             "label": show(runner.label),
             "weights": params(harness.model),
-        })
+        }
 
-    out["ScheduledCLRunner[never]"] = attempt(
-        lambda: cl_run({"schedule": "never"}))
-    out["ScheduledCLRunner[periodic,period=1]"] = attempt(
-        lambda: cl_run({"schedule": "periodic", "period": 1}))
-    out["ScheduledCLRunner[periodic,period=2]"] = attempt(
-        lambda: cl_run({"schedule": "periodic", "period": 2}))
-    out["ScheduledCLRunner[fixed]"] = attempt(
-        lambda: cl_run({"schedule": "fixed", "trigger_at": "0,1"}))
-    out["ScheduledCLRunner[random,seeded]"] = attempt(
-        lambda: cl_run({"schedule": "random", "prob": 0.5,
-                        "schedule_seed": 7}))
+    def spread_cl(label: str, fn):
+        try:
+            fields = fn()
+        except BaseException as exc:            # noqa: BLE001 — probed
+            out[f"ScheduledCLRunner[{label}].raised"] = show(exc)
+            return
+        for key, value in sorted(fields.items()):
+            out[f"ScheduledCLRunner[{label}].{key}"] = show(value)
+
+    spread_cl("never", lambda: cl_run({"schedule": "never"}))
+    spread_cl("periodic,period=1",
+              lambda: cl_run({"schedule": "periodic", "period": 1}))
+    spread_cl("periodic,period=2",
+              lambda: cl_run({"schedule": "periodic", "period": 2}))
+    spread_cl("fixed",
+              lambda: cl_run({"schedule": "fixed", "trigger_at": "0,1"}))
+    spread_cl("random,seeded",
+              lambda: cl_run({"schedule": "random", "prob": 0.5,
+                              "schedule_seed": 7}))
     out["ScheduledCLRunner[label]"] = attempt(
         lambda: show(cl_only.ScheduledCLRunner(
             make_cfg(), make_harness(),

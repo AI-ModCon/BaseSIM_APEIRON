@@ -20,6 +20,7 @@ inputs = [
     # instead, a producer rewrote it and the rebuild minted a different claim
     # (LOG R11).
     "apeiron/profilers/aten_flops_map.py",
+    "test_export_surface.py",
     "test_profiler.py",
     "test_reported_performance.py",
     "pytest.ini",
@@ -41,4 +42,4 @@ guidance = "regenerate FLOPSProfiler(warmup_iters=...): per-tag FLOPs and wall-c
 kind = "gate"
 output = "PROFILER_OK"
 class = "validated"
-run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_profiler.py test_reported_performance.py && printf ok > PROFILER_OK"
+run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_profiler.py test_reported_performance.py test_export_surface.py && printf ok > PROFILER_OK"

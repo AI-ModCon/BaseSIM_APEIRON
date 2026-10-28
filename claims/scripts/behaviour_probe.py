@@ -352,7 +352,9 @@ def probe(layer: str, python: str, subject_dir: str | None = None) -> dict:
         want, got = oracle.get(case, "<absent>"), subject.get(case, "<absent>")
         (agree if want == got else diverge).append((case, want, got))
     granted = LATITUDE.get(layer, ())
-    declared = [d for d in diverge if granted and d[0].startswith(granted)]
+    declared = [d for d in diverge
+                if granted and (d[0].startswith(granted)
+                                or d[0].endswith(".label"))]
     prose = [d for d in diverge if d not in declared
              and prose_only(d[1], d[2])]
     free = declared + prose
@@ -438,6 +440,9 @@ LATITUDE = {
     # EXISTS, because `drift_only.py` and `cl_only.py` set and read it; the
     # wording is display and nothing parses it. The rebuilds wrote
     # "Scheduled CL" and "Drift-only monitoring".
+    # Now that the runner cases are split per observable (one key each),
+    # the label shows up as `...].label` on every configuration as well as
+    # on its own case. All of them are the same display string.
     "entrypoints": ("DriftOnlyMonitor[label]", "ScheduledCLRunner[label]"),
     "evaluation": ("accuracy[1d-output]", "accuracy[3d-output]",
                    "accuracy[empty-batch]", "accuracy[k-exceeds-classes]",

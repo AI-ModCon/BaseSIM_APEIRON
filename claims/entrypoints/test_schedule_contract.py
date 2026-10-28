@@ -249,7 +249,17 @@ class TestMainSignature:
     """Declared `-> int`, and the project type-checks (CLAUDE.md)."""
 
     def test_main_accepts_an_argv_list_and_is_annotated(self):
+        """Both halves of the signature, because `mypy .` checks both.
+
+        The first version of this asserted only the RETURN annotation, and
+        a rebuild satisfied it with `(argv=None) -> int` -- an unannotated
+        parameter, which mypy reads as implicitly `Any` and which drops the
+        documentation of what `main` may be handed.
+        """
         import inspect
         signature = inspect.signature(cl_only.main)
         assert "argv" in signature.parameters
         assert signature.return_annotation is not inspect.Signature.empty
+        argv = signature.parameters["argv"]
+        assert argv.annotation is not inspect.Parameter.empty
+        assert argv.default is None
