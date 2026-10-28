@@ -91,6 +91,7 @@ pinned claim files, where a renumber would move claim roots.
 | A58 | APEIRON | open | **per-layer equivalence does not imply COMPOSABILITY**: nine layers each passed, and the assembled framework would not import |
 | A59 | APEIRON | open | `grad_accumulation_steps = 0` divides the loss by zero: `inf` loss, NaN weights, no error |
 | A60 | APEIRON | closed | the logged forgetting loss was unpinned; a rebuild reported the full loss as the penalty with bit-identical weights |
+| A61 | APEIRON | open | the regime ladder's evaluation ORDER is unpinned: inverted thresholds give the least adaptation, a rebuild gave the most |
 | R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
 | R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
 | R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
@@ -3453,3 +3454,44 @@ falsy (`None` would pass a truthiness check and then crash the trainer's
 4 failures against the room that reported the loss.
 Kind: APEIRON (missing tests)
 Status: closed here -- claim resealed to `23ad1babff15`.
+
+### A61 — the regime ladder is unspecified where its thresholds cross
+The regime is the detector's instruction to everything above it: `STABLE`
+means carry on, and `CONTINUAL_LEARNING`, `FINE_TUNING` and `RETRAIN` ask
+for progressively more adaptation. So a different regime for the same
+drift is a different training run.
+
+`test_drift_severity.py` covers the ordinary case -- thresholds ascending,
+score between them. Nothing covers equal or inverted thresholds. The ladder
+is a plain chain (`statistical_detectors.py:84`-`:91`) and `minor` is
+tested FIRST whatever its relation to `moderate`:
+
+| minor | moderate | score | regime |
+|---|---|---|---|
+| 0.3 | 0.6 | 0.01 | continual_learning |
+| 0.005 | 0.015 | 0.01 | fine_tuning |
+| 0.0 | 0.0 | 0.01 | retrain |
+| 0.01 | 0.01 | 0.01 | retrain (`<` is strict) |
+| **0.02** | **0.01** | 0.01 | **continual_learning** |
+| -1.0 | 2.0 | 0.01 | fine_tuning |
+
+The inverted row is the one that matters. `minor=0.02, moderate=0.01`
+reads as a configuration asking for a low bar, and because `minor` is
+tested first the answer is the LIGHTEST response. A reconstruction that
+normalised the thresholds, or tested `moderate` first, answered `RETRAIN`
+for the same input -- the heaviest response, on a stream the original would
+barely have touched. Same step, same drift score, opposite ends of the
+ladder.
+
+Both are defensible readings of an inverted configuration. What is not
+defensible is leaving it unspecified when the two differ by the whole width
+of the ladder. Pinned as the measured table, with the strict `<` boundary
+stated separately and a flat-stream control that no threshold pair can
+change.
+
+Found only because the second producer family was run against the hardened
+criteria: the codex room agreed with the source here, and the claude room
+did not. Second finding in a row that one oracle would have missed
+entirely (see A60).
+Kind: APEIRON (missing tests)
+Status: open -- claim resealed to `300f5458a8cd`, rebuild in flight.
