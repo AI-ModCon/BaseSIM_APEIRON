@@ -97,7 +97,8 @@ pinned claim files, where a renumber would move claim roots.
 | A64 | APEIRON | open | the metrics file's SCHEMA is unpinned: the run trains, completes, and writes a file no analysis can read |
 | R25 | methodology | fixed here | my own validation was vacuous: `pytest --rootdir=claims/<layer>` puts the claim's sealed `apeiron/` first on sys.path |
 | R26 | methodology | WITHDRAWN | a forced-drift count table, measured once against an UNSEEDED fixture; the source varies run to run |
-| A65 | measurement | open | the assembled run logs 378 evaluations against the original's 376, deterministically; cause not yet located |
+| A65 | measurement | closed | LOCATED: the warmup window is evaluated but not logged; the rebuild logged it, shifting every row by two |
+| A66 | APEIRON | open | the metrics file's contents are coupled to the PROFILER's warmup: raising `warmup_iters` silently deletes rows |
 | R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
 | R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
 | R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
@@ -3739,3 +3740,79 @@ prerequisite for the next attempt rather than something to work around.
 Kind: measurement
 Status: open -- reproducible, cause unlocated, and the instrument needed to
 locate it does not exist yet.
+
+### A65 — located: the warmup window is evaluated and not logged
+The two-row offset in the assembled run is `_evaluate_batch`'s gate:
+
+    if self.batch_count > self.flops_profiler.warmup_iters:
+        with self.flops_profiler.measure_flops(tag="infer"):
+            ...  evaluate, then logger.stage("eval"); logger.log(...)
+    else:
+        ...  evaluate, and log nothing
+
+For the first `warmup_iters + 1` batches the model is evaluated and the
+result is discarded. With the default `warmup_iters = 1` that is exactly
+two rows missing from the head of the metrics file, which is the offset:
+the original writes 376 rows, the rebuild 378, and the original's accuracy
+sequence is the rebuild's shifted by two. Every step label after the head
+moves, so the run claim read `drift fires at [352]` against the pinned
+`[350]`.
+
+How it was narrowed, after R26's retraction taught me not to trust a
+single draw:
+
+1. A **seeded** monitor fixture, verified to repeat across three runs
+   before any comparison, showed the regrown monitor agreeing with the
+   source on every counter -- so the accounting was not the cause.
+2. Swapping one regrown layer at a time into an otherwise-source tree
+   isolated it to `monitor` in nine runs of a cheap reproducer (the MNIST
+   harness at `max_stream_updates=2`: 124 rows against 126, about a
+   minute per run).
+3. Hashing the batch each implementation unpacked settled what it was
+   NOT: `_unpack` is called 126 times in both, with byte-identical
+   batches in identical order. Both evaluate the same data; only the
+   logging differs.
+
+Pinned at the unit level rather than through a loop, deliberately: a
+seeded `DummyHarness` loop agreed on the row count in both
+implementations while the MNIST harness did not, so a count assertion over
+a fixture would have passed and taught nothing. The criterion asserts the
+gate -- no row while `batch_count <= warmup_iters`, a row after, at four
+warmup settings, with the `>` boundary stated separately and a case
+confirming the evaluation still HAPPENS during warmup (silent is not
+skipped: those metrics still feed the drift buffer). Validated: 12 of 12
+against `src/`, 5 failures against the room.
+
+One incidental find along the way, entirely my own: a diagnostic script
+named `bisect.py` in the scratch directory shadowed the standard library,
+so `import random` -- which imports `bisect` internally -- loaded my file
+and tried to read a claim. Same family as every other resolution failure
+in this log, and a reminder that `sys.path[0]` is the script's own
+directory.
+Kind: measurement
+Status: closed -- cause located and pinned; monitor resealed.
+
+### A66 — the metrics file's contents are coupled to the profiler's warmup
+Noted while pinning A65, and worth raising on its own because it is a
+design wart rather than a reconstruction gap.
+
+`warmup_iters` exists so FLOP measurements skip cold iterations. Because
+the logging call sits INSIDE the post-warmup branch of
+`_evaluate_batch`, it silently also decides how many evaluations reach the
+metrics file. Two consequences:
+
+  * the file's first `warmup_iters + 1` evaluations are missing, with
+    nothing in the file saying so -- an analysis that counts rows or
+    aligns them to batch indices is quietly off by that many;
+  * raising `warmup_iters` to profile more carefully DELETES data points
+    from the analysis, which is not a trade anyone would choose
+    deliberately.
+
+Moving the `stage("eval")` / `log(...)` pair outside the branch, leaving
+the profiling inside it, would decouple them: every evaluation recorded,
+cold iterations still unprofiled. That is a behaviour change -- it alters
+the row count of every existing run -- so it belongs to whoever owns the
+metrics rather than to a criterion, and A65 pins the current gate without
+assuming the fix.
+Kind: APEIRON (improvement)
+Status: open -- a two-line move, if the team wants it.
