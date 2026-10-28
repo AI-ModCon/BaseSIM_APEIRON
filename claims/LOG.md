@@ -101,6 +101,8 @@ pinned claim files, where a renumber would move claim roots.
 | A66 | APEIRON | open | the metrics file's contents are coupled to the PROFILER's warmup: raising `warmup_iters` silently deletes rows |
 | A67 | APEIRON | open | the trainer never names its log stages, so every training row lands in the monitor's `drift/` namespace |
 | R27 | methodology | open | SIX claim fixtures cannot reach the paths where divergences live; validating outside the harness lost a guarantee three times |
+| A68 | APEIRON | open | the logger contributes `step` and `{stage}/step` to every row; a rebuild omitted both and three CSV series vanished |
+| A69 | APEIRON | improvement | the CL loss columns are hard-coded `jvp_reg_*` whatever the update mode, and the profiler tags differ from the names |
 | R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
 | R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
 | R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
@@ -3894,3 +3896,64 @@ what was imported, and run one side twice.
 Kind: methodology
 Status: open -- the fixture improvements are an upstream proposal; the
 validation rule applies here immediately.
+
+### A68 — the logger contributes two step columns, and they are consumed
+`log()` adds metrics of its own (`wandb_logger.py:122`):
+
+    prefixed_metrics["step"] = current_step
+    if self._current_stage:
+        prefixed_metrics[f"{self._current_stage}/step"] = \
+            self._stage_steps[self._current_stage]
+
+so every recorded row carries a global `step` and a per-stage
+`{stage}/step`. `MLFlowLogger` reads `step` back out of the history when
+it replays rows (`mlflow_logger.py:240`), which makes it a consumed
+column rather than decoration, and `{stage}/step` is how a reader tells
+the third eval from the third drift check.
+
+A rebuilt logger omitted both. The tests in this directory check that the
+metrics a caller PASSED come back; none looks at what `log()` adds, so the
+omission passed on both sides of the boundary. It surfaced only in the
+assembled MNIST run, as three of the differences between 32 series and the
+expected 31: `cl/step`, `drift/step`, `eval/step`.
+
+Pinned through `to_dataframe()`, which is what the CSV is written from.
+Two fixture facts had to be measured rather than assumed, and each cost a
+failing first draft against `src/`:
+
+  * `metrics_history` is only appended when a `csv_path` is configured
+    (`:129`), so a logger built without one records nothing and
+    `to_dataframe()` returns `None`;
+  * the frame is LONG-format -- columns `metric`, `step`, `value` -- so a
+    metric's name is a value in the `metric` column, not a column of its
+    own. Which is also exactly how `check_mnist_run.py` reads the file.
+
+Validated: 10 of 10 against `src/`, 5 failures against the room.
+Kind: APEIRON (missing tests)
+Status: open -- claim resealed, rebuild in flight.
+
+### A69 — two naming warts the reconstruction improved on
+Noted for the PR queue rather than pinned, because in both cases the
+rebuild's choice is arguably the better one and the decision is the
+team's.
+
+**The CL loss columns are hard-coded to one updater's name.** The trainer
+logs `jvp_reg_total_loss`, `jvp_reg_forgetting_loss` and
+`jvp_reg_generation_loss` whatever `continual_learning.update_mode` is, so
+a run using `kfac_online` writes its losses into columns named after
+`jvp_reg`. The rebuild named them for the configured mode
+(`kfac_online_total_loss`), which is what a reader would expect -- and
+which also makes two runs with different updaters joinable without
+guessing. Changing it renames columns in every existing run, so it is not
+a criterion's call.
+
+**The profiler tags do not match the names they produce.** The trainer
+measures under `tag="update_fwd_bwd"` and `tag="optimizer"`
+(`continuous_trainer.py:306`, `:316`), so the columns are
+`cperf_update_fwd_bwd_*` and `cperf_optimizer_*`. The rebuild used
+`fwd_bwd` and `opt`. Shorter, and the CSV is the only consumer -- but the
+existing names are what `docs/profiler.md` and the determinism filter
+match on, so the current ones are pinned by A62's signature work and this
+note records only that a rename was tempting.
+Kind: APEIRON (improvements)
+Status: open -- both are column renames, so both are the team's to decide.
