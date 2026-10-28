@@ -89,6 +89,8 @@ pinned claim files, where a renumber would move claim roots.
 | A56 | APEIRON | open | the last five layers pinned: device precedence, config merge, metric guards, harness seams, trainer loop, schedule controls |
 | A57 | APEIRON | open | seven divergences across four layers where the RECONSTRUCTION is right and the source is wrong |
 | A58 | APEIRON | open | **per-layer equivalence does not imply COMPOSABILITY**: nine layers each passed, and the assembled framework would not import |
+| A59 | APEIRON | open | `grad_accumulation_steps = 0` divides the loss by zero: `inf` loss, NaN weights, no error |
+| A60 | APEIRON | closed | the logged forgetting loss was unpinned; a rebuild reported the full loss as the penalty with bit-identical weights |
 | R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
 | R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
 | R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
@@ -3386,3 +3388,68 @@ established by the three that passed and by the seven that pass against
 `src/`, not by the absence of refusals.
 Kind: APEIRON (missing tests)
 Status: open -- the assembled run is the next measurement.
+
+### A59 — APEIRON: `grad_accumulation_steps = 0` silently produces NaN weights
+`BaseUpdater.fwd_bwd` scales the loss by the accumulation count
+(`updater/base.py:55`):
+
+    loss = loss / self.cfg.train.grad_accumulation_steps
+
+`grad_accumulation_steps` is a config key defaulting to 1
+(`configuration.py:104`), and nothing validates it. Set it to 0 and the
+division is by zero -- a tensor division, so no exception:
+
+    grad_accumulation_steps=0: loss=inf
+    grad_accumulation_steps=1: loss=1.07294
+    grad_accumulation_steps=2: loss=0.53647
+
+`inf` then flows through `backward()` into the optimizer step, and the
+probe's full step records the result: every weight becomes NaN. The run
+continues, the metrics file fills with NaN, and nothing anywhere says the
+configuration was impossible.
+
+A reconstruction returned a finite loss here instead, which is how this
+surfaced: it was one of sixteen divergences in a room whose weights were
+otherwise bit-identical.
+
+Not pinned, for the usual reason -- the fix is a validation decision
+(reject 0, clamp to 1, or document) and belongs to whoever owns the config
+surface. Worth noting it is cheap: the same `>= 1` check the schedule's
+`--period` already has.
+Kind: APEIRON (defect)
+Status: open -- a one-line guard, if the team wants it.
+
+### A60 — the logged forgetting loss was pinned by nothing
+`update_post_fwd_bwd()`'s return value looks internal and is not.
+`ContinuousTrainer` takes it as `reg_loss` (`:311`), returns it from
+`inner_cl_training_loop` as `forgetting_loss`, and logs it (`:191`-`:196`):
+
+    "jvp_reg_total_loss": generation_loss + forgetting_loss,
+    "jvp_reg_forgetting_loss": forgetting_loss,
+
+so the hook's number becomes two columns of the metrics CSV. Measured
+against `src/`, with no historical batch supplied, **every one of the five
+update modes returns exactly 0.0** under both `mix_historic_data`
+settings -- nothing has been forgotten yet, so no regularisation term
+applies.
+
+A rebuild returned the full training loss instead, on every `jvp_reg`
+configuration, **with weights bit-identical to the original's**. That is
+the worst shape a divergence can take: the training is correct, the run
+looks healthy, and the published forgetting curve rises from zero to the
+generation loss while the total double-counts the same number. A probe
+comparing only weights would have called the layer clean -- and for the
+codex family it did, at 0 divergences, which is why this went unexamined
+until the second producer family was run against the same criteria.
+
+That is the argument for two families stated as a measurement rather than
+a principle: the same criteria, a different oracle, and a logged metric
+nobody had pinned.
+
+Pinned as `claims/updaters/test_reported_penalty.py`, 20 cases across all
+five modes and both mix settings, including that the value is not merely
+falsy (`None` would pass a truthiness check and then crash the trainer's
+`generation_loss + forgetting_loss`). Validated: 20 of 20 against `src/`,
+4 failures against the room that reported the loss.
+Kind: APEIRON (missing tests)
+Status: closed here -- claim resealed to `23ad1babff15`.
