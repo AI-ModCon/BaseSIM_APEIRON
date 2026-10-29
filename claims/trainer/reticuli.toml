@@ -14,7 +14,8 @@ format = 4
 requires = ["python3"]
 gate_timeout = 900.0
 environment = "requirements.lock"
-inputs = [
+inputs = ["test_profiling_gate.py",
+    
     "apeiron/profilers/aten_flops_map.py",
     "test_step_advance.py",
     "test_validation_step.py",
@@ -179,4 +180,4 @@ guidance = "regenerate ContinuousTrainer(cfg, modelHarness, logger, profiler): t
 kind = "gate"
 output = "TRAINER_OK"
 class = "validated"
-run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_continuous_trainer.py test_transfer_arithmetic.py test_loop_contract.py test_export_surface.py test_call_signatures.py test_logging_stages.py test_logged_names.py test_validation_step.py test_step_advance.py && printf ok > TRAINER_OK"
+run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_continuous_trainer.py test_transfer_arithmetic.py test_loop_contract.py test_export_surface.py test_call_signatures.py test_logging_stages.py test_logged_names.py test_validation_step.py test_step_advance.py test_profiling_gate.py && printf ok > TRAINER_OK"

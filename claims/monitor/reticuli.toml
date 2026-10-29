@@ -15,7 +15,8 @@ format = 4
 requires = ["python3"]
 gate_timeout = 900.0
 environment = "requirements.lock"
-inputs = [
+inputs = ["test_override_protocol.py",
+    
     "apeiron/profilers/aten_flops_map.py",
     "test_step_advance.py",
     "test_recorded_sequence.py",
@@ -234,4 +235,4 @@ guidance = "regenerate ContinuousMonitor(cfg, modelHarness): the drift-monitorin
 kind = "gate"
 output = "MONITOR_OK"
 class = "validated"
-run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_continuous_monitor.py test_adaptation_cycle.py test_contracts_and_branches.py test_public_api.py test_logged_schema.py test_subclass_seams.py test_export_surface.py test_drift_row_schema.py test_warmup_logging.py test_detected_sampling.py test_recorded_sequence.py test_step_advance.py && printf ok > MONITOR_OK"
+run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_continuous_monitor.py test_adaptation_cycle.py test_contracts_and_branches.py test_public_api.py test_logged_schema.py test_subclass_seams.py test_export_surface.py test_drift_row_schema.py test_warmup_logging.py test_detected_sampling.py test_recorded_sequence.py test_step_advance.py test_override_protocol.py && printf ok > MONITOR_OK"

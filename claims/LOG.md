@@ -112,6 +112,10 @@ pinned claim files, where a renumber would move claim roots.
 | R31 | methodology | fixed here | pinning a property of each row leaves the ROW COUNT free: a rebuild doubled the cl rows to satisfy it |
 | A73 | APEIRON | open | the measured `update_fwd_bwd` window: a rebuild moved K-FAC's curvature matmuls inside it and reported 8.5x the cost |
 | R32 | methodology | fixed here | equal outputs do not mean equal measurements: whatever a program measures about itself depends on code placement |
+| A74 | APEIRON | open | the monitor's two override seams: `_log_metrics` arity and a `StopIteration` window, 36 upstream failures |
+| A75 | APEIRON | open | an unimplemented ABC hook returns None instead of refusing; and a detector prints as an address |
+| A76 | APEIRON | open | warmup must not be measured, one block per optimizer step, and an uninspectable batch is accepted |
+| R33 | methodology | fixed here | a constraint satisfied in a room that does not ship the file constrains a copy that is discarded |
 | R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
 | R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
 | R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
@@ -4332,3 +4336,145 @@ last two mismatched series were the only two the framework measures about
 itself.
 Kind: methodology (fixed here)
 Status: fixed here -- measured windows are now a named surface.
+
+### A74 — the monitor's two override seams, both unpinnable from inside the layer
+`src/drift_only.py` and `src/cl_only.py` do not just read state off
+`ContinuousMonitor` (A48); they substitute themselves into it in two
+places, and the base class has to cooperate:
+
+  `_log_metrics(drift_signal, metric_value)` — overridden at
+  `drift_only.py:142` with two parameters, called by the base class as
+  `self._log_metrics(drift_signal, agg_metric)`
+  (`continuous_monitor.py:282`). A base class that passes only the signal
+  cannot call either override at all.
+
+  `_process_stream()` raising `StopIteration` — `cl_only.py:277` runs a
+  whole window, consults its schedule and raises to hand control back.
+  `run()` catches it and extends the stream. The base class's own
+  `_process_stream` also ends that way, so a `run()` that instead calls
+  `_process_stream()` and `_extend_stream()` in sequence is identical
+  **for the base class** and lets the exception out of every override.
+
+A regrowth did both: one-argument `_log_metrics`, uncaught
+`StopIteration`. It passed all twelve files in the monitor claim, then
+reproduced the pinned MNIST run exactly — 31 series by digest, the
+trained weights, the drift step, the final accuracy — and failed 36 of
+the upstream suite's entry-point tests with those two errors alone.
+
+Pinned in `claims/monitor/test_override_protocol.py` by putting a real
+subclass in the test: a `def` with two parameters (not a MagicMock,
+which accepts any arity) and an override that raises. Validated 7 of 7
+against `src/`, 5 failures against the regrowth, both guards passing on
+each.
+
+Kind: APEIRON (missing test)
+Status: open — the seams are load-bearing for both side runners and
+asserted nowhere that constrains the class providing them.
+
+### A75 — an unimplemented hook returns None instead of refusing
+`BaseModelHarness` gives six methods a body that raises, and marks five
+of them `@abstractmethod` (`get_train_dataloaders` has the body without
+the decorator — the two properties are independent, and the first draft
+of the criterion asserted all six were abstract and was corrected
+against `src/`). `BaseDriftDetector` does the same for `update` and
+`reset`, with the detector's name in the message so a member of an
+ensemble can be identified.
+
+The decorator and the body do different jobs. The decorator stops a
+harness that implements nothing from being constructed. The body is for
+the harness that *does* implement and delegates upward for an optional
+case — `return super().get_hist_dataloaders()` when there is no
+historical data. A regrowth wrote both ABCs the conventional way:
+decorator, then `...`. Delegating upward then yields `None`, and `None`
+here is unpacked into two loaders and handed to the trainer, so the
+failure surfaces inside a CL round rather than at the mistake.
+
+Also unpinned: `BaseDriftDetector.__repr__`, which is
+`f"{self.__class__.__name__}(name='{self.name}')"`. Without it a detector
+prints as `<...Bare object at 0x14b999be0>`. The monitor logs its
+detector, so that address lands in run output — and an address differs
+between processes, which costs exactly the run-to-run comparability this
+repository's pinned-run claim rests on.
+
+Pinned in `claims/model_harness/test_abstract_refusal.py` (21 of 21
+against `src/`, 10 failures against the regrowth) and
+`claims/drift_detection/test_base_contract.py` (13 of 13, 7 failures).
+
+Kind: APEIRON (missing test — see R33 for why "missing" is the wrong word)
+Status: open
+
+### A76 — warmup is not measured, and one block per optimizer step
+The inner loop's profiling has three conditions:
+
+    if self.profiler and iter_count > self.profiler.warmup_iters and step == 0:
+
+`warmup_iters` because the first iterations are not representative, and
+`step == 0` because one measurement per optimizer step is the unit
+`get_performance()` averages over. A regrowth measured unconditionally.
+
+This one hid in a blind spot worth naming. `get_performance()` returns
+the MEAN, and every block measures the same work, so over the pinned
+MNIST run the unconditional version took 100 measurements where `src/`
+takes 48 and reported **exactly the same** `cperf_update_fwd_bwd_flop`.
+The mean of equal numbers does not depend on how many there are. What it
+does change is `_time` and `_flops` — which this repository deliberately
+excludes from the pinned digest, because timings are not reproducible. So
+the divergence sat precisely where a reproducible-run claim cannot look.
+
+Also unpinned, from the same loop: `_safe_next` enforces `min_batch` by
+reading `batch[1].shape` inside a `try/except (IndexError, TypeError)`,
+and treats "cannot inspect" as "accept". A loader whose batch is not an
+`(x, y)` pair — a dict, a custom collate — otherwise dies on the first
+step, because `_safe_next`'s only other exit is to restart the loader and
+look again.
+
+Pinned in `claims/trainer/test_profiling_gate.py` as a count of blocks
+rather than as control flow: 10 of 10 against `src/`, 5 failures against
+the regrowth.
+
+Kind: APEIRON (missing test)
+Status: open
+
+### R33 — a constraint satisfied in a room that does not ship the file
+This is the deepest thing the campaign has turned up, and it explains
+A75 entirely.
+
+`tests/test_contracts_and_branches.py` asserts every fact in A75. It is
+pinned — into `claims/monitor`. In the monitor's room
+`torch_model_harness.py` and `detectors/base.py` are *supplied*, declared
+`class = "generated"` with `from = "apeiron-model-harness"` and
+`from = "apeiron-drift-detection"`. So the monitor's producer wrote its
+own copies of those two files, wrote them well enough to pass the
+assertions, and the monitor's gate went green on a harness that refuses
+properly.
+
+Then the assembly takes the harness from the room that OWNS it, where the
+constraint was never stated. The file that satisfied the assertion is
+discarded; the file that ships was never asked. Both gates are honest and
+the composition is wrong.
+
+Measured across the ten claims: 27 pinned test files exercise a module
+their claim does not own. Most are benign — they import `Config` to build
+a fixture, which constrains nothing. The dangerous ones assert a
+*property* of a supplied module, and `test_contracts_and_branches.py` is
+the clear case: it constrains `model/torch_model_harness.py`,
+`drift_detection/detectors/base.py`, `training/updater/ewc.py` and
+`training/updater/kfac.py`, none of which the monitor claim owns.
+
+**The rule.** For every assertion in a layered reconstruction, the room
+that makes it pass must be the room that ships the file it constrains.
+Stated as a check: for each claim, for each pinned criterion, list the
+modules it asserts properties of, and confirm the claim owns them. A
+criterion that constrains a supplied component belongs in the component's
+own claim — which is all A75's criteria are: the same information, moved.
+
+**And the practical corollary, which is why this was findable at all.**
+Room-level gates cannot detect this by construction, because each room is
+internally consistent. Only an assembly-level check can: here the
+full-stack MNIST run caught the structural divergences and the held-out
+upstream suite caught these. Both look at the composed tree. A
+reconstruction of N layers needs an N+1'th check that owns nothing and
+exercises everything.
+Kind: methodology (fixed here)
+Status: fixed here — four criteria moved to their owning rooms; the
+ownership audit is reproducible from the recipes.
