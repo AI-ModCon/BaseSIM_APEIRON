@@ -1,10 +1,11 @@
-"""The two seams a subclass overrides, exercised by an actual subclass.
+"""The three seams a subclass uses, exercised by an actual subclass.
 
 `test_subclass_seams.py` pins the surface `src/drift_only.py` and
-`src/cl_only.py` *read* off `ContinuousMonitor`. This file pins the two
+`src/cl_only.py` *read* off `ContinuousMonitor`. This file pins the three
 places they *substitute themselves into* it -- which is a different
 thing, because reading a name only requires the name to exist, while
-overriding a method requires the base class to call it a particular way.
+overriding a method requires the base class to call it a particular way,
+and calling an inherited one requires it to do its whole job.
 
   `_log_metrics(drift_signal, metric_value)`
       `drift_only.py:142` overrides it with two parameters and logs the
@@ -48,10 +49,19 @@ catches `StopIteration` from one that never needs to. The fix is to put
 the subclass in the test -- below, `_Recording` does what `drift_only.py`
 does and nothing else.
 
+  `_adapt(event_id)` checkpointing
+      The third, found the same way and documented on the class in
+      `TestAdaptingCheckpoints` below: `cl_only.py:353` calls
+      `self._adapt(self.trigger_count)` and does nothing else, so every
+      promise in that method's docstring -- "run the CL loop, checkpoint,
+      and resume" -- is a promise to the scheduled runner. A regrowth
+      moved the save into `_adapt`'s caller.
+
 Pinned as the protocol rather than as the source's exact control flow: a
 `run()` may be written either way as long as an override that raises
-`StopIteration` is caught, and `_log_metrics` may name its parameters
-anything as long as it takes the aggregate alongside the signal.
+`StopIteration` is caught, `_log_metrics` may name its parameters
+anything as long as it takes the aggregate alongside the signal, and the
+checkpoint may be written however so long as `_adapt` is what writes it.
 """
 
 from __future__ import annotations
@@ -81,6 +91,20 @@ def _quiet_cfg(default_cfg, **drift):
                    drift_detection=replace(default_cfg.drift_detection,
                                            detection_interval=1,
                                            max_stream_updates=2, **drift))
+
+
+def _ckpt_cfg(default_cfg, tmp_path, *, keep: int):
+    """A config with checkpointing set, for BOTH the monitor and the harness.
+
+    `ckpts_enabled` reads the HARNESS's own config, not the monitor's, so
+    the harness has to be built from this same object. The first version
+    of these cases built the harness from the unmodified fixture config
+    and the guard below caught it -- which is the only reason the cases
+    are not quietly vacuous.
+    """
+    return replace(default_cfg,
+                   model=replace(default_cfg.model, max_ckpts=keep,
+                                 ckpts_path=str(tmp_path / "ckpts")))
 
 
 class _Recording(ContinuousMonitor):
@@ -186,6 +210,81 @@ class TestAWindowMayEndByRaising:
         assert monitor.windows == monitor.stream_update_count, (
             f"{monitor.windows} window(s) ran against "
             f"{monitor.stream_update_count} stream update(s); one each"
+        )
+
+
+class TestAdaptingCheckpoints:
+    """The third seam: what `_adapt` has to DO, not just take.
+
+    Its docstring says "Pause monitoring, run the CL loop, checkpoint, and
+    resume", and the body does all four:
+
+        self.trainer.outer_cl_training_loop(drift_event_id=event_id)
+        if self.modelHarness.ckpts_enabled:
+            ckptpath = self.modelHarness.save_ckpt(event=event_id)
+
+    `cl_only.py:353` calls `self._adapt(self.trigger_count)` and nothing
+    else -- no training call of its own, no save. So every promise in that
+    docstring is a promise to the scheduled runner.
+
+    A regrowth put the save in `_adapt`'s CALLER instead, keyed on
+    `self.drift_event_count`. For the detection path that is identical,
+    which is why the pinned MNIST run still reproduced to the digit,
+    trained weights included. For the schedule path it means a run that
+    adapts on a timetable trains the model and never persists it -- and
+    `drift_event_count` is zero throughout, so even a save placed there
+    would overwrite one file.
+
+    Pinned on the seam: call `_adapt` directly, as `cl_only.py` does,
+    and require the checkpoint. Keyed on the ARGUMENT, because that is
+    the detail the two paths disagree about.
+    """
+
+    def test_adapt_writes_a_checkpoint(self, default_cfg, make_harness,
+                                       tmp_path):
+        """The whole finding, reached the way `cl_only.py` reaches it."""
+        cfg = _ckpt_cfg(default_cfg, tmp_path, keep=2)
+        monitor = ContinuousMonitor(cfg=cfg, modelHarness=make_harness(cfg))
+        assert monitor.modelHarness.ckpts_enabled, (
+            "checkpointing is off in this fixture, so the case below would "
+            "pass on a monitor that never saves"
+        )
+        monitor._adapt(7)
+        written = sorted(p.name for p in
+                         (tmp_path / "ckpts").glob("drift_adaptation_*.pt"))
+        assert written, (
+            "`_adapt` trained but wrote no checkpoint; a subclass that "
+            "adapts on a schedule calls only this and would never persist "
+            "the model it just trained"
+        )
+
+    def test_the_checkpoint_is_named_for_the_argument(self, default_cfg,
+                                                      make_harness, tmp_path):
+        """Not for the monitor's own drift counter. `cl_only.py` passes its
+        `trigger_count`, and a save keyed on `drift_event_count` would name
+        every scheduled checkpoint `_0` and evict the one before it."""
+        cfg = _ckpt_cfg(default_cfg, tmp_path, keep=5)
+        monitor = ContinuousMonitor(cfg=cfg, modelHarness=make_harness(cfg))
+        for event in (3, 4):
+            monitor._adapt(event)
+        written = sorted(p.name for p in
+                         (tmp_path / "ckpts").glob("drift_adaptation_*.pt"))
+        assert written == ["drift_adaptation_3.pt", "drift_adaptation_4.pt"], (
+            f"two adaptations at events 3 and 4 wrote {written}; the file "
+            f"name has to follow the event id `_adapt` was given, since "
+            f"the monitor's own counter does not move on the schedule path"
+        )
+
+    def test_no_checkpoint_when_checkpointing_is_off(self, default_cfg,
+                                                     make_harness, tmp_path):
+        """Guard, and the other direction: `ckpts_enabled` is consulted,
+        so a monitor that always saves fails here."""
+        cfg = _ckpt_cfg(default_cfg, tmp_path, keep=0)
+        monitor = ContinuousMonitor(cfg=cfg, modelHarness=make_harness(cfg))
+        assert not monitor.modelHarness.ckpts_enabled
+        monitor._adapt(1)
+        assert not list(tmp_path.glob("ckpts/*.pt")), (
+            "a checkpoint was written with max_ckpts=0"
         )
 
 

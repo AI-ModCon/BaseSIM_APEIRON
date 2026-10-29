@@ -116,6 +116,8 @@ pinned claim files, where a renumber would move claim roots.
 | A75 | APEIRON | open | an unimplemented ABC hook returns None instead of refusing; and a detector prints as an address |
 | A76 | APEIRON | open | warmup must not be measured, one block per optimizer step, and an uninspectable batch is accepted |
 | R33 | methodology | fixed here | a constraint satisfied in a room that does not ship the file constrains a copy that is discarded |
+| A77 | APEIRON | open | `_adapt` must write the checkpoint itself, keyed on the event id it was given, or scheduled CL never persists |
+| A78 | APEIRON | open | an upstream `match=` pins an exception's wording; the reconstruction's message is better and stays unpinned |
 | R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
 | R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
 | R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
@@ -4478,3 +4480,75 @@ exercises everything.
 Kind: methodology (fixed here)
 Status: fixed here — four criteria moved to their owning rooms; the
 ownership audit is reproducible from the recipes.
+
+### A77 — `_adapt` is where the checkpoint is written, not `_adapt`'s caller
+`ContinuousMonitor._adapt`'s own docstring promises four things: "Pause
+monitoring, run the CL loop, checkpoint, and resume." Its body does all
+four, and the checkpoint is keyed on the event id it was handed:
+
+    self.trainer.outer_cl_training_loop(drift_event_id=event_id)
+    if self.modelHarness.ckpts_enabled:
+        ckptpath = self.modelHarness.save_ckpt(event=event_id)
+
+`cl_only.py:353` calls `self._adapt(self.trigger_count)` and nothing
+else -- no training call of its own, no save -- so the whole docstring is
+a promise to the scheduled runner.
+
+A regrowth put the save in `_adapt`'s CALLER, keyed on
+`self.drift_event_count`. For the detection path that is exactly
+equivalent: the pinned MNIST run reproduced to the digit with the trained
+weights matching. For the schedule path it means a run that adapts on a
+timetable trains the model and never persists it, and
+`drift_event_count` stays at zero there, so even a save placed in the
+caller would name every file `drift_adaptation_0.pt` and evict the one
+before it.
+
+Pinned in `claims/monitor/test_override_protocol.py` as a third seam,
+keyed on the ARGUMENT rather than on any counter -- two adaptations at
+events 3 and 4 must leave `drift_adaptation_3.pt` and
+`drift_adaptation_4.pt` -- with a `max_ckpts=0` control so a monitor that
+always saves fails too. Validated 10 of 10 against `src/`, 2 failures
+against the regrowth.
+
+A NOTE ON THE GUARD, which earned its place. The first version of these
+cases built the monitor from a checkpoint-enabled config and the harness
+from the fixture's default, and `ckpts_enabled` reads the HARNESS's
+config. It failed against `src/` on the guard rather than on the
+assertion, which is the only reason it was not committed as a case that
+passes on everything.
+
+Kind: APEIRON (missing test)
+Status: open — the entry-point suite covers it from one layer up
+(`test_entry_points.py::test_cl_only_checkpoints_each_trigger`), which is
+pinned into `claims/entrypoints`, where the monitor is supplied (R33).
+
+### A78 — an exception message is prose, and an upstream test pins it
+The last residual, recorded rather than pinned.
+`tests/test_contracts_and_branches.py` asserts
+
+    pytest.raises(RuntimeError, match="Empty loader")
+
+against `_eval_loader`, and `src/` raises
+`RuntimeError("Empty loader: nothing to evaluate.")`. The regrowth raises
+the same type with a different sentence:
+
+    cannot evaluate an empty dataloader: it yielded no batches, and
+    reporting 0.0 would be indistinguishable from a model that genuinely
+    scored zero
+
+Same type, same condition, better explanation. By this campaign's own
+classification that is prose, not contract: nothing catches on the text,
+and a criterion that pinned the wording would be teaching a producer to
+copy sentences, which is the one thing the method sets out not to do. So
+it stays unpinned and this entry is the record of the decision.
+
+It does cost something, and the cost should be stated plainly: against
+the surface "APEIRON's own test suite passes", this is one real failure
+out of 606, and a literal drop-in replacement would need the wording.
+The `match=` is what makes it so -- a message-matching assertion promotes
+prose to interface.
+
+Kind: APEIRON (observation / improvement)
+Status: open — worth raising as a question about the test rather than the
+code: either the message is load-bearing and belongs in a constant, or
+the assertion should match the type and the condition instead.

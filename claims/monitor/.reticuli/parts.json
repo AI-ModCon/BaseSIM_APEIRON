@@ -11,7 +11,7 @@
   "input:test_drift_row_schema.py": "370f773829903e1b5234939a741fd0a061c0a0326076f20c4ae3c5c1b888ae3c",
   "input:test_export_surface.py": "529861b6f336363523b1e6442d8703157f110a98a922d3b64090cbd89278d953",
   "input:test_logged_schema.py": "b6e1e66815d406e44321e3cf1c9fe7be2b87315ba8f12126b18e381178d222a1",
-  "input:test_override_protocol.py": "c2657154d27fa3df0ba6c8604a6359b00405e96d59ed2d53cb08eabebf60cd1c",
+  "input:test_override_protocol.py": "b3772b10707c6d52e7d2bbe65469f4f652b0f81ac240419d5cf7c64015ea2d99",
   "input:test_public_api.py": "3a9fd57350208489abe61bd08e8880eaa9c1fedc51bd8972a5dcc284ed41b868",
   "input:test_recorded_sequence.py": "c10eb4468f940a7d7deead8b9e9aa961bf9667ffcb70273b881cff5d60549793",
   "input:test_step_advance.py": "1b88011f9871a7c034ddc9b8db0af954e3b695eca48a94c83c15b2cc399fa8c3",
