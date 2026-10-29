@@ -109,6 +109,7 @@ pinned claim files, where a renumber would move claim roots.
 | R29 | methodology | fixed here | pinning a SEQUENCE one property at a time is a long tail; the file's shape couples every row, so pin the shape |
 | A72 | measurement | open | the regrown framework computes the MNIST run exactly; two rows mislabel their step |
 | R30 | methodology | fixed here | CORRECTS A72: the blind fixture was not too SMALL, it never ran the two guarded sites |
+| R31 | methodology | fixed here | pinning a property of each row leaves the ROW COUNT free: a rebuild doubled the cl rows to satisfy it |
 | R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
 | R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
 | R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
@@ -4207,3 +4208,42 @@ the guards are satisfied as explicit cases, so it cannot quietly go
 vacuous again.
 Kind: methodology (fixed here)
 Status: fixed here -- A72's "needs a run-scale fixture" is withdrawn.
+
+### R31 — a property per row does not constrain how many rows there are
+R30 located the last gap exactly: the source passes `increment=False` at
+one call site, the rebuild at three. I pinned that -- no `cl` row
+annotates, exactly one `eval` row does -- validated it both ways (6 of 6
+against `src/`, 3 failures against the room) and rebuilt.
+
+The full-stack run got **worse**: 22 mismatched series became 31.
+
+The rebuild satisfied the criterion by logging **two cl rows per inner
+iteration** instead of one. 100 rows where the original logs 51, every one
+advancing, exactly as asserted. The flags were right and the count was
+free.
+
+This is R29's lesson a second time and it deserves its own entry, because
+I had already written R29 and still left the hole. R29 said an assertion
+per element does not add up to an assertion about the ORDER. R31 is the
+sibling: it does not add up to an assertion about the COUNT either. A
+criterion that constrains each row's properties, however exactly, is
+satisfiable by any number of rows.
+
+The rule derived and confirmed at `max_iter` 1, 2, 3 and 5:
+
+    cl    max_iter + 1 rows, all advancing  (2, 3, 4, 6)
+    eval  exactly 2 rows: one annotating, one advancing
+
+Both counts are now asserted alongside the flags, parametrised over
+`max_iter` so the relationship is pinned rather than one number. Validated:
+14 of 14 against `src/`, 3 failures against each of the two previous
+rebuilds -- the one that annotated too much and the one that logged twice
+as many rows.
+
+**The general form, for the skill.** When pinning a produced sequence,
+three things are independent and all need saying: what each element
+contains, how many elements there are, and in what order. Pin one and a
+producer is free in the other two, and each rebuild will spend exactly the
+freedom that is left.
+Kind: methodology (fixed here)
+Status: fixed here -- counts pinned beside the flags.

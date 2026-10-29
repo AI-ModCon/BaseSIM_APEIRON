@@ -1,4 +1,4 @@
-"""Exactly one of the round's rows annotates; the rest advance the step.
+"""How many rows a round logs, and which single one annotates the step.
 
 The logger advances a per-stage step on every row unless the caller passes
 `increment=False` (A68), so who passes it is a contract: a reader joins
@@ -7,8 +7,10 @@ observations into one.
 
 The trainer's rule, counted over one outer round against `src/`:
 
-    cl    0 non-advancing, 4 advancing
-    eval  1 non-advancing, 1 advancing
+    cl    max_iter + 1 rows, every one advancing
+    eval  2 rows: the validation annotation, then the advancing transfer row
+
+confirmed at `max_iter` 1, 2, 3 and 5 -- 2, 3, 4 and 6 cl rows.
 
 The single non-advancing call is `_log_validation`, which says so:
 
@@ -96,6 +98,10 @@ def _advance_counts(cfg, harness) -> collections.Counter:
     return counts
 
 
+#: `max_iter` values the count rule is asserted at.
+ITERATIONS = (1, 2, 3, 5)
+
+
 @pytest.fixture()
 def harness(default_cfg):
     """History, and TWO past tasks so the transfer row's BWT is computable."""
@@ -139,6 +145,49 @@ class TestWhoAnnotatesAndWhoAdvances:
         counts = _advance_counts(default_cfg, harness)
         assert counts[("eval", True)] >= 1, (
             "no eval row advanced the step; the transfer row must"
+        )
+
+
+class TestHowManyRowsARoundLogs:
+    """The counts, because pinning only the FLAGS leaves the number free.
+
+    An earlier version of this file asserted "no cl row annotates" and
+    nothing about how many there are. A rebuild satisfied it by logging
+    **two** cl rows per iteration -- 100 where the original logs 51 -- and
+    the full-stack run went from 22 mismatched series to 31. Pinning a
+    property of each element does not constrain the count of elements
+    (R29, now twice over).
+    """
+
+    @pytest.mark.parametrize("max_iter", ITERATIONS)
+    def test_the_cl_row_count_follows_max_iter(self, default_cfg, harness,
+                                               max_iter):
+        """One row per inner iteration, plus the profiler row that closes
+        the round."""
+        from dataclasses import replace
+        cfg = replace(default_cfg,
+                      train=replace(default_cfg.train, max_iter=max_iter))
+        counts = _advance_counts(cfg, harness)
+        total = counts[("cl", True)] + counts[("cl", False)]
+        assert total == max_iter + 1, (
+            f"max_iter={max_iter}: the round logged {total} cl rows, "
+            f"expected {max_iter + 1} -- one per iteration plus the closing "
+            f"profiler row"
+        )
+
+    @pytest.mark.parametrize("max_iter", ITERATIONS)
+    def test_a_round_logs_exactly_two_eval_rows(self, default_cfg, harness,
+                                                max_iter):
+        """The validation annotation and the transfer row, whatever the
+        iteration count."""
+        from dataclasses import replace
+        cfg = replace(default_cfg,
+                      train=replace(default_cfg.train, max_iter=max_iter))
+        counts = _advance_counts(cfg, harness)
+        total = counts[("eval", True)] + counts[("eval", False)]
+        assert total == 2, (
+            f"max_iter={max_iter}: the round logged {total} eval rows, "
+            f"expected 2"
         )
 
 
