@@ -106,6 +106,7 @@ pinned claim files, where a renumber would move claim roots.
 | A70 | APEIRON | open | `detected` is written on real events and a 10% sample; a rebuild wrote it always, shifting 17 digests via the global step |
 | R28 | methodology | fixed here | FOURTH resolution failure, inside my own probe: importing a claim's conftest puts its sealed `apeiron/` first |
 | A71 | APEIRON | open | the post-CL validation row must share the CL round's step; a rebuild advanced first and 16 digests failed on the label alone |
+| R29 | methodology | fixed here | pinning a SEQUENCE one property at a time is a long tail; the file's shape couples every row, so pin the shape |
 | R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
 | R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
 | R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
@@ -4067,3 +4068,46 @@ behaviour are one step apart in a two-iteration fixture, and the case only
 reads clearly because the assertion names `max(loss_steps)` explicitly.
 Kind: APEIRON (missing tests)
 Status: open -- claim resealed, rebuild in flight.
+
+### R29 — pin the shape, not one property of one row at a time
+The metrics file is a sequence, and the run claim digests each series over
+its `(step, value)` pairs where `step` is a global counter the logger
+advances per row (A68). So the file's shape couples every row to every
+other: one extra, missing or reordered row shifts the step label of
+everything after it, and series whose values are byte-identical fail their
+digest.
+
+Pinned one property at a time, that produced a long tail. Each criterion
+was correct and each rebuild satisfied it, and then differed somewhere
+nothing had asserted yet:
+
+| after pinning | mismatched series |
+|---|---|
+| the drift row's schema (A64) | 27 of 31 names |
+| the warmup gate (A65) | 17 |
+| `detected`'s sampling (A70) | 16 |
+| the validation step (A71) | **22** |
+
+The last row is the point. The count went UP, not because the rebuild was
+worse but because it was a fresh implementation, free wherever nothing was
+pinned -- so fixing the validation step moved rows that had happened to
+line up before.
+
+The fix is to pin the SHAPE in one place: the exact ordered sequence of
+`(stage, sorted metric names)` a short seeded run records, with drift
+forced so the adaptation path is in it. 38 rows for the chosen
+configuration -- 26 evaluations, 6 drift checks, 6 CL rows. Anything that
+adds, drops, renames or reorders a row now fails with the index of the
+first difference instead of as a list of digests disagreeing for reasons
+several frames away. Verified to repeat before being written down, per
+R26, and it discriminates: `src/` passes 7 of 7, the assembled framework
+fails 2 -- same row count and same stage counts, differing first at row
+10, where the original has the validation row and the rebuild a profiler
+row.
+
+The general lesson, and it applies to any claim whose artefact is a
+sequence: **an assertion per element does not add up to an assertion about
+the order.** Pin the sequence, then pin individual properties only where
+they carry meaning the sequence does not.
+Kind: methodology (fixed here)
+Status: fixed here -- claims/monitor/test_recorded_sequence.py.
