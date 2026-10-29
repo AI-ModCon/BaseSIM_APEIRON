@@ -107,6 +107,7 @@ pinned claim files, where a renumber would move claim roots.
 | R28 | methodology | fixed here | FOURTH resolution failure, inside my own probe: importing a claim's conftest puts its sealed `apeiron/` first |
 | A71 | APEIRON | open | the post-CL validation row must share the CL round's step; a rebuild advanced first and 16 digests failed on the label alone |
 | R29 | methodology | fixed here | pinning a SEQUENCE one property at a time is a long tail; the file's shape couples every row, so pin the shape |
+| A72 | measurement | open | the regrown framework computes the MNIST run exactly; two rows mislabel their step, and no fixture reproduces it at run scale |
 | R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
 | R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
 | R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
@@ -4111,3 +4112,50 @@ the order.** Pin the sequence, then pin individual properties only where
 they carry meaning the sequence does not.
 Kind: methodology (fixed here)
 Status: fixed here -- claims/monitor/test_recorded_sequence.py.
+
+### A72 — the regrown framework computes the run exactly; two step labels differ
+Where the full-stack reconstruction now stands, stated precisely because
+the remaining gap is small and the thing it is not is important.
+
+**Every number in the run is identical.** Checked series by series against
+the pinned reference: all 376 `eval/accuracy` values, all 376
+`eval/loss`, all 37 `drift/score`, all 37 `drift/metric_0`, the final
+`eval/test_curr_acc`, `eval/fwt` -- byte-equal. The harness gate passes.
+The drift event fires at the pinned step `[350]`. The final accuracy is
+the pinned 100.0. The file carries the pinned 31 metric series under the
+right names in the right namespaces, 465 steps, same row count per stage.
+
+**Two rows label their step wrong.** Per-stage step sequences:
+
+| stage | rows | source max / repeats | rebuild max / repeats |
+|---|---|---|---|
+| `cl` | 51 | 51 / 0 | 50 / 1 |
+| `eval` | 378 | 377 / 1 | 376 / 2 |
+| `drift` | 37 | 37 / 0 | 37 / 0 |
+
+One `cl` row and one `eval` row annotate where they should advance. Because
+the run claim digests each series over its `(step, value)` pairs, those two
+rows shift the global step of everything after them and 22 of 31 series
+fail their digest -- on the label, with every value agreeing. The whole
+remaining difference is two `increment=` flags.
+
+**Why it is not yet pinned.** Criteria for exactly this were written at
+both layers and validated both ways -- the monitor's discriminated (`src/`
+7 of 7 and 6 of 6; the assembly failed 2 of each) and was pinned and
+rebuilt against. The rebuild satisfies it and the composed run still
+differs. The trainer's did not discriminate at all across eight fixture
+configurations and was deleted rather than shipped, since a criterion that
+cannot fail is not evidence.
+
+The reason is R27 once more, and now quantitatively: the fixtures produce
+6 CL rows where the run produces 51, and whatever makes the 51st row
+annotate instead of advance does not occur in the first 6. A criterion
+that reproduces it needs a fixture at run scale -- a harness driving tens
+of inner iterations with history and a real adaptation -- which does not
+exist and is the same prerequisite A65 named.
+
+So: the framework is **numerically a replacement** for the original on
+this run, and not yet a byte-for-byte reproduction of its record. That
+distinction is worth keeping rather than collapsing in either direction.
+Kind: measurement
+Status: open -- the blocker is a run-scale fixture, not another criterion.
