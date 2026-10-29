@@ -105,6 +105,7 @@ pinned claim files, where a renumber would move claim roots.
 | A69 | APEIRON | improvement | the CL loss columns are hard-coded `jvp_reg_*` whatever the update mode, and the profiler tags differ from the names |
 | A70 | APEIRON | open | `detected` is written on real events and a 10% sample; a rebuild wrote it always, shifting 17 digests via the global step |
 | R28 | methodology | fixed here | FOURTH resolution failure, inside my own probe: importing a claim's conftest puts its sealed `apeiron/` first |
+| A71 | APEIRON | open | the post-CL validation row must share the CL round's step; a rebuild advanced first and 16 digests failed on the label alone |
 | R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
 | R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
 | R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
@@ -4031,3 +4032,38 @@ resolved `__file__` before trusting any comparison.
 Kind: methodology (fixed here)
 Status: fixed here -- the criterion was validated from a neutral directory
 with both resolutions printed.
+
+### A71 — validation annotates the CL round's step, and off by one breaks 16 digests
+`_log_validation` logs with `commit=False, increment=False`, and the source
+says why:
+
+    # increment=False: annotate the CL round's step, do not advance it.
+
+So the post-CL validation figures land on the SAME global step as the
+round's last losses. A reader selecting step 400 gets
+`cl/jvp_reg_total_loss` and `eval/val_post_cur_accuracy` together -- the
+loss and the accuracy it produced.
+
+A rebuild advanced the step first. Its validation rows landed one step
+late throughout, 401 where the original writes 400, and because the run
+claim digests each series over its `(step, value)` sequence, **16 of 31
+series failed on the label while their values were byte-identical.** Both
+files had 465 steps, 31 series and the same numbers; only the pairing was
+off by one. The diagnosis came from grouping each file's rows by step and
+finding the first step whose metric SET differed -- step 400, eleven
+metrics in the original and five in the rebuild.
+
+Pinned as the co-location rather than as the keyword, because the keyword
+is one way to get there and the pairing is what a reader depends on: a
+rebuild passing `increment=False` and advancing the step somewhere earlier
+would satisfy an assertion about the call and still produce the wrong file.
+
+One correction during the work. The first version compared validation
+against the FIRST loss row and failed against `src/`: the round logs one
+loss row per inner iteration, so it is the LAST that validation shares a
+step with. With the fixture's `max_iter=2` the losses are at steps 1 and 2
+and validation at 2 -- which also means the off-by-one and the correct
+behaviour are one step apart in a two-iteration fixture, and the case only
+reads clearly because the assertion names `max(loss_steps)` explicitly.
+Kind: APEIRON (missing tests)
+Status: open -- claim resealed, rebuild in flight.
