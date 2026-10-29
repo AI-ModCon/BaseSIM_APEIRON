@@ -10,7 +10,7 @@
   "input:test_logged_names.py": "7b3a2050f1156437103a8846075c93974564c0cf9d806a5d3b2e169c058c9b7d",
   "input:test_logging_stages.py": "4886d7deda4cc8cbca56eb7c36cf76df7f2b172275856af245eb68b5a6387ce1",
   "input:test_loop_contract.py": "3ded47b9de488c4894a19b0e4eef12c291953b5d25c25a03dc3b80d50a55c28d",
-  "input:test_step_advance.py": "482e22776cac10c26fcd76dad3e6726832cc7afb61a6ac5bd0a202c111be445a",
+  "input:test_step_advance.py": "a1e203d37be62a51fa282c6baccb89f017713686b2314d33f8c45ff6fb5a92ba",
   "input:test_transfer_arithmetic.py": "ec7e3492aea71ee85ba341e7d1ca9e55c5839ae6a3bc95971beee071d2436f8c",
   "input:test_validation_step.py": "a6316493378ff05501aaab8fd4a6c93ce3197fae856d3bc6356fb147c3c28936",
   "pinned:TRAINER_OK": "2689367b205c16ce32ed4200942b8b8b1e262dfc70d9bc9fbc77c49699a4f1df",

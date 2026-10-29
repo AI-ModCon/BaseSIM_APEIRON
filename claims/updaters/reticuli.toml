@@ -15,6 +15,7 @@ environment = "requirements.lock"
 inputs = ["test_updaters.py",
     "test_reported_penalty.py",
     "test_export_surface.py",
+    "test_measured_cost_boundary.py",
     "test_import_surface.py", "test_updater_numerics.py", "conftest.py", "pytest.ini"]
 
 # --- supplied by components ------------------------------------------------
@@ -114,4 +115,4 @@ guidance = "regenerate the factory create_updater(cfg, harness) -> BaseUpdater d
 kind = "gate"
 output = "UPDATERS_OK"
 class = "validated"
-run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_updaters.py test_updater_numerics.py test_import_surface.py test_export_surface.py test_reported_penalty.py && printf ok > UPDATERS_OK"
+run = "PYTHONPATH=. python3 -m pytest -q -p no:cacheprovider test_updaters.py test_updater_numerics.py test_import_surface.py test_export_surface.py test_reported_penalty.py test_measured_cost_boundary.py && printf ok > UPDATERS_OK"

@@ -62,8 +62,13 @@ def _fixed(seed: int, n: int = 32, in_f: int = 4, nc: int = 3) -> TensorDataset:
                          torch.randint(0, nc, (n,), generator=generator))
 
 
-def _advance_counts(cfg, harness) -> collections.Counter:
-    """(stage, advances?) -> how many log calls, over one outer round."""
+def _call_sequence(cfg, harness) -> list[tuple[str, bool, tuple[str, ...]]]:
+    """Every log call of one outer round, in order.
+
+    Returns (stage, advances?, sorted metric names) per call, which is
+    enough to assert the counts, the flags AND the order -- three
+    independent properties of a produced sequence (R31).
+    """
     profiler = FLOPSProfiler(warmup_iters=0)
     # A measured block, so `get_performance()` is non-empty and the CL
     # profiler row is actually logged. Without this the row is skipped and
@@ -71,7 +76,7 @@ def _advance_counts(cfg, harness) -> collections.Counter:
     with profiler.measure_flops("warm"):
         harness.model(torch.zeros(2, 4))
 
-    counts: collections.Counter = collections.Counter()
+    calls: list[tuple[str, bool, tuple[str, ...]]] = []
     stage = {"name": None}
 
     class Recording:
@@ -81,7 +86,8 @@ def _advance_counts(cfg, harness) -> collections.Counter:
             stage["name"] = name
 
         def log(self, metrics, *args, increment=True, **kwargs):
-            counts[(stage["name"], bool(increment))] += 1
+            calls.append((stage["name"], bool(increment),
+                          tuple(sorted(metrics))))
 
         def __getattr__(self, _name):
             return lambda *a, **kw: None
@@ -95,7 +101,13 @@ def _advance_counts(cfg, harness) -> collections.Counter:
                return_value=recording):
         trainer = ContinuousTrainer(cfg, harness, injected, profiler)
         trainer.outer_cl_training_loop(drift_event_id=3)
-    return counts
+    return calls
+
+
+def _advance_counts(cfg, harness) -> collections.Counter:
+    """(stage, advances?) -> how many log calls, over one outer round."""
+    return collections.Counter((s, a) for s, a, _n in
+                               _call_sequence(cfg, harness))
 
 
 #: `max_iter` values the count rule is asserted at.
@@ -207,3 +219,47 @@ class TestTheFixtureReachesBothSites:
     def test_two_tasks_are_registered(self, harness):
         """The transfer row needs a computable BWT."""
         assert len(harness.task_diagonals) >= 2
+
+
+class TestTheOrderOfTheClosingRows:
+    """Which of the round's two closing rows comes first.
+
+    The counts and the flags were both pinned and a rebuild still differed:
+    it logged the CL profiler row BEFORE the transfer row where the source
+    logs it after. Values identical, steps identical in shape -- and
+    because each row takes the next global step, the pair swapped labels
+    and 11 series failed their digest.
+
+    Third independent property of the same sequence, after content and
+    count (R31): the order.
+    """
+
+    def _closing(self, cfg, harness):
+        calls = _call_sequence(cfg, harness)
+        transfer = next(
+            (i for i, (s, _a, names) in enumerate(calls)
+             if s == "eval" and any(n.startswith("test_") for n in names)),
+            None)
+        profiler = next(
+            (i for i, (s, _a, names) in enumerate(calls)
+             if s == "cl" and all(n.startswith("cperf_") for n in names)),
+            None)
+        return calls, transfer, profiler
+
+    def test_both_closing_rows_are_logged(self, default_cfg, harness):
+        """Guard: the order assertion is vacuous if either is missing."""
+        _calls, transfer, profiler = self._closing(default_cfg, harness)
+        assert transfer is not None, "no transfer row was logged"
+        assert profiler is not None, "no CL profiler row was logged"
+
+    def test_the_transfer_row_precedes_the_profiler_row(self, default_cfg,
+                                                        harness):
+        """`src/` logs the transfer metrics, then the round's profiler
+        summary. Each takes the next step, so swapping them swaps two
+        labels and every series on those rows fails its digest."""
+        _calls, transfer, profiler = self._closing(default_cfg, harness)
+        assert transfer < profiler, (
+            f"the CL profiler row was logged at position {profiler}, before "
+            f"the transfer row at {transfer}; the transfer metrics close the "
+            f"round first"
+        )

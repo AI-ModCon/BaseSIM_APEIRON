@@ -110,6 +110,8 @@ pinned claim files, where a renumber would move claim roots.
 | A72 | measurement | open | the regrown framework computes the MNIST run exactly; two rows mislabel their step |
 | R30 | methodology | fixed here | CORRECTS A72: the blind fixture was not too SMALL, it never ran the two guarded sites |
 | R31 | methodology | fixed here | pinning a property of each row leaves the ROW COUNT free: a rebuild doubled the cl rows to satisfy it |
+| A73 | APEIRON | open | the measured `update_fwd_bwd` window: a rebuild moved K-FAC's curvature matmuls inside it and reported 8.5x the cost |
+| R32 | methodology | fixed here | equal outputs do not mean equal measurements: whatever a program measures about itself depends on code placement |
 | R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
 | R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
 | R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
@@ -4247,3 +4249,86 @@ producer is free in the other two, and each rebuild will spend exactly the
 freedom that is left.
 Kind: methodology (fixed here)
 Status: fixed here -- counts pinned beside the flags.
+
+### A73 — the cost of a CL update is whatever the updater does inside `fwd_bwd`
+The trainer wraps exactly one call in a FLOP counter:
+
+    if self.profiler and iter_count > self.profiler.warmup_iters and step == 0:
+        with self.profiler.measure_flops(tag="update_fwd_bwd"):
+            loss += self.cl_updater.fwd_bwd(train_batch_tuple, hist_batch_tuple)
+
+so `cperf_update_fwd_bwd_flop` reports whatever an updater chooses to do
+in that call, and nothing it does in `update_post_fwd_bwd`. The split is
+a measurement boundary and each updater sits on one side of it.
+
+K-FAC accumulates two curvature factors per layer, `aᵀa` and `gᵀg`. For a
+convolution the activation side is the unfolded patch matrix, shape
+`(N·H·W, C·kH·kW)`, and contracting it is the most expensive arithmetic
+in the step -- more expensive than the forward/backward that produced it.
+`src/` does that contraction in `update_post_fwd_bwd`, outside the
+window. Measured with the profiler's own counter over the shared
+`TinyCNN`:
+
+| `update_mode` | inside `fwd_bwd` | inside `update_post_fwd_bwd` |
+|---|---|---|
+| `base` | 74304 | 0 |
+| `none` | 0 | 0 |
+| `jvp_reg` | 74304 | 0 |
+| `ewc_online` | 74304 | 0 |
+| `kfac_online` | 74304 | 100832 |
+
+A rebuild accumulated the same two factors in the backward hook, which is
+inside `fwd_bwd`: 174032 and 1104. The hooks are not the problem --
+`src/` uses hooks too, to *store* the activation and grad-output; the
+difference is where the contraction happens.
+
+Nothing about the model's behaviour changed, and the run says so with
+unusual force. Over the pinned MNIST run the two implementations agreed
+on **every value of every series** -- 376 accuracies, 376 losses, 37
+drift scores, the final test accuracy -- and differed in exactly one
+number: `cperf_update_fwd_bwd_flop` read 40784777728 against the
+original's 4815519744. The run reported continual learning as 8.5x more
+expensive than it is, which is the figure a reader uses to decide whether
+it is affordable at all.
+
+Pinned in `claims/updaters/test_measured_cost_boundary.py` relative to
+`base` rather than as absolute counts, so it holds for any model and
+batch, and in both directions: no mode may cost more than a vanilla pass
+inside the window, and K-FAC's curvature work must still be counted
+after it. Validated 12 of 12 against `src/`, failing exactly those two
+cases against the rebuild.
+
+Kind: APEIRON (missing test)
+Status: open -- the upstream suite has no case on either side of the
+boundary, and `test_updaters.py` cannot see the difference because every
+value it checks is correct.
+
+### R32 — equal outputs do not mean equal measurements
+A73 is the cleanest instance yet of something worth stating on its own.
+Two implementations produced byte-identical values for every quantity the
+framework computes, and still disagreed about the framework's own
+reported cost, because one of them did the same arithmetic on the other
+side of a profiler's context manager.
+
+A behaviour probe that compares outputs cannot see this. The divergence
+is not in what the code computes but in *when*, relative to an
+observation the code itself takes. Anything a program measures about
+itself -- FLOP counters, timers, step counters, call counts, allocation
+peaks -- is an output whose value depends on code placement rather than
+code semantics, and is therefore invisible to every equivalence check
+that only compares results.
+
+The practical rule: when a codebase instruments itself, the instrument's
+window is part of the interface. List the measured windows, and for each
+one pin what is inside it -- not as an absolute number, which is
+model-specific, but relative to a baseline the same instrument can
+produce. Here: "every mode's measured pass costs what a vanilla pass
+costs", plus "K-FAC's extra work is counted after it". Two assertions,
+one boundary, and a 8.5x reporting error caught.
+
+This also explains why the gap survived so long. Nine rebuilds and
+eighteen full-stack runs agreed on every accuracy and every loss. The
+last two mismatched series were the only two the framework measures about
+itself.
+Kind: methodology (fixed here)
+Status: fixed here -- measured windows are now a named surface.
