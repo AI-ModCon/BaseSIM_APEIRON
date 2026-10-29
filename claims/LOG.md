@@ -107,7 +107,8 @@ pinned claim files, where a renumber would move claim roots.
 | R28 | methodology | fixed here | FOURTH resolution failure, inside my own probe: importing a claim's conftest puts its sealed `apeiron/` first |
 | A71 | APEIRON | open | the post-CL validation row must share the CL round's step; a rebuild advanced first and 16 digests failed on the label alone |
 | R29 | methodology | fixed here | pinning a SEQUENCE one property at a time is a long tail; the file's shape couples every row, so pin the shape |
-| A72 | measurement | open | the regrown framework computes the MNIST run exactly; two rows mislabel their step, and no fixture reproduces it at run scale |
+| A72 | measurement | open | the regrown framework computes the MNIST run exactly; two rows mislabel their step |
+| R30 | methodology | fixed here | CORRECTS A72: the blind fixture was not too SMALL, it never ran the two guarded sites |
 | R1 | bug (fixed) | closed | reticuli: strict seatbelt broke every furnished claim on macOS |
 | R2 | bug (fixed) | closed | reticuli: `ret init` gitignore patterns miss nested claim stores |
 | R3 | bug (fixed) | closed | reticuli: export dropped the environment file and manifest entries |
@@ -4159,3 +4160,50 @@ this run, and not yet a byte-for-byte reproduction of its record. That
 distinction is worth keeping rather than collapsing in either direction.
 Kind: measurement
 Status: open -- the blocker is a run-scale fixture, not another criterion.
+
+### R30 — CORRECTS A72: the fixture was not too small, it was too quiet
+A72 concluded that closing the last gap needed "a fixture at run scale --
+a harness driving tens of inner iterations", because the fixtures produce
+6 CL rows where the run produces 51 and the divergence did not appear in
+the first 6. That diagnosis was wrong, and the evidence against it was one
+`grep` away.
+
+Reading the two trees side by side: the source passes `increment=False` at
+**one** call site; the rebuild passes it at **three**.
+
+    source   _log_validation only                      (continuous_trainer.py:98)
+    rebuild  _log_validation, the CL profiler row,      (:251, :264, :350)
+             and the transfer-metrics row
+
+Two flags. Nothing to do with scale.
+
+The fixture was blind because neither extra site RUNS under it:
+
+  * the CL profiler row is guarded by `if performance:`, and a profiler
+    with no measured block reports nothing -- so the row is skipped and
+    its `increment=` is never observed;
+  * the transfer row needs a computable BWT, which needs at least two
+    registered tasks, and the fixture registered one.
+
+Measure a block and register two tasks, and the counts separate cleanly
+over a single round:
+
+    cl    src 0 non-advancing / 4 advancing     rebuild 1 / 3
+    eval  src 1 / 1                             rebuild 2 / 0
+
+I searched eight fixture configurations varying `max_iter` and task count
+and found nothing, then concluded the instrument needed to be bigger. The
+instrument needed to be *noisier*: it had to make the guarded branches
+execute. A criterion cannot observe a flag on a call that never happens,
+and "no divergence found" over a fixture is a statement about the fixture
+until the branch coverage is checked.
+
+**The rule this adds to R27.** Before concluding that a fixture cannot
+reach a divergence, check whether the divergent LINE executes under it. A
+guard (`if performance:`, `if bwt is not None:`) is the usual reason it
+does not, and satisfying the guard is usually a one-line fixture change
+rather than a new harness. The criterion that finally discriminated asserts
+the guards are satisfied as explicit cases, so it cannot quietly go
+vacuous again.
+Kind: methodology (fixed here)
+Status: fixed here -- A72's "needs a run-scale fixture" is withdrawn.
