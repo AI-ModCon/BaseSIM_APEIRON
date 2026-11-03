@@ -343,8 +343,8 @@ def plot_pred_vs_truth(
                 linewidth=1.2,
                 label=label,
             )
-        #ax.set_yscale('log')
-        #ax.set_ylim(bottom=1e-20)
+        # ax.set_yscale('log')
+        # ax.set_ylim(bottom=1e-20)
         ax.set_xlabel("time step")
         ax.set_ylabel(var)
         ax.legend(loc="best")

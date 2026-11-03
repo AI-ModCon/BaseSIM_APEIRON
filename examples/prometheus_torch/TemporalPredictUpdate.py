@@ -19,15 +19,28 @@ class ModelGeneration:
     for accurate prediction across wide dynamic ranges (e.g. 0 W – 250 kW).
     """
 
-    def __init__(self, model_path, testing_path, training_path, text_file_name,
-                 feature_variables, target_variable, epochs=100,
-                 lstm_units=[64, 32], dropout=0.2, normalization_method='minmax',
-                 batch_size=32, validation_split=0.2,
-                 use_rolling_windows=False, window_size=100, window_stride=10,
-                 forecast_horizon=0,
-                 target_log_transform=False,
-                 loss_fn='mse',
-                 random_seed=None):
+    def __init__(
+        self,
+        model_path,
+        testing_path,
+        training_path,
+        text_file_name,
+        feature_variables,
+        target_variable,
+        epochs=100,
+        lstm_units=[64, 32],
+        dropout=0.2,
+        normalization_method="minmax",
+        batch_size=32,
+        validation_split=0.2,
+        use_rolling_windows=False,
+        window_size=100,
+        window_stride=10,
+        forecast_horizon=0,
+        target_log_transform=False,
+        loss_fn="mse",
+        random_seed=None,
+    ):
         """
         Initialize the ModelGeneration class.
 
@@ -103,31 +116,33 @@ class ModelGeneration:
         self.forecast_horizon = int(forecast_horizon)
         self.target_log_transform = target_log_transform
         self.loss_fn = loss_fn
-        self.random_seed = random_seed        
+        self.random_seed = random_seed
 
         if self.forecast_horizon < 0:
             raise ValueError("forecast_horizon must be >= 0")
-        if self.loss_fn not in ('mse', 'relative_mse', 'log_mse'):
-            raise ValueError(f"Unknown loss_fn '{self.loss_fn}'. "
-                             "Choose 'mse', 'relative_mse', or 'log_mse'.")
+        if self.loss_fn not in ("mse", "relative_mse", "log_mse"):
+            raise ValueError(
+                f"Unknown loss_fn '{self.loss_fn}'. "
+                "Choose 'mse', 'relative_mse', or 'log_mse'."
+            )
 
         # Data storage
         self.X_train = None
         self.y_train = None
-        self.X_val   = None
-        self.y_val   = None
-        self.X_test  = None
-        self.y_test  = None
+        self.X_val = None
+        self.y_val = None
+        self.X_test = None
+        self.y_test = None
 
         # Model components
-        self.model    = None
+        self.model = None
         self.scaler_X = None
         self.scaler_y = None
-        self.history  = None
+        self.history = None
 
         # Metadata
-        self.train_files  = []
-        self.test_files   = []
+        self.train_files = []
+        self.test_files = []
         self.max_timesteps = None
 
         Path(self.model_path).parent.mkdir(parents=True, exist_ok=True)
@@ -141,20 +156,22 @@ class ModelGeneration:
 
     def _initialize_scalers(self):
         """Initialize scalers based on chosen normalization method."""
-        if self.normalization_method == 'minmax':
+        if self.normalization_method == "minmax":
             self.scaler_X = MinMaxScaler()
             self.scaler_y = MinMaxScaler()
-        elif self.normalization_method == 'standard':
+        elif self.normalization_method == "standard":
             self.scaler_X = StandardScaler()
             self.scaler_y = StandardScaler()
-        elif self.normalization_method == 'robust':
+        elif self.normalization_method == "robust":
             self.scaler_X = RobustScaler()
             self.scaler_y = RobustScaler()
-        elif self.normalization_method == 'none':
+        elif self.normalization_method == "none":
             self.scaler_X = None
             self.scaler_y = None
         else:
-            raise ValueError(f"Unknown normalization method: {self.normalization_method}")
+            raise ValueError(
+                f"Unknown normalization method: {self.normalization_method}"
+            )
 
     # ─────────────────────────────────────────────────────────────────────────
     # I/O helpers
@@ -186,7 +203,7 @@ class ModelGeneration:
         X, y = [], []
         for df in dataframes:
             missing_f = set(feature_cols) - set(df.columns)
-            missing_t = set(target_cols)  - set(df.columns)
+            missing_t = set(target_cols) - set(df.columns)
             if missing_f:
                 raise ValueError(f"Missing feature columns: {missing_f}")
             if missing_t:
@@ -214,7 +231,7 @@ class ModelGeneration:
                 if self.forecast_horizon == 0:
                     y_windows.append(y_seq[start:end])
                 else:
-                    y_windows.append(y_seq[end:end + self.forecast_horizon])
+                    y_windows.append(y_seq[end : end + self.forecast_horizon])
         return X_windows, y_windows
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -241,26 +258,46 @@ class ModelGeneration:
 
         print("\nExtracting sequences...")
         X_train_raw, y_train_raw = self._extract_sequences(
-            train_dfs, self.feature_variables, self.target_variable)
+            train_dfs, self.feature_variables, self.target_variable
+        )
         X_test_raw, y_test_raw = self._extract_sequences(
-            test_dfs, self.feature_variables, self.target_variable)
+            test_dfs, self.feature_variables, self.target_variable
+        )
 
         # Forecast-horizon shift for full-sequence (non-rolling) mode
         if (not self.use_rolling_windows) and (self.forecast_horizon > 0):
-            X_train_raw = [s[:-self.forecast_horizon] for s in X_train_raw
-                           if len(s) > self.forecast_horizon]
-            y_train_raw = [s[self.forecast_horizon:]  for s in y_train_raw
-                           if len(s) > self.forecast_horizon]
-            X_test_raw  = [s[:-self.forecast_horizon] for s in X_test_raw
-                           if len(s) > self.forecast_horizon]
-            y_test_raw  = [s[self.forecast_horizon:]  for s in y_test_raw
-                           if len(s) > self.forecast_horizon]
+            X_train_raw = [
+                s[: -self.forecast_horizon]
+                for s in X_train_raw
+                if len(s) > self.forecast_horizon
+            ]
+            y_train_raw = [
+                s[self.forecast_horizon :]
+                for s in y_train_raw
+                if len(s) > self.forecast_horizon
+            ]
+            X_test_raw = [
+                s[: -self.forecast_horizon]
+                for s in X_test_raw
+                if len(s) > self.forecast_horizon
+            ]
+            y_test_raw = [
+                s[self.forecast_horizon :]
+                for s in y_test_raw
+                if len(s) > self.forecast_horizon
+            ]
 
         if self.use_rolling_windows:
-            print(f"\nApplying rolling windows (size={self.window_size}, "
-                  f"stride={self.window_stride}, horizon={self.forecast_horizon})")
-            X_train_raw, y_train_raw = self._create_rolling_windows(X_train_raw, y_train_raw)
-            X_test_raw,  y_test_raw  = self._create_rolling_windows(X_test_raw,  y_test_raw)
+            print(
+                f"\nApplying rolling windows (size={self.window_size}, "
+                f"stride={self.window_stride}, horizon={self.forecast_horizon})"
+            )
+            X_train_raw, y_train_raw = self._create_rolling_windows(
+                X_train_raw, y_train_raw
+            )
+            X_test_raw, y_test_raw = self._create_rolling_windows(
+                X_test_raw, y_test_raw
+            )
             print(f"  Training windows : {len(X_train_raw)}")
             print(f"  Testing  windows : {len(X_test_raw)}")
             self.max_timesteps = self.window_size
@@ -269,23 +306,23 @@ class ModelGeneration:
             self.max_timesteps = max(all_lengths)
 
         # Train / validation split
-        n_train  = len(X_train_raw)
-        n_val    = int(n_train * self.validation_split)
+        n_train = len(X_train_raw)
+        n_val = int(n_train * self.validation_split)
 
         # Set seed if specified
         if self.random_seed is not None:
             np.random.seed(self.random_seed)
 
-        indices  = np.random.permutation(n_train)
-        val_idx  = indices[:n_val]
+        indices = np.random.permutation(n_train)
+        val_idx = indices[:n_val]
         train_idx = indices[n_val:]
 
         self.X_train = [X_train_raw[i] for i in train_idx]
         self.y_train = [y_train_raw[i] for i in train_idx]
-        self.X_val   = [X_train_raw[i] for i in val_idx]
-        self.y_val   = [y_train_raw[i] for i in val_idx]
-        self.X_test  = X_test_raw
-        self.y_test  = y_test_raw
+        self.X_val = [X_train_raw[i] for i in val_idx]
+        self.y_val = [y_train_raw[i] for i in val_idx]
+        self.X_test = X_test_raw
+        self.y_test = y_test_raw
 
         print("\nData Statistics:")
         print(f"  Training   : {len(self.X_train)} samples")
@@ -294,22 +331,28 @@ class ModelGeneration:
         print(f"  Features   : {len(self.feature_variables)} {self.feature_variables}")
         print(f"  Targets    : {len(self.target_variable)} {self.target_variable}")
         if self.target_log_transform:
-            print(f"  Target log-transform : ENABLED (log1p/expm1)")
+            print("  Target log-transform : ENABLED (log1p/expm1)")
 
         if not self.use_rolling_windows:
             tl = [len(s) for s in self.X_train]
             el = [len(s) for s in self.X_test]
-            print(f"\nSequence lengths — Train: min={min(tl)}, max={max(tl)}, "
-                  f"mean={np.mean(tl):.1f} | Test: min={min(el)}, max={max(el)}")
+            print(
+                f"\nSequence lengths — Train: min={min(tl)}, max={max(tl)}, "
+                f"mean={np.mean(tl):.1f} | Test: min={min(el)}, max={max(el)}"
+            )
             print(f"  Max timesteps for model: {self.max_timesteps}")
 
-        print(f"\nTarget Variable Statistics (across all timesteps):")
+        print("\nTarget Variable Statistics (across all timesteps):")
         for i, var in enumerate(self.target_variable):
             tv = np.concatenate([s[:, i] for s in self.y_train])
             ev = np.concatenate([s[:, i] for s in self.y_test])
             print(f"  {var}:")
-            print(f"    Train — min={tv.min():.4f}, max={tv.max():.4f}, mean={tv.mean():.4f}")
-            print(f"    Test  — min={ev.min():.4f}, max={ev.max():.4f}, mean={ev.mean():.4f}")
+            print(
+                f"    Train — min={tv.min():.4f}, max={tv.max():.4f}, mean={tv.mean():.4f}"
+            )
+            print(
+                f"    Test  — min={ev.min():.4f}, max={ev.max():.4f}, mean={ev.mean():.4f}"
+            )
 
         print("\nData preprocessing complete!")
         print("=" * 60)
@@ -324,20 +367,23 @@ class ModelGeneration:
         If target_log_transform=True, applies log1p to y before scaling
         so the scaler fits in log-space, expanding the low-value regime.
         """
-        if self.normalization_method == 'none':
+        if self.normalization_method == "none":
             return X, y
         if not X or len(X) == 0:
             return X, y
 
         # ── X ──────────────────────────────────────────────────────────────
         X_flat = np.vstack(X)
-        X_scaled = (self.scaler_X.fit_transform(X_flat) if fit
-                    else self.scaler_X.transform(X_flat))
+        X_scaled = (
+            self.scaler_X.fit_transform(X_flat)
+            if fit
+            else self.scaler_X.transform(X_flat)
+        )
         X_norm, idx = [], 0
         for seq in X:
-            l = len(seq)
-            X_norm.append(X_scaled[idx:idx+l])
-            idx += l
+            length = len(seq)
+            X_norm.append(X_scaled[idx : idx + length])
+            idx += length
 
         # ── y ──────────────────────────────────────────────────────────────
         y_norm = None
@@ -348,20 +394,24 @@ class ModelGeneration:
                 if np.any(y_flat < 0):
                     raise ValueError(
                         "target_log_transform=True requires non-negative targets. "
-                        "Found negative values in y.")
+                        "Found negative values in y."
+                    )
                 y_flat = np.log1p(y_flat)
 
             if self.scaler_y is not None:
-                y_scaled = (self.scaler_y.fit_transform(y_flat) if fit
-                            else self.scaler_y.transform(y_flat))
+                y_scaled = (
+                    self.scaler_y.fit_transform(y_flat)
+                    if fit
+                    else self.scaler_y.transform(y_flat)
+                )
             else:
                 y_scaled = y_flat
 
             y_norm, idx = [], 0
             for seq in y:
-                l = len(seq)
-                y_norm.append(y_scaled[idx:idx+l])
-                idx += l
+                length = len(seq)
+                y_norm.append(y_scaled[idx : idx + length])
+                idx += length
 
         return X_norm, y_norm
 
@@ -371,7 +421,7 @@ class ModelGeneration:
         For targets with target_log_transform=True, applies expm1 after
         the scaler's inverse_transform to undo the log1p step.
         """
-        if self.normalization_method == 'none':
+        if self.normalization_method == "none":
             return data
 
         scaler = self.scaler_y if is_target else self.scaler_X
@@ -379,7 +429,7 @@ class ModelGeneration:
 
         if is_target and self.target_log_transform:
             result = np.expm1(result)
-            result = np.clip(result, 0, None)   # guard against sub-zero float noise
+            result = np.clip(result, 0, None)  # guard against sub-zero float noise
 
         return result
 
@@ -396,8 +446,8 @@ class ModelGeneration:
         n, feats = len(sequences), sequences[0].shape[-1]
         padded = np.zeros((n, max_length, feats))
         for i, seq in enumerate(sequences):
-            l = min(len(seq), max_length)
-            padded[i, :l, :] = seq[:l]
+            length = min(len(seq), max_length)
+            padded[i, :length, :] = seq[:length]
         return padded
 
     def _pad_targets(self, targets, max_length=None):
@@ -409,8 +459,8 @@ class ModelGeneration:
         n, feats = len(targets), targets[0].shape[-1]
         padded = np.zeros((n, max_length, feats))
         for i, seq in enumerate(targets):
-            l = min(len(seq), max_length)
-            padded[i, :l, :] = seq[:l]
+            length = min(len(seq), max_length)
+            padded[i, :length, :] = seq[:length]
         return padded
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -428,22 +478,26 @@ class ModelGeneration:
                          outputs so it complements (but does not duplicate)
                          target_log_transform.
         """
-        if self.loss_fn == 'mse':
-            return 'mse'
+        if self.loss_fn == "mse":
+            return "mse"
 
-        elif self.loss_fn == 'relative_mse':
+        elif self.loss_fn == "relative_mse":
             eps = tf.constant(1e-6, dtype=tf.float32)
+
             def relative_mse(y_true, y_pred):
                 denom = tf.square(tf.abs(y_true) + eps)
                 return tf.reduce_mean(tf.square(y_true - y_pred) / denom)
+
             return relative_mse
 
-        elif self.loss_fn == 'log_mse':
+        elif self.loss_fn == "log_mse":
             eps = tf.constant(1.0, dtype=tf.float32)
+
             def log_mse(y_true, y_pred):
                 log_t = tf.math.log(tf.abs(y_true) + eps)
                 log_p = tf.math.log(tf.abs(y_pred) + eps)
                 return tf.reduce_mean(tf.square(log_t - log_p))
+
             return log_mse
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -456,7 +510,11 @@ class ModelGeneration:
 
         inputs = layers.Input(shape=(self.max_timesteps, len(self.feature_variables)))
 
-        x = inputs if self.use_rolling_windows else layers.Masking(mask_value=0.0)(inputs)
+        x = (
+            inputs
+            if self.use_rolling_windows
+            else layers.Masking(mask_value=0.0)(inputs)
+        )
 
         if self.forecast_horizon == 0:
             # Sequence-to-sequence (aligned prediction)
@@ -472,30 +530,40 @@ class ModelGeneration:
             for i, units in enumerate(self.lstm_units[:-1]):
                 x = layers.LSTM(units, return_sequences=True, dropout=self.dropout)(x)
                 x = layers.Dropout(self.dropout)(x)
-            x = layers.LSTM(self.lstm_units[-1], return_sequences=False, dropout=self.dropout)(x)
+            x = layers.LSTM(
+                self.lstm_units[-1], return_sequences=False, dropout=self.dropout
+            )(x)
             x = layers.RepeatVector(self.forecast_horizon)(x)
-            x = layers.LSTM(self.lstm_units[-1], return_sequences=True, dropout=self.dropout)(x)
+            x = layers.LSTM(
+                self.lstm_units[-1], return_sequences=True, dropout=self.dropout
+            )(x)
             outputs = layers.TimeDistributed(layers.Dense(len(self.target_variable)))(x)
             out_shape = f"(batch, {self.forecast_horizon}, {len(self.target_variable)})"
-            arch_type = f"Encoder-Decoder (forecast {self.forecast_horizon} steps ahead)"
+            arch_type = (
+                f"Encoder-Decoder (forecast {self.forecast_horizon} steps ahead)"
+            )
 
         self.model = keras.Model(inputs=inputs, outputs=outputs)
         self.model.compile(
             optimizer=keras.optimizers.Adam(learning_rate=0.001),
             loss=self._get_loss(),
-            metrics=['mae', 'mse']
+            metrics=["mae", "mse"],
         )
 
-        print(f"  Input  shape : (batch, {self.max_timesteps}, {len(self.feature_variables)})")
+        print(
+            f"  Input  shape : (batch, {self.max_timesteps}, {len(self.feature_variables)})"
+        )
         print(f"  Output shape : {out_shape}")
         print(f"  LSTM layers  : {self.lstm_units}")
         print(f"  Parameters   : {self.model.count_params():,}")
         print(f"  Architecture : {arch_type}")
         print(f"  Loss function: {self.loss_fn}")
         if self.use_rolling_windows:
-            print(f"  Mode: Rolling Windows (size={self.window_size}, stride={self.window_stride})")
+            print(
+                f"  Mode: Rolling Windows (size={self.window_size}, stride={self.window_stride})"
+            )
         else:
-            print(f"  Mode: Variable-length sequences (with masking)")
+            print("  Mode: Variable-length sequences (with masking)")
 
     # ─────────────────────────────────────────────────────────────────────────
     # Training
@@ -511,11 +579,15 @@ class ModelGeneration:
         print("=" * 60)
 
         print("\nNormalizing data...")
-        X_train_norm, y_train_norm = self._normalize_data(self.X_train, self.y_train, fit=True)
+        X_train_norm, y_train_norm = self._normalize_data(
+            self.X_train, self.y_train, fit=True
+        )
 
         has_val = bool(self.X_val and len(self.X_val) > 0)
         if has_val:
-            X_val_norm, y_val_norm = self._normalize_data(self.X_val, self.y_val, fit=False)
+            X_val_norm, y_val_norm = self._normalize_data(
+                self.X_val, self.y_val, fit=False
+            )
         else:
             print("Warning: No validation data. Training without validation.")
             X_val_norm = y_val_norm = None
@@ -531,33 +603,41 @@ class ModelGeneration:
 
         # Shape verification
         print("\n=== SHAPE VERIFICATION ===")
-        exp_y = (len(self.y_train),
-                 self.forecast_horizon if self.forecast_horizon > 0 else self.max_timesteps,
-                 len(self.target_variable))
+        exp_y = (
+            len(self.y_train),
+            self.forecast_horizon if self.forecast_horizon > 0 else self.max_timesteps,
+            len(self.target_variable),
+        )
         if y_tr.shape != exp_y:
-            print(f"WARNING: target shape mismatch — expected {exp_y}, got {y_tr.shape}")
+            print(
+                f"WARNING: target shape mismatch — expected {exp_y}, got {y_tr.shape}"
+            )
         else:
             print(f"✓ Target shape verified: {y_tr.shape}")
         print("=" * 26 + "\n")
 
-        monitor = 'val_loss' if has_val else 'loss'
+        monitor = "val_loss" if has_val else "loss"
         callbacks = [
             keras.callbacks.EarlyStopping(
-                monitor=monitor, patience=15, restore_best_weights=True, verbose=1),
+                monitor=monitor, patience=15, restore_best_weights=True, verbose=1
+            ),
             keras.callbacks.ReduceLROnPlateau(
-                monitor=monitor, factor=0.5, patience=5, min_lr=1e-7, verbose=1),
+                monitor=monitor, factor=0.5, patience=5, min_lr=1e-7, verbose=1
+            ),
             keras.callbacks.ModelCheckpoint(
-                self.model_path, monitor=monitor, save_best_only=True, verbose=1),
+                self.model_path, monitor=monitor, save_best_only=True, verbose=1
+            ),
         ]
 
         print(f"Training for up to {self.epochs} epochs...")
         self.history = self.model.fit(
-            X_tr, y_tr,
+            X_tr,
+            y_tr,
             validation_data=val_data,
             epochs=self.epochs,
             batch_size=self.batch_size,
             callbacks=callbacks,
-            verbose=1
+            verbose=1,
         )
 
         print("\nTraining complete!")
@@ -579,7 +659,9 @@ class ModelGeneration:
         print("MODEL EVALUATION")
         print("=" * 60)
 
-        X_test_norm, y_test_norm = self._normalize_data(self.X_test, self.y_test, fit=False)
+        X_test_norm, y_test_norm = self._normalize_data(
+            self.X_test, self.y_test, fit=False
+        )
         X_tp = self._pad_sequences(X_test_norm)
         y_tp = self._pad_targets(y_test_norm)
 
@@ -588,8 +670,9 @@ class ModelGeneration:
 
         y_pred_norm = self.model.predict(X_tp, verbose=0)
         bs, ts, feats = y_pred_norm.shape
-        y_pred = self._denormalize_data(y_pred_norm.reshape(-1, feats),
-                                        is_target=True).reshape(bs, ts, feats)
+        y_pred = self._denormalize_data(
+            y_pred_norm.reshape(-1, feats), is_target=True
+        ).reshape(bs, ts, feats)
 
         print("\nTest Metrics (Original Scale):")
         metrics = {}
@@ -624,7 +707,7 @@ class ModelGeneration:
             print("\nNot using rolling windows — falling back to standard evaluation.")
             return self.evaluate(verbose=verbose)
 
-        print(f"\nReconstructing full sequences from rolling windows...")
+        print("\nReconstructing full sequences from rolling windows...")
         all_preds, all_true = [], []
         for tf_ in self.test_files:
             df = pd.read_csv(os.path.join(self.testing_path, tf_))
@@ -669,10 +752,10 @@ class ModelGeneration:
         """
         if bands is None:
             bands = [
-                ("startup   0–50 W",      0,        50),
-                ("low      50 W–1 kW",   50,     1_000),
-                ("mid       1–10 kW",  1_000,   10_000),
-                ("high    10–250 kW", 10_000,  250_000),
+                ("startup   0–50 W", 0, 50),
+                ("low      50 W–1 kW", 50, 1_000),
+                ("mid       1–10 kW", 1_000, 10_000),
+                ("high    10–250 kW", 10_000, 250_000),
             ]
 
         y_true_flat = np.asarray(y_true_flat)
@@ -691,14 +774,16 @@ class ModelGeneration:
                 continue
             t, p = y_true_flat[mask], y_pred_flat[mask]
             rmse = np.sqrt(np.mean((t - p) ** 2))
-            nz   = t != 0
-            mape = np.mean(np.abs((t[nz] - p[nz]) / t[nz])) * 100 if nz.any() else np.nan
+            nz = t != 0
+            mape = (
+                np.mean(np.abs((t[nz] - p[nz]) / t[nz])) * 100 if nz.any() else np.nan
+            )
             ss_r = np.sum((t - p) ** 2)
             ss_t = np.sum((t - t.mean()) ** 2)
-            r2   = 1 - ss_r / ss_t if ss_t > 0 else np.nan
-            results[label] = {'n': n, 'RMSE': rmse, 'MAPE': mape, 'R2': r2}
+            r2 = 1 - ss_r / ss_t if ss_t > 0 else np.nan
+            results[label] = {"n": n, "RMSE": rmse, "MAPE": mape, "R2": r2}
             mape_s = f"{mape:8.1f}" if not np.isnan(mape) else "     N/A"
-            r2_s   = f"{r2:7.4f}"   if not np.isnan(r2)   else "    N/A"
+            r2_s = f"{r2:7.4f}" if not np.isnan(r2) else "    N/A"
             print(f"  {label:<24} {n:>8,}  {rmse:>12.4f}  {mape_s}  {r2_s}")
 
         return results
@@ -710,16 +795,16 @@ class ModelGeneration:
     @staticmethod
     def _compute_metrics(t, p):
         """Compute standard regression metrics given flat true/pred arrays."""
-        mse  = np.mean((t - p) ** 2)
-        mae  = np.mean(np.abs(t - p))
+        mse = np.mean((t - p) ** 2)
+        mae = np.mean(np.abs(t - p))
         rmse = np.sqrt(mse)
-        me   = np.max(np.abs(t - p))
-        nz   = t != 0
+        me = np.max(np.abs(t - p))
+        nz = t != 0
         mape = np.mean(np.abs((t[nz] - p[nz]) / t[nz])) * 100 if nz.any() else np.nan
         ss_r = np.sum((t - p) ** 2)
         ss_t = np.sum((t - t.mean()) ** 2)
-        r2   = 1 - ss_r / ss_t
-        return {'MSE': mse, 'MAE': mae, 'RMSE': rmse, 'ME': me, 'MAPE': mape, 'R²': r2}
+        r2 = 1 - ss_r / ss_t
+        return {"MSE": mse, "MAE": mae, "RMSE": rmse, "ME": me, "MAPE": mape, "R²": r2}
 
     @staticmethod
     def _print_metrics(var, m):
@@ -728,10 +813,10 @@ class ModelGeneration:
         print(f"    MAE  : {m['MAE']:.6f}")
         print(f"    RMSE : {m['RMSE']:.6f}")
         print(f"    ME   : {m['ME']:.6f}")
-        if not np.isnan(m['MAPE']):
+        if not np.isnan(m["MAPE"]):
             print(f"    MAPE : {m['MAPE']:.2f}%")
         else:
-            print(f"    MAPE : N/A (zero values present)")
+            print("    MAPE : N/A (zero values present)")
         print(f"    R²   : {m['R²']:.6f}")
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -763,8 +848,8 @@ class ModelGeneration:
             df = csv_file_or_dataframe
             print("Using DataFrame")
 
-        X_full   = df[self.feature_variables].values
-        seq_len  = len(X_full)
+        X_full = df[self.feature_variables].values
+        seq_len = len(X_full)
         print(f"Sequence length: {seq_len}")
 
         if not self.use_rolling_windows:
@@ -772,42 +857,50 @@ class ModelGeneration:
             print("=" * 70 + "\n")
             return self.predict(csv_file_or_dataframe)
 
-        print(f"\nWindow parameters: size={self.window_size}, "
-              f"stride={self.window_stride}, horizon={self.forecast_horizon}")
+        print(
+            f"\nWindow parameters: size={self.window_size}, "
+            f"stride={self.window_stride}, horizon={self.forecast_horizon}"
+        )
 
         max_start = seq_len - self.window_size - self.forecast_horizon
         print(f"Max start index : {max_start}")
 
         X_windows, window_starts = [], []
         for start in range(0, max_start + 1, self.window_stride):
-            X_windows.append(X_full[start:start + self.window_size])
+            X_windows.append(X_full[start : start + self.window_size])
             window_starts.append(start)
 
         print(f"Windows created : {len(X_windows)}")
         if not X_windows:
-            raise ValueError(f"No windows created. Seq length: {seq_len}, "
-                             f"need >= {self.window_size + self.forecast_horizon}")
+            raise ValueError(
+                f"No windows created. Seq length: {seq_len}, "
+                f"need >= {self.window_size + self.forecast_horizon}"
+            )
 
         X_norm, _ = self._normalize_data(X_windows, fit=False)
-        X_pad     = self._pad_sequences(X_norm)
+        X_pad = self._pad_sequences(X_norm)
         pred_norm = self.model.predict(X_pad, verbose=0)
 
         print(f"\nModel I/O — Input: {X_pad.shape}, Output: {pred_norm.shape}")
 
         bs, out_ts, feats = pred_norm.shape
         pred_denorm = self._denormalize_data(
-            pred_norm.reshape(-1, feats), is_target=True).reshape(bs, out_ts, feats)
+            pred_norm.reshape(-1, feats), is_target=True
+        ).reshape(bs, out_ts, feats)
 
         full_pred = np.full((seq_len, len(self.target_variable)), np.nan, dtype=float)
-        counts    = np.zeros(seq_len, dtype=float)
+        counts = np.zeros(seq_len, dtype=float)
 
         if self.forecast_horizon == 0:
             for i, s in enumerate(window_starts):
                 for j in range(out_ts):
                     t = s + j
                     if t < seq_len:
-                        full_pred[t] = (pred_denorm[i, j] if np.isnan(full_pred[t, 0])
-                                        else full_pred[t] + pred_denorm[i, j])
+                        full_pred[t] = (
+                            pred_denorm[i, j]
+                            if np.isnan(full_pred[t, 0])
+                            else full_pred[t] + pred_denorm[i, j]
+                        )
                         counts[t] += 1
         else:
             for i, s in enumerate(window_starts):
@@ -815,8 +908,11 @@ class ModelGeneration:
                 for j in range(out_ts):
                     t = p_start + j
                     if t < seq_len:
-                        full_pred[t] = (pred_denorm[i, j] if np.isnan(full_pred[t, 0])
-                                        else full_pred[t] + pred_denorm[i, j])
+                        full_pred[t] = (
+                            pred_denorm[i, j]
+                            if np.isnan(full_pred[t, 0])
+                            else full_pred[t] + pred_denorm[i, j]
+                        )
                         counts[t] += 1
 
         for t in range(seq_len):
@@ -847,34 +943,45 @@ class ModelGeneration:
         if self.model is None:
             raise ValueError("Model not trained. Call train() first.")
 
-        df = pd.read_csv(csv_file_or_dataframe) if isinstance(
-            csv_file_or_dataframe, str) else csv_file_or_dataframe
+        df = (
+            pd.read_csv(csv_file_or_dataframe)
+            if isinstance(csv_file_or_dataframe, str)
+            else csv_file_or_dataframe
+        )
         X_full = df[self.feature_variables].values
 
         if self.use_rolling_windows:
             seq_len = len(X_full)
             if seq_len < self.window_size:
-                raise ValueError(f"Input length ({seq_len}) < window size ({self.window_size})")
-            X_windows = [X_full[s:s + self.window_size]
-                         for s in range(0, seq_len - self.window_size + 1, self.window_stride)]
+                raise ValueError(
+                    f"Input length ({seq_len}) < window size ({self.window_size})"
+                )
+            X_windows = [
+                X_full[s : s + self.window_size]
+                for s in range(0, seq_len - self.window_size + 1, self.window_stride)
+            ]
             X_norm, _ = self._normalize_data(X_windows, fit=False)
-            X_pad     = self._pad_sequences(X_norm)
-            pn        = self.model.predict(X_pad, verbose=0)
+            X_pad = self._pad_sequences(X_norm)
+            pn = self.model.predict(X_pad, verbose=0)
             bs, ts, f = pn.shape
-            preds = self._denormalize_data(pn.reshape(-1, f),
-                                           is_target=True).reshape(bs, ts, f)
+            preds = self._denormalize_data(pn.reshape(-1, f), is_target=True).reshape(
+                bs, ts, f
+            )
             return preds if return_all_windows else preds[-1]
         else:
             X_norm, _ = self._normalize_data([X_full], fit=False)
-            X_pad     = self._pad_sequences(X_norm)
-            pn        = self.model.predict(X_pad, verbose=0)
+            X_pad = self._pad_sequences(X_norm)
+            pn = self.model.predict(X_pad, verbose=0)
             bs, ts, f = pn.shape
-            preds = self._denormalize_data(pn.reshape(-1, f),
-                                           is_target=True).reshape(bs, ts, f)
+            preds = self._denormalize_data(pn.reshape(-1, f), is_target=True).reshape(
+                bs, ts, f
+            )
             actual = len(df)
             if self.forecast_horizon > 0:
                 out = np.full((actual, f), np.nan, dtype=float)
-                out[self.forecast_horizon:, :] = preds[0, :actual - self.forecast_horizon, :]
+                out[self.forecast_horizon :, :] = preds[
+                    0, : actual - self.forecast_horizon, :
+                ]
                 return out
             return preds[0, :actual, :]
 
@@ -895,37 +1002,37 @@ class ModelGeneration:
             raise ValueError("Model not trained. Call train() first.")
 
         if base_path is None:
-            base_path = str(Path(self.model_path).with_suffix(''))
+            base_path = str(Path(self.model_path).with_suffix(""))
 
         model_keras = f"{base_path}_model.keras"
         self.model.save(model_keras)
         print(f"Saved Keras model : {model_keras}")
 
         model_h5 = f"{base_path}_model.h5"
-        self.model.save(model_h5, save_format='h5')
+        self.model.save(model_h5, save_format="h5")
         print(f"Saved H5 model    : {model_h5}")
 
         config = {
-            'feature_variables':    self.feature_variables,
-            'target_variable':      self.target_variable,
-            'lstm_units':           self.lstm_units,
-            'dropout':              self.dropout,
-            'normalization_method': self.normalization_method,
-            'use_rolling_windows':  self.use_rolling_windows,
-            'window_size':          self.window_size,
-            'window_stride':        self.window_stride,
-            'forecast_horizon':     self.forecast_horizon,
-            'target_log_transform': self.target_log_transform,
-            'loss_fn':              self.loss_fn,
-            'max_timesteps':        self.max_timesteps,
-            'scaler_X':             self.scaler_X,
-            'scaler_y':             self.scaler_y,
-            'epochs':               self.epochs,
-            'batch_size':           self.batch_size,
-            'validation_split':     self.validation_split,
+            "feature_variables": self.feature_variables,
+            "target_variable": self.target_variable,
+            "lstm_units": self.lstm_units,
+            "dropout": self.dropout,
+            "normalization_method": self.normalization_method,
+            "use_rolling_windows": self.use_rolling_windows,
+            "window_size": self.window_size,
+            "window_stride": self.window_stride,
+            "forecast_horizon": self.forecast_horizon,
+            "target_log_transform": self.target_log_transform,
+            "loss_fn": self.loss_fn,
+            "max_timesteps": self.max_timesteps,
+            "scaler_X": self.scaler_X,
+            "scaler_y": self.scaler_y,
+            "epochs": self.epochs,
+            "batch_size": self.batch_size,
+            "validation_split": self.validation_split,
         }
         cfg_file = f"{base_path}_config.pkl"
-        with open(cfg_file, 'wb') as fh:
+        with open(cfg_file, "wb") as fh:
             pickle.dump(config, fh)
         print(f"Saved config      : {cfg_file}")
         print(f"\nTo reload: ModelGeneration.load('{base_path}')")
@@ -945,7 +1052,7 @@ class ModelGeneration:
         ModelGeneration ready for prediction.
         """
         cfg_file = f"{base_path}_config.pkl"
-        with open(cfg_file, 'rb') as fh:
+        with open(cfg_file, "rb") as fh:
             cfg = pickle.load(fh)
 
         print(f"Loading model from : {base_path}")
@@ -961,26 +1068,26 @@ class ModelGeneration:
             testing_path="",
             training_path="",
             text_file_name="",
-            feature_variables=cfg['feature_variables'],
-            target_variable=cfg['target_variable'],
-            epochs=cfg['epochs'],
-            lstm_units=cfg['lstm_units'],
-            dropout=cfg['dropout'],
-            normalization_method=cfg['normalization_method'],
-            batch_size=cfg['batch_size'],
-            validation_split=cfg['validation_split'],
-            use_rolling_windows=cfg['use_rolling_windows'],
-            window_size=cfg['window_size'],
-            window_stride=cfg['window_stride'],
-            forecast_horizon=cfg.get('forecast_horizon', 0),
-            target_log_transform=cfg.get('target_log_transform', False),
-            loss_fn=cfg.get('loss_fn', 'mse'),
+            feature_variables=cfg["feature_variables"],
+            target_variable=cfg["target_variable"],
+            epochs=cfg["epochs"],
+            lstm_units=cfg["lstm_units"],
+            dropout=cfg["dropout"],
+            normalization_method=cfg["normalization_method"],
+            batch_size=cfg["batch_size"],
+            validation_split=cfg["validation_split"],
+            use_rolling_windows=cfg["use_rolling_windows"],
+            window_size=cfg["window_size"],
+            window_stride=cfg["window_stride"],
+            forecast_horizon=cfg.get("forecast_horizon", 0),
+            target_log_transform=cfg.get("target_log_transform", False),
+            loss_fn=cfg.get("loss_fn", "mse"),
         )
 
-        instance.model     = keras.models.load_model(f"{base_path}_model.keras")
-        instance.scaler_X  = cfg['scaler_X']
-        instance.scaler_y  = cfg['scaler_y']
-        instance.max_timesteps = cfg['max_timesteps']
+        instance.model = keras.models.load_model(f"{base_path}_model.keras")
+        instance.scaler_X = cfg["scaler_X"]
+        instance.scaler_y = cfg["scaler_y"]
+        instance.max_timesteps = cfg["max_timesteps"]
 
         print("Model loaded successfully!")
         return instance
@@ -991,7 +1098,7 @@ class ModelGeneration:
 
     def _save_model_info(self):
         """Save model configuration and training history to text file."""
-        with open(self.text_file_name, 'w') as f:
+        with open(self.text_file_name, "w") as f:
             f.write("=" * 60 + "\n")
             f.write("LSTM MODEL CONFIGURATION\n")
             f.write("=" * 60 + "\n\n")
@@ -1011,22 +1118,25 @@ class ModelGeneration:
             f.write("Target Configuration:\n")
             f.write(f"  Log Transform     : {self.target_log_transform}\n")
             if self.target_log_transform:
-                f.write(f"  Transform         : log1p (forward) / expm1 (inverse)\n\n")
+                f.write("  Transform         : log1p (forward) / expm1 (inverse)\n\n")
             else:
                 f.write("\n")
 
             f.write("Data Mode:\n")
             if self.use_rolling_windows:
-                f.write(f"  Mode              : Rolling Windows\n")
+                f.write("  Mode              : Rolling Windows\n")
                 f.write(f"  Window Size       : {self.window_size}\n")
                 f.write(f"  Window Stride     : {self.window_stride}\n")
                 f.write(f"  Forecast Horizon  : {self.forecast_horizon}\n")
-                pred_type = ("Aligned (nowcasting)" if self.forecast_horizon == 0
-                             else f"Forecasting ({self.forecast_horizon} steps ahead)")
+                pred_type = (
+                    "Aligned (nowcasting)"
+                    if self.forecast_horizon == 0
+                    else f"Forecasting ({self.forecast_horizon} steps ahead)"
+                )
                 f.write(f"  Prediction Type   : {pred_type}\n")
                 f.write(f"  Sequence Length   : {self.max_timesteps} (fixed)\n")
             else:
-                f.write(f"  Mode              : Variable-length sequences\n")
+                f.write("  Mode              : Variable-length sequences\n")
                 f.write(f"  Max Seq Length    : {self.max_timesteps}\n")
                 if self.forecast_horizon > 0:
                     f.write(f"  Forecast Horizon  : {self.forecast_horizon}\n")
@@ -1046,16 +1156,24 @@ class ModelGeneration:
 
             if self.history:
                 f.write("Training History (Final Epoch):\n")
-                f.write(f"  Loss              : {self.history.history['loss'][-1]:.6f}\n")
-                if 'val_loss' in self.history.history:
-                    f.write(f"  Val Loss          : {self.history.history['val_loss'][-1]:.6f}\n")
-                f.write(f"  MAE               : {self.history.history['mae'][-1]:.6f}\n")
-                if 'val_mae' in self.history.history:
-                    f.write(f"  Val MAE           : {self.history.history['val_mae'][-1]:.6f}\n")
+                f.write(
+                    f"  Loss              : {self.history.history['loss'][-1]:.6f}\n"
+                )
+                if "val_loss" in self.history.history:
+                    f.write(
+                        f"  Val Loss          : {self.history.history['val_loss'][-1]:.6f}\n"
+                    )
+                f.write(
+                    f"  MAE               : {self.history.history['mae'][-1]:.6f}\n"
+                )
+                if "val_mae" in self.history.history:
+                    f.write(
+                        f"  Val MAE           : {self.history.history['val_mae'][-1]:.6f}\n"
+                    )
 
             f.write("\n" + "=" * 60 + "\n")
             f.write("MODEL SUMMARY\n")
             f.write("=" * 60 + "\n")
-            self.model.summary(print_fn=lambda x: f.write(x + '\n'))
+            self.model.summary(print_fn=lambda x: f.write(x + "\n"))
 
         print(f"\nModel information saved to: {self.text_file_name}")

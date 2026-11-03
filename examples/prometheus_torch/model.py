@@ -47,6 +47,7 @@ class TorchTemporalModel(nn.Module):
         x, _ = self.lstm3(x)
         return self.head(x)
 
+
 class TorchTemporalForecastModel(nn.Module):
     """Encoder-decoder reproduction of the 2024 TemporalPredict Keras model.
 
@@ -97,9 +98,7 @@ class TorchTemporalForecastModel(nn.Module):
         # Equivalent to Keras's final encoder LSTM with
         # return_sequences=False, followed by RepeatVector(horizon).
         _, (hidden, _) = self.encoder(self.input_drop3(x))
-        decoder_input = hidden[-1].unsqueeze(1).expand(
-            -1, self.forecast_horizon, -1
-        )
+        decoder_input = hidden[-1].unsqueeze(1).expand(-1, self.forecast_horizon, -1)
 
         decoded, _ = self.decoder(self.input_drop_decoder(decoder_input))
         return self.head(decoded)
@@ -136,11 +135,12 @@ class PrometheusHarness(BaseModelHarness):
     def __init__(self, cfg: Config):
         n_features = len(self.FEATURE_COLS)
         n_targets = len(self.TARGET_COLS)
-        #model = TorchTemporalModel(n_features=n_features, n_targets=n_targets)
-        model = TorchTemporalForecastModel(n_features=n_features, 
-                                            n_targets=n_targets, 
-                                            forecast_horizon=self.FORECAST_HORIZON,
-                                            )
+        # model = TorchTemporalModel(n_features=n_features, n_targets=n_targets)
+        model = TorchTemporalForecastModel(
+            n_features=n_features,
+            n_targets=n_targets,
+            forecast_horizon=self.FORECAST_HORIZON,
+        )
         super().__init__(cfg=cfg, model=model)
 
         self.eval_metrics: Dict[str, Any] = {"mse": self.get_criterion()}
@@ -267,6 +267,10 @@ class PrometheusHarness(BaseModelHarness):
     def get_cur_data_loaders(
         self,
     ) -> Tuple[DataLoader, DataLoader]:
+        if self._cur_train_loader is None or self._cur_val_loader is None:
+            raise RuntimeError(
+                "Call update_data_stream() before requesting current data loaders."
+            )
         return self._cur_train_loader, self._cur_val_loader
 
     def get_hist_data_loaders(

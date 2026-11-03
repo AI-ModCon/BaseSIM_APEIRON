@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 import torch
 
@@ -61,3 +63,34 @@ class TestHarnessAbstract:
     def test_cannot_instantiate_base(self):
         with pytest.raises(TypeError):
             BaseModelHarness(cfg=None, model=None)  # type: ignore[arg-type]
+
+
+class TestPrometheusLoaders:
+    @pytest.fixture()
+    def prometheus_harness(self, monkeypatch):
+        monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1]))
+        from examples.prometheus_torch.model import PrometheusHarness
+
+        return object.__new__(PrometheusHarness)
+
+    @pytest.mark.parametrize(
+        ("has_train", "has_val"), [(False, False), (True, False), (False, True)]
+    )
+    def test_requires_initialized_loaders(
+        self, dummy_harness, prometheus_harness, has_train, has_val
+    ):
+        train, val = dummy_harness.get_cur_data_loaders()
+        harness = prometheus_harness
+        harness._cur_train_loader = train if has_train else None
+        harness._cur_val_loader = val if has_val else None
+
+        with pytest.raises(RuntimeError, match=r"Call update_data_stream\(\)"):
+            harness.get_cur_data_loaders()
+
+    def test_returns_initialized_loaders(self, dummy_harness, prometheus_harness):
+        train, val = dummy_harness.get_cur_data_loaders()
+        harness = prometheus_harness
+        harness._cur_train_loader = train
+        harness._cur_val_loader = val
+
+        assert harness.get_cur_data_loaders() == (train, val)

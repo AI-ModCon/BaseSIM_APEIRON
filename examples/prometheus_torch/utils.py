@@ -59,7 +59,7 @@ def make_sequence_windows(
     y_parts: List[np.ndarray] = []
 
     for df in dfs:
-        if len(df) < seq_len +forecast_horizon:
+        if len(df) < seq_len + forecast_horizon:
             continue
         data = normalize(df[all_cols], stats)
         feat = data[feature_cols].to_numpy(dtype=np.float32)
@@ -72,10 +72,7 @@ def make_sequence_windows(
             y_parts.append(
                 np.stack(
                     [
-                        targ[
-                            i + seq_len:
-                            i + seq_len + forecast_horizon
-                        ]
+                        targ[i + seq_len : i + seq_len + forecast_horizon]
                         for i in range(n)
                     ]
                 )
