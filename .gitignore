@@ -1,5 +1,7 @@
 # Data and configs
 *.toml
+!examples/slac_fel/slac-fel-tutorial.toml
+!examples/slac_fel/test_tomls/dec2025.toml
 
 # Logging files
 *.db
@@ -19,6 +21,7 @@ data/*
 
 # Files
 *.png
+!examples/slac_fel/figures/focused_drift_adaptation.png
 !docs/images/*.png
 *.txt
 !docs/requirements.txt

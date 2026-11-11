@@ -43,7 +43,9 @@ dependencies = [
     "transformers (>=5.0.0)",
     "river (>=0.21.0,<0.24.0)",
     "evidently (>=0.4.0,<0.8.0)",
-    "matplotlib (>=3.10.7,<4.0.0)"
+    "matplotlib (>=3.10.7,<4.0.0)",
+    "botorch>=0.18.1",
+    "pyyaml>=6.0.3",
 ]
 
 [dependency-groups]
@@ -51,7 +53,8 @@ dev = [
     "mypy (>=1.18.2,<2.0.0)",
     "ruff (>=0.14.4,<0.15.0)",
     "pytest (>=9.0.1,<10.0.0)",
-    "pytest-cov (>=7.0.0,<8.0.0)"
+    "pytest-cov (>=7.0.0,<8.0.0)",
+    "types-pyyaml>=6.0.12.20261103",
 ]
 
 
