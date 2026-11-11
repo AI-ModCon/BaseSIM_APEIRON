@@ -73,6 +73,7 @@ From the project root:
 uv run python -m src.main --config examples/mnist/mnist.toml
 uv run python -m src.main --config examples/cifar/cifar10_vit.toml
 uv run python -m src.main --config examples/imagenet/imagenet_vit.toml  # requires ImageNet data at data.path
+uv run python -m src.main --config examples/slac_fel/slac-fel-tutorial.toml --set data.path=/path/to/fel-tutorial-data
 ```
 
 ## Metrics Logging
@@ -83,7 +84,7 @@ uv run python -m src.main --config examples/mnist/mnist.toml --set logging.backe
 # To view results for MLflow, run `mlflow ui` in another terminal and navigate to http://localhost:5000
 ```
 
-Currently the mnist example sets the logging to wandb in the toml `config` file. The other examples do not set any metric for the logging backend, which defaults to wandb.
+Logging is configured in the TOML `[logging]` section. The default backend is `"none"`; examples may opt into WandB or MLflow and may write long-format metrics to a local CSV file.
 
 ## Configuration Overview
 
@@ -94,7 +95,7 @@ Primary sections in config TOML:
 - `[train]`
 - `[drift_detection]`
 - `[continual_learning]` (optional but recommended)
-- `[visualization]` (optional)
+- `[logging]` (optional; experiment tracking and CSV output)
 
 Top-level fields commonly used:
 
@@ -200,7 +201,7 @@ See [`docs/architecture.md`](docs/architecture.md) for the full pipeline, includ
 - Update batch size and worker count with `[train] batch_size` and `[train] num_workers`.
 
 ## Output
-The console logger reports per-stage metrics (`eval`, `drift`, `cl`). When `[visualization] input` is set, the run also writes a metrics CSV at that path for external plotting.
+The console logger reports per-stage metrics (`eval`, `drift`, `cl`). Set `[logging] metrics_output_path` to write the same long-format metrics to a CSV file for external analysis and plotting.
 
 ## Deployment
 

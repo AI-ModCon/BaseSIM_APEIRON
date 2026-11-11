@@ -1,7 +1,11 @@
 import sys
 
 from apeiron.logger import get_logger, configure_backend
-from apeiron.config.configuration import build_config, Config
+from apeiron.config.configuration import (
+    Config,
+    build_config,
+    seed_everything,
+)
 
 from examples.utils import get_example
 
@@ -10,6 +14,9 @@ from apeiron.driver.continuous_monitor import ContinuousMonitor
 
 def main(argv: list[str] | None = None) -> int:
     cfg: Config = build_config(argv)
+
+    # Seed before model construction, data shuffling, or replay.
+    seed_everything(cfg.seed)
 
     # Must precede get_example(): get_logger() ignores its arguments once an
     # instance exists, so a harness that logs from __init__ would pin the config.

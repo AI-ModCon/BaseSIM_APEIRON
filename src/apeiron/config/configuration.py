@@ -30,6 +30,34 @@ if TYPE_CHECKING:
     from apeiron.logger.logger import MetricsBackend
 
 
+def seed_everything(seed: int) -> None:
+    """Seed Python, NumPy, and Torch for repeatable runs.
+
+    Deterministic Torch algorithms are requested in warning mode so
+    operations without deterministic implementations warn rather
+    than terminate the experiment.
+    """
+    import random
+
+    import numpy as np
+
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    try:
+        torch.use_deterministic_algorithms(
+            True,
+            warn_only=True,
+        )
+    except Exception:
+        pass
+
+
 def get_available_device(multi_gpu: bool = False) -> torch.device:
     """
     Return a ``torch.device`` with sensible fallbacks.

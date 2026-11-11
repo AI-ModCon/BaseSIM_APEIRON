@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import os
+import random
 import textwrap
 from pathlib import Path
 from unittest.mock import patch
 
+import numpy as np
 import pytest
 import torch
 
@@ -23,6 +25,7 @@ from apeiron.config.configuration import (
     kv_to_nested,
     load_toml,
     parse_args,
+    seed_everything,
     _select_best_gpu,
 )
 
@@ -274,6 +277,59 @@ class TestFrozenDataclasses:
         dd = DriftDetectionCfg()
         assert dd.detector_name == "ADWINDetector"
         assert dd.detection_interval == 10
+
+
+# ---------------------------------------------------------------------------
+# seed_everything
+# ---------------------------------------------------------------------------
+class TestSeedEverything:
+    def test_repeats_python_numpy_and_torch_sequences(self):
+        python_state = random.getstate()
+        numpy_state = np.random.get_state()
+        torch_state = torch.random.get_rng_state()
+        deterministic_state = torch.are_deterministic_algorithms_enabled()
+        cudnn_deterministic = torch.backends.cudnn.deterministic
+        cudnn_benchmark = torch.backends.cudnn.benchmark
+        previous_hash_seed = os.environ.get("PYTHONHASHSEED")
+
+        try:
+            with patch("torch.cuda.manual_seed_all") as manual_seed_all:
+                seed_everything(123)
+                first = (
+                    random.random(),
+                    np.random.random(),
+                    torch.rand(4),
+                )
+
+                seed_everything(123)
+                second = (
+                    random.random(),
+                    np.random.random(),
+                    torch.rand(4),
+                )
+
+                assert manual_seed_all.call_count >= 2
+                manual_seed_all.assert_called_with(123)
+
+            assert first[0] == second[0]
+            assert first[1] == second[1]
+            assert torch.equal(first[2], second[2])
+            assert os.environ["PYTHONHASHSEED"] == "123"
+            assert torch.are_deterministic_algorithms_enabled()
+            assert torch.backends.cudnn.deterministic
+            assert not torch.backends.cudnn.benchmark
+        finally:
+            random.setstate(python_state)
+            np.random.set_state(numpy_state)
+            torch.random.set_rng_state(torch_state)
+            torch.use_deterministic_algorithms(deterministic_state)
+            torch.backends.cudnn.deterministic = cudnn_deterministic
+            torch.backends.cudnn.benchmark = cudnn_benchmark
+
+            if previous_hash_seed is None:
+                os.environ.pop("PYTHONHASHSEED", None)
+            else:
+                os.environ["PYTHONHASHSEED"] = previous_hash_seed
 
 
 # ---------------------------------------------------------------------------
