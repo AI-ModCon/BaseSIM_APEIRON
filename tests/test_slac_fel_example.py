@@ -1,18 +1,18 @@
 """Tests for the SLAC-FEL scientific example."""
 
+import sys
 from pathlib import Path
 
 import pandas as pd
 import torch
 
 from apeiron.config.configuration import build_config
-from examples.slac_fel.plot_tutorial import plot_focused_replay
-from examples.slac_fel.utils import (
-    discover_window_files,
-    load_feature_config,
-    load_scalers,
-    split_into_windows,
-)
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.append(str(PROJECT_ROOT))
+
 
 MODEL_DIR = Path("examples/slac_fel/model")
 TUTORIAL_CONFIG = Path("examples/slac_fel/slac-fel-tutorial.toml")
@@ -39,6 +39,11 @@ def test_tutorial_configuration():
 
 
 def test_feature_configuration_and_scalers():
+    from examples.slac_fel.utils import (
+        load_feature_config,
+        load_scalers,
+    )
+
     input_columns, output_columns = load_feature_config(str(MODEL_DIR))
 
     input_scaler, output_scaler = load_scalers(
@@ -69,6 +74,8 @@ def test_pretrained_model_dimensions():
 def test_window_files_are_sorted_by_numeric_suffix(
     tmp_path: Path,
 ):
+    from examples.slac_fel.utils import discover_window_files
+
     for name in [
         "data_10.pkl",
         "data_2.pkl",
@@ -87,6 +94,8 @@ def test_window_files_are_sorted_by_numeric_suffix(
 
 
 def test_small_trailing_window_is_merged():
+    from examples.slac_fel.utils import split_into_windows
+
     inputs = torch.arange(18).reshape(9, 2)
     targets = torch.arange(9).reshape(9, 1)
 
@@ -110,6 +119,10 @@ def test_small_trailing_window_is_merged():
 
 
 def test_focused_replay_plot(tmp_path: Path):
+    from examples.slac_fel.plot_tutorial import (
+        plot_focused_replay,
+    )
+
     timestamps = pd.date_range(
         "2025-12-04T00:00:00-08:00",
         periods=12,
