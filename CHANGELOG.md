@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Reproducible SLAC-FEL scientific example with a focused December 2025 drift-adaptation tutorial, pretrained model and scalers, paper-style replay figure, full-month configuration, documentation, and tests
 - Community health files: `CONTRIBUTING.md` (including guidelines for AI/LLM-assisted
   contributions), `CODE_OF_CONDUCT.md`, `SECURITY.md`, and this changelog
 - GitHub issue templates for bug reports and feature requests
@@ -44,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ruff format` — and it carried three advisories.
 
 ### Fixed
+- The configured experiment seed is now applied at startup to Python, NumPy, Torch, and CUDA, enabling deterministic scientific metrics and adapted checkpoints for repeat runs
 - `WandBLogger.url` called `Run.get_url()`, which wandb removed in the upgrade to 0.30; it
   raised `AttributeError`. It now reads the `Run.url` property, which exists across the whole
   supported range (`wandb>=0.22.0`).
